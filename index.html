@@ -4,6 +4,17 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dungeon Escape</title>
+    <style>
+      html,
+      body,
+      #game-container {
+        width: 100%;
+        height: 100%;
+        margin: 0;
+        padding: 0;
+        overflow: hidden;
+      }
+    </style>
     <script src="./lib/phaser.js"></script>
     <script src="./src/scenes/Menu.js"></script>
     <script src="./src/scenes/Play.js"></script>
@@ -13,5 +24,7 @@
     <script src="./src/main.js"></script>
   </head>
 
-  <body></body>
+  <body>
+    <div id="game-container"></div>
+  </body>
 </html>
