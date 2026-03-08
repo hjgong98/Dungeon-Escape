@@ -19,6 +19,10 @@ class Credits extends Phaser.Scene {
       fontStyle: 'bold',
     }).setOrigin(0.5);
 
+    // add credits - character.png and download.gif from mini-moss.tumblr.com/
+    // game background png from https://craftpix.net/freebies/free-horizontal-2d-game-backgrounds/
+    // lootbox.py from https://github.com/TristanChenUCSC/Lootbox-Generator
+
     // Back button to menu
     let backButton = this.add.text(100, 550, '← BACK TO MENU', {
       fontSize: '24px',
