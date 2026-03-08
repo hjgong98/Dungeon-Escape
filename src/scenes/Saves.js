@@ -1,13 +1,11 @@
 class Saves extends Phaser.Scene {
-    constructor() {
-        super("Saves")
-    }
+  constructor() {
+    super('Saves');
+  }
 
-    preload() {
-        
-    }
+  preload() {
+  }
 
-    create() {
-
-    }
+  create() {
+  }
 }

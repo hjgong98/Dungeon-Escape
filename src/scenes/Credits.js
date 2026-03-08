@@ -1,13 +1,11 @@
 class Credit extends Phaser.Scene {
-    constructor() {
-        super("Credit")
-    }
+  constructor() {
+    super('Credit');
+  }
 
-    preload() {
-        
-    }
+  preload() {
+  }
 
-    create() {
-
-    }
+  create() {
+  }
 }

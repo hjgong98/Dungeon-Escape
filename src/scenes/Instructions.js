@@ -1,13 +1,11 @@
 class Instructions extends Phaser.Scene {
-    constructor() {
-        super("Instructions")
-    }
+  constructor() {
+    super('Instructions');
+  }
 
-    preload() {
-        
-    }
+  preload() {
+  }
 
-    create() {
-
-    }
+  create() {
+  }
 }
