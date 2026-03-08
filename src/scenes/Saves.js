@@ -1,6 +1,16 @@
 class Saves extends Phaser.Scene {
   constructor() {
-    super('Saves');
+    super('Saves')
+    this.saves = []
+    this.mode = 'load'
+    this.returnScene = 'Menu'
+  }
+
+  init(data) {
+    this.mode = data.mode || 'load'
+    this.playerName = data.playerName || 'Adventurer'
+    this.playerStats = data.playerStats || null;
+    this.returnScene = data.returnScene || 'Menu'
   }
 
   preload() {
@@ -19,16 +29,21 @@ class Saves extends Phaser.Scene {
       fontStyle: 'bold',
     }).setOrigin(0.5)
 
-    // Back button to menu
-    let backButton = this.add.text(100, 550, '← BACK TO MENU', {
+    // back button
+    let backButton = this.add.text(400, 500, '← BACK', {
       fontSize: '24px',
       fill: '#fff',
       backgroundColor: '#333',
-      padding: { x: 15, y: 8 },
+      padding: { x: 15, y: 8 }
     }).setInteractive()
 
     backButton.on('pointerdown', () => {
-      this.scene.start('Menu')
+      if (this.returnScene == 'Play') {
+        this.scene.resume('Play')
+        this.scene.stop()
+      } else {
+        this.scene.start('Menu')
+      }
     })
   }
 }

@@ -52,7 +52,10 @@ class Menu extends Phaser.Scene {
     }).setOrigin(0.5).setInteractive()
 
     loadSavesButton.on('pointerdown', () => {
-      this.scene.start('Saves')
+      this.scene.start('Saves', {
+        mode: 'load',
+        returnScene: 'Menu'
+      })
     })
 
     // credits button
