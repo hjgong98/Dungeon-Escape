@@ -53,7 +53,7 @@ class Play extends Phaser.Scene {
     }).setOrigin(0.5);
 
     // back to menu
-    let backButton = this.add.text(100, 550, '← BACK TO MENU', {
+    const backButton = this.add.text(100, 550, '← BACK TO MENU', {
       fontSize: '20px',
       fill: '#fff',
       backgroundColor: '#333',
@@ -65,7 +65,7 @@ class Play extends Phaser.Scene {
     });
 
     // save button
-    let saveButton = this.add.text(300, 550, '💾 SAVE', {
+    const saveButton = this.add.text(300, 550, '💾 SAVE', {
       fontSize: '20px',
       fill: '#0f0',
       backgroundColor: '#333',
@@ -113,7 +113,7 @@ class Play extends Phaser.Scene {
     }).setOrigin(0.5);
 
     // inventory button
-    let inventoryBtn = this.add.text(600, 200, 'INVENTORY', {
+    const inventoryBtn = this.add.text(600, 200, 'INVENTORY', {
       fontSize: '28px',
       fill: '#ff0',
       backgroundColor: '#444',
@@ -127,7 +127,7 @@ class Play extends Phaser.Scene {
     });
 
     // upgrades button
-    let upgradesBtn = this.add.text(600, 300, 'UPGRADES', {
+    const upgradesBtn = this.add.text(600, 300, 'UPGRADES', {
       fontSize: '28px',
       fill: '#0ff',
       backgroundColor: '#444',
@@ -141,7 +141,7 @@ class Play extends Phaser.Scene {
     });
 
     // dungeon button
-    let dungeonBtn = this.add.text(600, 400, 'DUNGEON', {
+    const dungeonBtn = this.add.text(600, 400, 'DUNGEON', {
       fontSize: '28px',
       fill: '#f0f',
       backgroundColor: '#444',
@@ -261,3 +261,5 @@ class Play extends Phaser.Scene {
     this.scene.pause();
   }
 }
+
+globalThis.Play = Play;

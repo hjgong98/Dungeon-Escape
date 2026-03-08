@@ -24,7 +24,7 @@ class Credits extends Phaser.Scene {
     // lootbox.py from https://github.com/TristanChenUCSC/Lootbox-Generator
 
     // Back button to menu
-    let backButton = this.add.text(100, 550, '← BACK TO MENU', {
+    const backButton = this.add.text(100, 550, '← BACK TO MENU', {
       fontSize: '24px',
       fill: '#fff',
       backgroundColor: '#333',
@@ -36,3 +36,5 @@ class Credits extends Phaser.Scene {
     });
   }
 }
+
+globalThis.Credits = Credits;

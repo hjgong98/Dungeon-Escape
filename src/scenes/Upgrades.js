@@ -19,7 +19,7 @@ class Upgrades extends Phaser.Scene {
     }).setOrigin(0.5);
 
     // Back button
-    let backButton = this.add.text(400, 500, 'BACK TO PLAY', {
+    const backButton = this.add.text(400, 500, 'BACK TO PLAY', {
       fontSize: '24px',
       fill: '#fff',
       backgroundColor: '#333',
@@ -31,3 +31,5 @@ class Upgrades extends Phaser.Scene {
     });
   }
 }
+
+globalThis.Upgrades = Upgrades;

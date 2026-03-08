@@ -20,7 +20,7 @@ class Instructions extends Phaser.Scene {
     }).setOrigin(0.5);
 
     // Back button to menu
-    let backButton = this.add.text(100, 550, '← BACK TO MENU', {
+    const backButton = this.add.text(100, 550, '← BACK TO MENU', {
       fontSize: '24px',
       fill: '#fff',
       backgroundColor: '#333',
@@ -32,3 +32,5 @@ class Instructions extends Phaser.Scene {
     });
   }
 }
+
+globalThis.Instructions = Instructions;

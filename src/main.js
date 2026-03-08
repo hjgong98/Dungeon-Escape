@@ -1,4 +1,4 @@
-let config = {
+const config = {
   type: Phaser.AUTO,
   parent: 'game-container',
   width: 800,
@@ -28,14 +28,11 @@ let config = {
   ],
 };
 
-let game = new Phaser.Game(config);
-
-// ui sizing constants
-let borderUISize = game.config.height / 15;
-let borderPadding = borderUISize / 3;
+const game = new Phaser.Game(config);
+globalThis.game = game;
 
 // Game state
-let gameState = {
+const gameState = {
   player: {
     level: 1,
     hp: 100,
@@ -50,3 +47,5 @@ let gameState = {
     music: true,
   },
 };
+
+globalThis.gameState = gameState;

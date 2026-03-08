@@ -30,7 +30,7 @@ class Saves extends Phaser.Scene {
     }).setOrigin(0.5);
 
     // back button
-    let backButton = this.add.text(400, 500, '← BACK', {
+    const backButton = this.add.text(400, 500, '← BACK', {
       fontSize: '24px',
       fill: '#fff',
       backgroundColor: '#333',
@@ -38,7 +38,7 @@ class Saves extends Phaser.Scene {
     }).setInteractive();
 
     backButton.on('pointerdown', () => {
-      if (this.returnScene == 'Play') {
+      if (this.returnScene === 'Play') {
         this.scene.resume('Play');
         this.scene.stop();
       } else {
@@ -47,3 +47,5 @@ class Saves extends Phaser.Scene {
     });
   }
 }
+
+globalThis.Saves = Saves;
