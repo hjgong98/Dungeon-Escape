@@ -1,0 +1,21 @@
+# Dependencies and package manager artifacts
+node_modules/
+
+# Vite cache/build artifacts
+.vite/
+dist/
+
+# Deno cache and local tooling metadata
+.deno/
+
+# Logs
+*.log
+
+# Environment files
+.env
+.env.*
+
+# OS/editor noise
+.DS_Store
+Thumbs.db
+.vscode/
