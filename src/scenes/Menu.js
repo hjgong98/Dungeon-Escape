@@ -4,13 +4,13 @@ class Menu extends Phaser.Scene {
   }
 
   preload() {
-    this.load.image('background', './assets/game_background_3.1.png')
+    this.load.image('background', './assets/game_background_3.1.png');
   }
 
   create() {
     // menu background
-    this.background = this.add.image(0, 0, 'background').setOrigin(0, 0)
-    this.background.setDisplaySize(800, 600)
+    this.background = this.add.image(0, 0, 'background').setOrigin(0, 0);
+    this.background.setDisplaySize(800, 600);
 
     // title
     this.add.text(400, 80, 'DUNGEON ESCAPE', {
@@ -25,11 +25,11 @@ class Menu extends Phaser.Scene {
       fill: '#0f0',
       backgroundColor: '#333',
       padding: { x: 30, y: 15 },
-    }).setOrigin(0.5).setInteractive()
+    }).setOrigin(0.5).setInteractive();
 
     playButton.on('pointerdown', () => {
-      this.scene.start('Play')
-    })
+      this.scene.start('Play');
+    });
 
     // instructions button
     let instructionsButton = this.add.text(400, 300, 'INSTRUCTIONS', {
@@ -37,11 +37,11 @@ class Menu extends Phaser.Scene {
       fill: '#ff0',
       backgroundColor: '#333',
       padding: { x: 30, y: 15 },
-    }).setOrigin(0.5).setInteractive()
+    }).setOrigin(0.5).setInteractive();
 
     instructionsButton.on('pointerdown', () => {
-      this.scene.start('Instructions')
-    })
+      this.scene.start('Instructions');
+    });
 
     // load saves button
     let loadSavesButton = this.add.text(250, 400, 'LOAD SAVES', {
@@ -49,14 +49,14 @@ class Menu extends Phaser.Scene {
       fill: '#00f',
       backgroundColor: '#333',
       padding: { x: 30, y: 15 },
-    }).setOrigin(0.5).setInteractive()
+    }).setOrigin(0.5).setInteractive();
 
     loadSavesButton.on('pointerdown', () => {
       this.scene.start('Saves', {
         mode: 'load',
-        returnScene: 'Menu'
-      })
-    })
+        returnScene: 'Menu',
+      });
+    });
 
     // credits button
     let creditsButton = this.add.text(550, 400, 'CREDITS', {
@@ -64,10 +64,10 @@ class Menu extends Phaser.Scene {
       fill: '#f0f',
       backgroundColor: '#333',
       padding: { x: 30, y: 15 },
-    }).setOrigin(0.5).setInteractive()
+    }).setOrigin(0.5).setInteractive();
 
     creditsButton.on('pointerdown', () => {
-      this.scene.start('Credits')
-    })
+      this.scene.start('Credits');
+    });
   }
 }
