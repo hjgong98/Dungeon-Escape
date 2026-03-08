@@ -18,7 +18,7 @@
   },
   "tasks": {
     "dev": "deno run -A --node-modules-dir npm:vite",
-    "build": "deno run -A --node-modules-dir npm:vite build",
+    "build": "deno run -A --node-modules-dir npm:vite build && cp -r lib src assets dist/",
     "preview": "deno run -A --node-modules-dir npm:vite preview",
     "serve": "deno run --allow-net --allow-read jsr:@std/http@1/file-server dist/",
     "check": "deno check **/*.ts **/*.js",
