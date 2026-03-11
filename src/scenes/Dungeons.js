@@ -1,4 +1,4 @@
-// dungeon.js - Handles the dungeon scene
+// dungeon.js
 // TODO: Add item/monster spawning later
 
 class Dungeons extends Phaser.Scene {

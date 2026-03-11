@@ -2,7 +2,6 @@ class Play extends Phaser.Scene {
   constructor() {
     super('Play');
 
-    // player data
     this.playerName = 'Adventurer';
     this.editingName = false;
     this.nameInput = '';
@@ -10,11 +9,10 @@ class Play extends Phaser.Scene {
 
   preload() {
     this.load.image('playBackground', './assets/character.png');
-    // save icon?
   }
 
   create() {
-    // background
+    // Background
     this.background = this.add.image(0, 0, 'playBackground').setOrigin(0, 0);
     this.background.setDisplaySize(800, 600);
 
@@ -30,8 +28,10 @@ class Play extends Phaser.Scene {
   }
 
   createLeftHalf() {
+    const player = globalThis.gameState.player;
+    
     // player name - click to edit
-    this.playerNameText = this.add.text(200, 80, this.playerName, {
+    this.playerNameText = this.add.text(200, 80, player.name || 'Adventurer', {
       fontSize: '28px',
       fill: '#fff',
       backgroundColor: '#333',
@@ -40,12 +40,11 @@ class Play extends Phaser.Scene {
       align: 'center',
     }).setOrigin(0.5).setInteractive();
 
-    // name editing function
     this.playerNameText.on('pointerdown', () => {
       this.startNameEditing();
     });
 
-    // player
+    // player avatar placeholder
     this.add.rectangle(200, 220, 100, 100, 0x444444, 0.3);
     this.add.text(200, 220, 'PLAYER', {
       fontSize: '16px',
@@ -73,34 +72,49 @@ class Play extends Phaser.Scene {
     }).setInteractive();
 
     saveButton.on('pointerdown', () => {
-      this.openSaveMenu();
+      this.scene.launch('Saves', {
+        mode: 'save',
+        playerName: player.name,
+        playerStats: player,
+        returnScene: 'Play',
+      });
+      this.scene.pause();
     });
 
-    // Player stats display (for context)
+    // Player stats display
     this.add.text(100, 320, 'STATS:', {
       fontSize: '18px',
       fill: '#fff',
       fontStyle: 'bold',
-    }).setOrigin(0.5);
+    });
 
-    this.add.text(100, 350, `Level: ${gameState.player.level}`, {
+    this.add.text(100, 350, `Level: ${player.level}`, {
       fontSize: '16px',
       fill: '#fff',
-    }).setOrigin(0.5);
+    });
 
-    this.add.text(
-      100,
-      375,
-      `HP: ${gameState.player.hp}/${gameState.player.maxHP}`,
-      {
-        fontSize: '16px',
-        fill: '#f00',
-      },
-    ).setOrigin(0.5);
+    this.add.text(100, 375, `HP: ${player.hp}/${player.maxHP}`, {
+      fontSize: '16px',
+      fill: '#f00',
+    });
 
-    this.add.text(100, 400, `ATK: ${gameState.player.atk}`, {
+    this.add.text(100, 400, `ATK: ${player.atk}`, {
       fontSize: '16px',
       fill: '#ff0',
+    });
+
+    this.add.text(100, 425, `DEF: ${player.def}`, {
+      fontSize: '16px',
+      fill: '#0ff',
+    });
+
+    // EXP bar
+    const expPercent = player.exp / player.expToNext;
+    this.add.rectangle(200, 480, 200, 15, 0x444444);
+    this.add.rectangle(100, 480, expPercent * 200, 15, 0x00ff00);
+    this.add.text(200, 505, `${player.exp}/${player.expToNext} EXP`, {
+      fontSize: '12px',
+      fill: '#aaa',
     }).setOrigin(0.5);
   }
 
@@ -156,26 +170,22 @@ class Play extends Phaser.Scene {
   }
 
   startNameEditing() {
+    const player = globalThis.gameState.player;
     this.editingName = true;
-    this.nameInput = this.playerName;
+    this.nameInput = player.name;
 
-    // input prompt
     const promptBg = this.add.rectangle(400, 300, 400, 200, 0x000000, 0.9);
     const promptText = this.add.text(400, 250, 'Enter new name:', {
       fontSize: '24px',
       fill: '#fff',
     }).setOrigin(0.5);
 
-    // field background
     const inputBg = this.add.rectangle(400, 320, 300, 40, 0x333333);
-
-    // input text
-    this.nameInputText = this.add.text(400, 320, this.playerName, {
+    this.nameInputText = this.add.text(400, 320, player.name, {
       fontSize: '20px',
       fill: '#0f0',
     }).setOrigin(0.5);
 
-    // save button
     const saveNameBtn = this.add.text(350, 380, 'SAVE', {
       fontSize: '20px',
       fill: '#0f0',
@@ -183,7 +193,6 @@ class Play extends Phaser.Scene {
       padding: { x: 15, y: 5 },
     }).setInteractive();
 
-    // cancel button
     const cancelBtn = this.add.text(450, 380, 'CANCEL', {
       fontSize: '20px',
       fill: '#f00',
@@ -191,7 +200,6 @@ class Play extends Phaser.Scene {
       padding: { x: 15, y: 5 },
     }).setInteractive();
 
-    // store elements
     this.nameEditElements = [
       promptBg,
       promptText,
@@ -201,7 +209,6 @@ class Play extends Phaser.Scene {
       cancelBtn,
     ];
 
-    // keyboard input
     this.input.keyboard.on('keydown', this.handleNameInput, this);
 
     saveNameBtn.on('pointerdown', () => {
@@ -233,8 +240,8 @@ class Play extends Phaser.Scene {
 
   saveNewName() {
     if (this.nameInput.trim()) {
-      this.playerName = this.nameInput.trim();
-      this.playerNameText.setText(this.playerName);
+      globalThis.gameState.player.name = this.nameInput.trim();
+      this.playerNameText.setText(globalThis.gameState.player.name);
     }
     this.cancelNameEditing();
   }
@@ -248,17 +255,6 @@ class Play extends Phaser.Scene {
     }
     this.nameEditElements = null;
     this.nameInputText = null;
-  }
-
-  openSaveMenu() {
-    // pause play scene
-    this.scene.launch('Saves', {
-      mode: 'save',
-      playerName: this.playerName,
-      playerStats: gameState.player,
-      returnScene: 'Play',
-    });
-    this.scene.pause();
   }
 }
 

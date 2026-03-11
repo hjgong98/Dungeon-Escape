@@ -1,1 +1,53 @@
-// items that could get genreated and what stats they have
+// Items.js - Base item class
+class GameItem extends Phaser.GameObjects.Sprite {
+  constructor(scene, x, y, itemData) {
+    super(scene, x, y, '');
+    
+    this.itemData = itemData || {
+      id: `item_${Date.now()}_${Math.random()}`,
+      name: 'Unknown Item',
+      type: 'material',
+      tier: 1,
+      value: 1,
+      stats: {}
+    };
+  }
+
+  // Get color based on tier
+  getTierColor() {
+    const colors = {
+      1: 0x888888, // Common - Gray
+      2: 0x44aa44, // Uncommon - Green
+      3: 0x4444aa, // Rare - Blue
+      4: 0xaa44aa, // Epic - Purple
+      5: 0xffaa00, // Legendary - Orange
+      6: 0xff55ff  // Mythic - Pink
+    };
+    return colors[this.itemData.tier] || 0x888888;
+  }
+
+  // Get tier name
+  getTierName() {
+    const names = ['Common', 'Uncommon', 'Rare', 'Epic', 'Legendary', 'Mythic'];
+    return names[this.itemData.tier - 1] || `Tier ${this.itemData.tier}`;
+  }
+
+  // Display stats as string
+  getStatsString() {
+    const stats = [];
+    for (const [key, value] of Object.entries(this.itemData.stats)) {
+      if (typeof value === 'number') {
+        if (key.includes('Bonus')) {
+          stats.push(`${key.replace('Bonus', '')}: +${value}`);
+        } else if (key.includes('Chance') || key.includes('dodge') || key.includes('luck')) {
+          stats.push(`${key}: +${Math.floor(value * 100)}%`);
+        } else {
+          stats.push(`${key}: +${value}`);
+        }
+      }
+    }
+    return stats.join(', ');
+  }
+}
+
+globalThis.GameItem = GameItem;
