@@ -1,16 +1,17 @@
 // dungeonGenerator.js
+
 function generateDungeon() {
   const GRID_WIDTH = 52;
   const GRID_HEIGHT = 42;
 
-  // pick number of floors (1-4)
+  // Random number of floors between 1-4
   const numFloors = 1 + Math.floor(Math.random() * 4);
   const dungeon = {
     floors: [],
     totalFloors: numFloors,
   };
 
-  // helper function for random numbers
+  // Helper functions
   function rand(min, max) {
     return Math.floor(Math.random() * (max - min + 1)) + min;
   }
@@ -22,9 +23,7 @@ function generateDungeon() {
   function shuffle(array) {
     for (let i = array.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
-      const tmp = array[i];
-      array[i] = array[j];
-      array[j] = tmp;
+      [array[i], array[j]] = [array[j], array[i]];
     }
     return array;
   }
@@ -34,12 +33,8 @@ function generateDungeon() {
   }
 
   function isInsideRoom(x, y, room, padding = 0) {
-    return (
-      x >= room.x - padding &&
-      x < room.x + room.w + padding &&
-      y >= room.y - padding &&
-      y < room.y + room.h + padding
-    );
+    return x >= room.x - padding && x < room.x + room.w + padding &&
+      y >= room.y - padding && y < room.y + room.h + padding;
   }
 
   function isInsideAnyRoom(x, y, rooms, padding = 0) {
@@ -51,11 +46,7 @@ function generateDungeon() {
     for (let y = 0; y < room.h; y++) {
       room.maze[y] = [];
       for (let x = 0; x < room.w; x++) {
-        room.maze[y][x] = {
-          type: 'wall',
-          hasItem: false,
-          hasEnemy: false,
-        };
+        room.maze[y][x] = { type: 'wall', hasItem: false, hasEnemy: false };
       }
     }
   }
@@ -64,107 +55,48 @@ function generateDungeon() {
     initRoomMaze(room);
     room.miniChambers = [];
     room.openEdges = [];
-    room.edgeDoorSlots = {
-      left: [],
-      right: [],
-      top: [],
-      bottom: [],
-    };
+    room.edgeDoorSlots = { left: [], right: [], top: [], bottom: [] };
 
     if (room.w <= 1 || room.h <= 1) return;
 
-    function inMiniChamber(localX, localY) {
-      return room.miniChambers.some((c) =>
-        localX >= c.x && localX < c.x + c.w &&
-        localY >= c.y && localY < c.y + c.h
+    const inMiniChamber = (lx, ly) =>
+      room.miniChambers.some((c) =>
+        lx >= c.x && lx < c.x + c.w && ly >= c.y && ly < c.y + c.h
       );
-    }
 
-    function canUse(localX, localY) {
-      return (
-        localX >= 0 &&
-        localY >= 0 &&
-        localX < room.w &&
-        localY < room.h &&
-        !inMiniChamber(localX, localY)
-      );
-    }
+    const canUse = (lx, ly) =>
+      lx >= 0 && ly >= 0 && lx < room.w && ly < room.h &&
+      !inMiniChamber(lx, ly);
 
-    function nodeKey(x, y) {
-      return `${x},${y}`;
-    }
-
-    function edgeKey(ax, ay, bx, by) {
-      const a = nodeKey(ax, ay);
-      const b = nodeKey(bx, by);
-      return a < b ? `${a}|${b}` : `${b}|${a}`;
-    }
-
-    // 1-2 inner mini chambers (2x2..3x3), with a small spacing buffer.
-    const requested = rand(1, 2);
+    // Add 1-2 mini chambers
+    const numChambers = rand(1, 2);
     for (
       let attempt = 0;
-      attempt < 40 && room.miniChambers.length < requested;
+      attempt < 40 && room.miniChambers.length < numChambers;
       attempt++
     ) {
-      const chamberW = rand(2, Math.min(3, room.w));
-      const chamberH = rand(2, Math.min(3, room.h));
-      if (room.w - chamberW < 2 || room.h - chamberH < 2) continue;
+      const cw = rand(2, Math.min(3, room.w));
+      const ch = rand(2, Math.min(3, room.h));
+      if (room.w - cw < 2 || room.h - ch < 2) continue;
 
-      const chamberX = rand(1, room.w - chamberW - 1);
-      const chamberY = rand(1, room.h - chamberH - 1);
+      const cx = rand(1, room.w - cw - 1);
+      const cy = rand(1, room.h - ch - 1);
 
       const overlaps = room.miniChambers.some((c) => {
-        const aL = chamberX - 1;
-        const aR = chamberX + chamberW;
-        const aT = chamberY - 1;
-        const aB = chamberY + chamberH;
-        const bL = c.x;
-        const bR = c.x + c.w - 1;
-        const bT = c.y;
-        const bB = c.y + c.h - 1;
-        return !(aR < bL || aL > bR || aB < bT || aT > bB);
+        return !(cx + cw + 1 < c.x || cx > c.x + c.w + 1 ||
+          cy + ch + 1 < c.y || cy > c.y + c.h + 1);
       });
       if (overlaps) continue;
 
-      room.miniChambers.push({
-        x: chamberX,
-        y: chamberY,
-        w: chamberW,
-        h: chamberH,
-      });
+      room.miniChambers.push({ x: cx, y: cy, w: cw, h: ch });
     }
 
-    if (room.miniChambers.length === 0 && room.w >= 5 && room.h >= 5) {
-      const chamberW = Math.min(3, Math.max(2, room.w - 2));
-      const chamberH = Math.min(3, Math.max(2, room.h - 2));
-      const chamberX = clamp(
-        Math.floor((room.w - chamberW) / 2),
-        1,
-        room.w - chamberW - 1,
-      );
-      const chamberY = clamp(
-        Math.floor((room.h - chamberH) / 2),
-        1,
-        room.h - chamberH - 1,
-      );
-      room.miniChambers.push({
-        x: chamberX,
-        y: chamberY,
-        w: chamberW,
-        h: chamberH,
-      });
-    }
-
-    // All non-chamber blocks are maze nodes.
     const nodes = [];
     for (let y = 0; y < room.h; y++) {
       for (let x = 0; x < room.w; x++) {
         if (canUse(x, y)) {
           room.maze[y][x].type = 'floor';
           nodes.push({ x, y });
-        } else {
-          room.maze[y][x].type = 'wall';
         }
       }
     }
@@ -172,60 +104,57 @@ function generateDungeon() {
 
     const openEdges = new Set();
     const visited = new Set();
+    const nodeKey = (x, y) => `${x},${y}`;
+    const edgeKey = (ax, ay, bx, by) => {
+      const a = nodeKey(ax, ay);
+      const b = nodeKey(bx, by);
+      return a < b ? `${a}|${b}` : `${b}|${a}`;
+    };
 
-    function neighbors(cell) {
+    const neighbors = (cell) => {
       const out = [];
-      const dirs = [
-        { dx: 1, dy: 0 },
-        { dx: -1, dy: 0 },
-        { dx: 0, dy: 1 },
-        { dx: 0, dy: -1 },
-      ];
-      for (const dir of dirs) {
-        const nx = cell.x + dir.dx;
-        const ny = cell.y + dir.dy;
+      const dirs = [[1, 0], [-1, 0], [0, 1], [0, -1]];
+      for (const [dx, dy] of dirs) {
+        const nx = cell.x + dx;
+        const ny = cell.y + dy;
         if (canUse(nx, ny)) out.push({ x: nx, y: ny });
       }
       return out;
-    }
+    };
 
-    function addEdge(a, b) {
-      openEdges.add(edgeKey(a.x, a.y, b.x, b.y));
-    }
-
-    function runDfs(seed) {
-      const stack = [seed];
-      visited.add(nodeKey(seed.x, seed.y));
+    function dfs(start) {
+      const stack = [start];
+      visited.add(nodeKey(start.x, start.y));
       while (stack.length > 0) {
         const cur = stack[stack.length - 1];
-        const nexts = shuffle(neighbors(cur)).filter((n) =>
+        const nextMoves = shuffle(neighbors(cur)).filter((n) =>
           !visited.has(nodeKey(n.x, n.y))
         );
-        if (nexts.length === 0) {
+        if (nextMoves.length === 0) {
           stack.pop();
           continue;
         }
-        const next = nexts[0];
-        addEdge(cur, next);
+        const next = nextMoves[0];
+        openEdges.add(edgeKey(cur.x, cur.y, next.x, next.y));
         visited.add(nodeKey(next.x, next.y));
         stack.push(next);
       }
     }
 
-    runDfs(nodes[rand(0, nodes.length - 1)]);
+    dfs(nodes[rand(0, nodes.length - 1)]);
 
-    // Connect remaining components if chambers partition the room.
+    // Connect disconnected components
     while (visited.size < nodes.length) {
       const start = nodes.find((n) => !visited.has(nodeKey(n.x, n.y)));
       if (!start) break;
 
-      const q = [start];
+      const queue = [start];
       const seen = new Set([nodeKey(start.x, start.y)]);
       const parent = new Map();
       let hit = null;
 
-      while (q.length > 0 && !hit) {
-        const cur = q.shift();
+      while (queue.length > 0 && !hit) {
+        const cur = queue.shift();
         for (const n of neighbors(cur)) {
           const nk = nodeKey(n.x, n.y);
           if (seen.has(nk)) continue;
@@ -235,7 +164,7 @@ function generateDungeon() {
             hit = n;
             break;
           }
-          q.push(n);
+          queue.push(n);
         }
       }
 
@@ -247,61 +176,41 @@ function generateDungeon() {
         if (!prev) break;
         const [x1, y1] = k.split(',').map(Number);
         const [x0, y0] = prev.split(',').map(Number);
-        addEdge({ x: x0, y: y0 }, { x: x1, y: y1 });
+        openEdges.add(edgeKey(x0, y0, x1, y1));
         visited.add(nodeKey(x0, y0));
         visited.add(nodeKey(x1, y1));
         k = prev;
       }
-
-      runDfs(start);
+      dfs(start);
     }
 
-    // Carve mini chambers as floor and connect each chamber to the maze by exactly one door.
-    for (const chamber of room.miniChambers) {
-      for (let y = chamber.y; y < chamber.y + chamber.h; y++) {
-        for (let x = chamber.x; x < chamber.x + chamber.w; x++) {
+    // Carve mini chambers
+    for (const ch of room.miniChambers) {
+      for (let y = ch.y; y < ch.y + ch.h; y++) {
+        for (let x = ch.x; x < ch.x + ch.w; x++) {
           room.maze[y][x].type = 'floor';
-          if (x + 1 < chamber.x + chamber.w) {
-            openEdges.add(edgeKey(x, y, x + 1, y));
-          }
-          if (y + 1 < chamber.y + chamber.h) {
-            openEdges.add(edgeKey(x, y, x, y + 1));
-          }
+          if (x + 1 < ch.x + ch.w) openEdges.add(edgeKey(x, y, x + 1, y));
+          if (y + 1 < ch.y + ch.h) openEdges.add(edgeKey(x, y, x, y + 1));
         }
       }
 
-      const chamberDoorCandidates = [];
-      for (let y = chamber.y; y < chamber.y + chamber.h; y++) {
-        for (let x = chamber.x; x < chamber.x + chamber.w; x++) {
-          const dirs = [
-            { dx: 1, dy: 0 },
-            { dx: -1, dy: 0 },
-            { dx: 0, dy: 1 },
-            { dx: 0, dy: -1 },
-          ];
-          for (const dir of dirs) {
-            const nx = x + dir.dx;
-            const ny = y + dir.dy;
-            if (canUse(nx, ny)) {
-              chamberDoorCandidates.push({ x, y, nx, ny });
-            }
-          }
+      const doorCandidates = [];
+      for (let y = ch.y; y < ch.y + ch.h; y++) {
+        for (let x = ch.x; x < ch.x + ch.w; x++) {
+          [[1, 0], [-1, 0], [0, 1], [0, -1]].forEach(([dx, dy]) => {
+            const nx = x + dx;
+            const ny = y + dy;
+            if (canUse(nx, ny)) doorCandidates.push({ x, y, nx, ny });
+          });
         }
       }
 
-      if (chamberDoorCandidates.length > 0) {
-        // Remove any existing boundary openings so this chamber has exactly one door.
-        for (const candidate of chamberDoorCandidates) {
-          openEdges.delete(
-            edgeKey(candidate.x, candidate.y, candidate.nx, candidate.ny),
-          );
-        }
-
-        const chosenDoor =
-          chamberDoorCandidates[rand(0, chamberDoorCandidates.length - 1)];
-        openEdges.add(
-          edgeKey(chosenDoor.x, chosenDoor.y, chosenDoor.nx, chosenDoor.ny),
+      if (doorCandidates.length > 0) {
+        doorCandidates.forEach((d) =>
+          openEdges.delete(edgeKey(d.x, d.y, d.nx, d.ny))
         );
+        const chosen = doorCandidates[rand(0, doorCandidates.length - 1)];
+        openEdges.add(edgeKey(chosen.x, chosen.y, chosen.nx, chosen.ny));
       }
     }
 
@@ -310,48 +219,29 @@ function generateDungeon() {
   }
 
   function ensureConnectivity(room) {
-    const dirs = [
-      { dx: 1, dy: 0 },
-      { dx: -1, dy: 0 },
-      { dx: 0, dy: 1 },
-      { dx: 0, dy: -1 },
-    ];
-
-    function key(x, y) {
-      return `${x},${y}`;
-    }
-
-    function edgeKey(ax, ay, bx, by) {
-      const a = key(ax, ay);
-      const b = key(bx, by);
+    const dirs = [[1, 0], [-1, 0], [0, 1], [0, -1]];
+    const nodeKey = (x, y) => `${x},${y}`;
+    const edgeKey = (ax, ay, bx, by) => {
+      const a = nodeKey(ax, ay);
+      const b = nodeKey(bx, by);
       return a < b ? `${a}|${b}` : `${b}|${a}`;
-    }
+    };
 
-    function inMiniChamber(localX, localY) {
-      return (room.miniChambers || []).some((c) =>
-        localX >= c.x && localX < c.x + c.w &&
-        localY >= c.y && localY < c.y + c.h
+    const inMiniChamber = (lx, ly) =>
+      (room.miniChambers || []).some((c) =>
+        lx >= c.x && lx < c.x + c.w && ly >= c.y && ly < c.y + c.h
       );
-    }
 
-    function canUse(localX, localY) {
-      return (
-        localX >= 0 &&
-        localY >= 0 &&
-        localX < room.w &&
-        localY < room.h &&
-        !inMiniChamber(localX, localY)
-      );
-    }
+    const canUse = (lx, ly) =>
+      lx >= 0 && ly >= 0 && lx < room.w && ly < room.h &&
+      !inMiniChamber(lx, ly);
 
     const nodes = [];
     for (let y = 0; y < room.h; y++) {
       for (let x = 0; x < room.w; x++) {
-        if (canUse(x, y)) {
+        if (canUse(x, y) || inMiniChamber(x, y)) {
           room.maze[y][x].type = 'floor';
-          nodes.push({ x, y });
-        } else if (inMiniChamber(x, y)) {
-          room.maze[y][x].type = 'floor';
+          if (canUse(x, y)) nodes.push({ x, y });
         } else {
           room.maze[y][x].type = 'wall';
         }
@@ -364,60 +254,61 @@ function generateDungeon() {
 
     const edges = new Set(room.openEdges || []);
 
-    function neighbors(cell) {
+    const neighbors = (cell) => {
       const list = [];
-      for (const dir of dirs) {
-        const nx = cell.x + dir.dx;
-        const ny = cell.y + dir.dy;
+      for (const [dx, dy] of dirs) {
+        const nx = cell.x + dx;
+        const ny = cell.y + dy;
         if (canUse(nx, ny)) list.push({ x: nx, y: ny });
       }
       return list;
-    }
+    };
 
-    function flood(seed) {
-      const q = [seed];
-      const seen = new Set([key(seed.x, seed.y)]);
-      while (q.length > 0) {
-        const cur = q.shift();
+    const flood = (seed) => {
+      const queue = [seed];
+      const seen = new Set([nodeKey(seed.x, seed.y)]);
+      while (queue.length > 0) {
+        const cur = queue.shift();
         for (const n of neighbors(cur)) {
           if (!edges.has(edgeKey(cur.x, cur.y, n.x, n.y))) continue;
-          const nk = key(n.x, n.y);
+          const nk = nodeKey(n.x, n.y);
           if (seen.has(nk)) continue;
           seen.add(nk);
-          q.push(n);
+          queue.push(n);
         }
       }
       return seen;
-    }
+    };
 
     let connected = flood(nodes[0]);
+
     while (connected.size < nodes.length) {
-      const start = nodes.find((n) => !connected.has(key(n.x, n.y)));
+      const start = nodes.find((n) => !connected.has(nodeKey(n.x, n.y)));
       if (!start) break;
 
-      const q = [start];
-      const seen = new Set([key(start.x, start.y)]);
+      const queue = [start];
+      const seen = new Set([nodeKey(start.x, start.y)]);
       const parent = new Map();
       let hit = null;
 
-      while (q.length > 0 && !hit) {
-        const cur = q.shift();
+      while (queue.length > 0 && !hit) {
+        const cur = queue.shift();
         for (const n of neighbors(cur)) {
-          const nk = key(n.x, n.y);
+          const nk = nodeKey(n.x, n.y);
           if (seen.has(nk)) continue;
           seen.add(nk);
-          parent.set(nk, key(cur.x, cur.y));
+          parent.set(nk, nodeKey(cur.x, cur.y));
           if (connected.has(nk)) {
             hit = n;
             break;
           }
-          q.push(n);
+          queue.push(n);
         }
       }
 
       if (!hit) break;
 
-      let k = key(hit.x, hit.y);
+      let k = nodeKey(hit.x, hit.y);
       while (k) {
         const prev = parent.get(k);
         if (!prev) break;
@@ -426,7 +317,6 @@ function generateDungeon() {
         edges.add(edgeKey(x0, y0, x1, y1));
         k = prev;
       }
-
       connected = flood(nodes[0]);
     }
 
@@ -452,14 +342,9 @@ function generateDungeon() {
       side = 'bottom';
     }
 
-    // if an edge block is a doorway, its adjacent edge blocks cannot also be doorways.
     if (side !== 'internal') {
-      const slots = room.edgeDoorSlots || {
-        left: [],
-        right: [],
-        top: [],
-        bottom: [],
-      };
+      const slots = room.edgeDoorSlots ||
+        { left: [], right: [], top: [], bottom: [] };
       room.edgeDoorSlots = slots;
 
       const desired = (side === 'left' || side === 'right')
@@ -469,25 +354,31 @@ function generateDungeon() {
       const max = (side === 'left' || side === 'right')
         ? room.h - 1
         : room.w - 1;
-      const candidates = [];
+
+      let chosen = desired;
       for (let d = 0; d <= max; d++) {
-        const low = desired - d;
-        const high = desired + d;
-        if (low >= 0) candidates.push(low);
-        if (d !== 0 && high <= max) candidates.push(high);
+        if (
+          desired - d >= 0 &&
+          slots[side].every((e) => Math.abs(e - (desired - d)) >= 2)
+        ) {
+          chosen = desired - d;
+          break;
+        }
+        if (
+          desired + d <= max &&
+          slots[side].every((e) => Math.abs(e - (desired + d)) >= 2)
+        ) {
+          chosen = desired + d;
+          break;
+        }
       }
 
-      const existing = slots[side];
-      const chosen = candidates.find((c) =>
-        existing.every((e) => Math.abs(e - c) >= 2)
-      );
-      const finalSlot = chosen ?? desired;
-      existing.push(finalSlot);
+      slots[side].push(chosen);
 
       if (side === 'left' || side === 'right') {
-        insideY = room.y + finalSlot;
+        insideY = room.y + chosen;
       } else {
-        insideX = room.x + finalSlot;
+        insideX = room.x + chosen;
       }
     }
 
@@ -516,225 +407,87 @@ function generateDungeon() {
       room.h - 1,
     );
     room.maze[inwardY][inwardX].type = 'floor';
-    connectPointToRoomMaze(room, inwardX, inwardY);
 
+    connectPointToRoomMaze(room, inwardX, inwardY);
     return { x: insideX, y: insideY };
   }
 
   function connectPointToRoomMaze(room, startX, startY) {
-    const key = (x, y) => `${x},${y}`;
-    const dirs = [
-      { dx: 1, dy: 0 },
-      { dx: -1, dy: 0 },
-      { dx: 0, dy: 1 },
-      { dx: 0, dy: -1 },
-    ];
+    const nodeKey = (x, y) => `${x},${y}`;
+    const edgeKey = (ax, ay, bx, by) => {
+      const a = nodeKey(ax, ay);
+      const b = nodeKey(bx, by);
+      return a < b ? `${a}|${b}` : `${b}|${a}`;
+    };
 
-    function inRoom(x, y) {
-      return x >= 0 && y >= 0 && x < room.w && y < room.h;
-    }
+    const dirs = [[1, 0], [-1, 0], [0, 1], [0, -1]];
 
-    function blockedByChamber(x, y) {
-      return (room.miniChambers || []).some((c) =>
+    const inBounds = (x, y) => x >= 0 && y >= 0 && x < room.w && y < room.h;
+    const inChamber = (x, y) =>
+      (room.miniChambers || []).some((c) =>
         x >= c.x && x < c.x + c.w && y >= c.y && y < c.y + c.h
       );
-    }
 
-    function edgeKey(ax, ay, bx, by) {
-      const a = key(ax, ay);
-      const b = key(bx, by);
-      return a < b ? `${a}|${b}` : `${b}|${a}`;
-    }
-
-    if (!inRoom(startX, startY) || blockedByChamber(startX, startY)) return;
+    if (!inBounds(startX, startY) || inChamber(startX, startY)) return;
 
     const floorSeeds = [];
     for (let y = 0; y < room.h; y++) {
       for (let x = 0; x < room.w; x++) {
-        if (x === startX && y === startY) continue;
-        if (blockedByChamber(x, y)) continue;
-        if (room.maze[y][x].type === 'floor') floorSeeds.push({ x, y });
+        if (
+          (x !== startX || y !== startY) && !inChamber(x, y) &&
+          room.maze[y][x].type === 'floor'
+        ) {
+          floorSeeds.push({ x, y });
+        }
       }
     }
     if (floorSeeds.length === 0) return;
 
-    const seedSet = new Set(floorSeeds.map((p) => key(p.x, p.y)));
+    const seedSet = new Set(floorSeeds.map((p) => nodeKey(p.x, p.y)));
     const openEdges = new Set(room.openEdges || []);
-    const q = [{ x: startX, y: startY }];
-    const seen = new Set([key(startX, startY)]);
+
+    const queue = [{ x: startX, y: startY }];
+    const visited = new Set([nodeKey(startX, startY)]);
     const parent = new Map();
-
     let hit = null;
-    while (q.length > 0 && !hit) {
-      const cur = q.shift();
-      for (const dir of dirs) {
-        const nx = cur.x + dir.dx;
-        const ny = cur.y + dir.dy;
-        if (!inRoom(nx, ny) || blockedByChamber(nx, ny)) continue;
 
-        const k = key(nx, ny);
-        if (seen.has(k)) continue;
+    while (queue.length > 0 && !hit) {
+      const cur = queue.shift();
+      for (const [dx, dy] of dirs) {
+        const nx = cur.x + dx;
+        const ny = cur.y + dy;
+        if (!inBounds(nx, ny) || inChamber(nx, ny)) continue;
 
-        seen.add(k);
-        parent.set(k, key(cur.x, cur.y));
-        if (seedSet.has(k)) {
+        const nk = nodeKey(nx, ny);
+        if (visited.has(nk)) continue;
+
+        visited.add(nk);
+        parent.set(nk, nodeKey(cur.x, cur.y));
+        if (seedSet.has(nk)) {
           hit = { x: nx, y: ny };
           break;
         }
-        q.push({ x: nx, y: ny });
+        queue.push({ x: nx, y: ny });
       }
     }
 
     if (!hit) return;
 
-    let k = key(hit.x, hit.y);
+    let k = nodeKey(hit.x, hit.y);
     while (k) {
       const [x, y] = k.split(',').map(Number);
-      if (!blockedByChamber(x, y)) {
-        room.maze[y][x].type = 'floor';
-      }
+      if (!inChamber(x, y)) room.maze[y][x].type = 'floor';
 
       const prev = parent.get(k);
       if (prev) {
         const [px, py] = prev.split(',').map(Number);
         openEdges.add(edgeKey(x, y, px, py));
       }
-
       k = parent.get(k);
     }
 
     room.openEdges = [...openEdges];
     ensureConnectivity(room);
-  }
-
-  function pickFloorTileInRoom(room) {
-    const floorTiles = [];
-    for (let y = 0; y < room.h; y++) {
-      for (let x = 0; x < room.w; x++) {
-        const cell = room.maze?.[y]?.[x];
-        if (cell && cell.type === 'floor') {
-          floorTiles.push({ x: room.x + x, y: room.y + y });
-        }
-      }
-    }
-
-    if (floorTiles.length > 0) {
-      return floorTiles[rand(0, floorTiles.length - 1)];
-    }
-
-    // Fallback to room center if no floor tiles were marked for any reason.
-    return {
-      x: room.x + Math.floor(room.w / 2),
-      y: room.y + Math.floor(room.h / 2),
-    };
-  }
-
-  function manhattanDistance(a, b) {
-    return Math.abs(a.x - b.x) + Math.abs(a.y - b.y);
-  }
-
-  function pickSpacedFloorTileInRoom(
-    room,
-    blockedTiles,
-    preferredMinDistance = 5,
-    hardMinDistance = 2,
-  ) {
-    const floorTiles = [];
-    for (let y = 0; y < room.h; y++) {
-      for (let x = 0; x < room.w; x++) {
-        const cell = room.maze?.[y]?.[x];
-        if (cell && cell.type === 'floor') {
-          floorTiles.push({ x: room.x + x, y: room.y + y });
-        }
-      }
-    }
-
-    if (floorTiles.length === 0) {
-      return pickFloorTileInRoom(room);
-    }
-
-    shuffle(floorTiles);
-
-    const far = floorTiles.find((tile) =>
-      blockedTiles.every((b) =>
-        manhattanDistance(tile, b) >= preferredMinDistance
-      )
-    );
-    if (far) return far;
-
-    const acceptable = floorTiles.find((tile) =>
-      blockedTiles.every((b) => manhattanDistance(tile, b) >= hardMinDistance)
-    );
-    if (acceptable) return acceptable;
-
-    return floorTiles[0];
-  }
-
-  function pickOutsideAnchor(room, targetRoom) {
-    const cx = room.x + Math.floor(room.w / 2);
-    const cy = room.y + Math.floor(room.h / 2);
-    const tx = targetRoom.x + Math.floor(targetRoom.w / 2);
-    const ty = targetRoom.y + Math.floor(targetRoom.h / 2);
-
-    if (Math.abs(tx - cx) >= Math.abs(ty - cy)) {
-      if (tx >= cx) {
-        return {
-          x: room.x + room.w,
-          y: clamp(cy, room.y, room.y + room.h - 1),
-        };
-      }
-      return {
-        x: room.x - 1,
-        y: clamp(cy, room.y, room.y + room.h - 1),
-      };
-    }
-
-    if (ty >= cy) {
-      return {
-        x: clamp(cx, room.x, room.x + room.w - 1),
-        y: room.y + room.h,
-      };
-    }
-    return {
-      x: clamp(cx, room.x, room.x + room.w - 1),
-      y: room.y - 1,
-    };
-  }
-
-  function getOutsideAnchorCandidates(room, targetRoom) {
-    const candidates = [];
-    const cx = room.x + Math.floor(room.w / 2);
-    const cy = room.y + Math.floor(room.h / 2);
-    const tx = targetRoom.x + Math.floor(targetRoom.w / 2);
-    const ty = targetRoom.y + Math.floor(targetRoom.h / 2);
-
-    const horizontalPrimary = Math.abs(tx - cx) >= Math.abs(ty - cy);
-
-    if (horizontalPrimary) {
-      const sideX = tx >= cx ? room.x + room.w : room.x - 1;
-      for (let y = room.y; y < room.y + room.h; y++) {
-        candidates.push({ x: sideX, y });
-      }
-      const altY = ty >= cy ? room.y + room.h : room.y - 1;
-      for (let x = room.x; x < room.x + room.w; x++) {
-        candidates.push({ x, y: altY });
-      }
-    } else {
-      const sideY = ty >= cy ? room.y + room.h : room.y - 1;
-      for (let x = room.x; x < room.x + room.w; x++) {
-        candidates.push({ x, y: sideY });
-      }
-      const altX = tx >= cx ? room.x + room.w : room.x - 1;
-      for (let y = room.y; y < room.y + room.h; y++) {
-        candidates.push({ x: altX, y });
-      }
-    }
-
-    const primary = pickOutsideAnchor(room, targetRoom);
-    const unique = new Map();
-    unique.set(pathKey(primary.x, primary.y), primary);
-    shuffle(candidates).forEach((c) => unique.set(pathKey(c.x, c.y), c));
-    return [...unique.values()];
   }
 
   function pathKey(x, y) {
@@ -743,94 +496,75 @@ function generateDungeon() {
 
   function findPath(start, goal, rooms, occupied) {
     if (!inBounds(start.x, start.y) || !inBounds(goal.x, goal.y)) return null;
-    if (occupied.has(pathKey(start.x, start.y))) return null;
-    if (occupied.has(pathKey(goal.x, goal.y))) return null;
+    if (
+      occupied.has(pathKey(start.x, start.y)) ||
+      occupied.has(pathKey(goal.x, goal.y))
+    ) return null;
 
     const queue = [start];
     const visited = new Set([pathKey(start.x, start.y)]);
     const parents = new Map();
-    const dirs = [
-      { dx: 1, dy: 0 },
-      { dx: -1, dy: 0 },
-      { dx: 0, dy: 1 },
-      { dx: 0, dy: -1 },
-    ];
+    const dirs = [[1, 0], [-1, 0], [0, 1], [0, -1]];
 
     while (queue.length > 0) {
-      const current = queue.shift();
-      if (current.x === goal.x && current.y === goal.y) {
+      const cur = queue.shift();
+      if (cur.x === goal.x && cur.y === goal.y) {
         const path = [];
         let key = pathKey(goal.x, goal.y);
         while (key) {
-          const [xStr, yStr] = key.split(',');
-          path.push({ x: Number(xStr), y: Number(yStr) });
+          const [x, y] = key.split(',').map(Number);
+          path.push({ x, y });
           key = parents.get(key);
         }
-        path.reverse();
-        return path;
+        return path.reverse();
       }
 
-      for (const dir of dirs) {
-        const nx = current.x + dir.dx;
-        const ny = current.y + dir.dy;
+      for (const [dx, dy] of dirs) {
+        const nx = cur.x + dx;
+        const ny = cur.y + dy;
         const nKey = pathKey(nx, ny);
+
         if (!inBounds(nx, ny) || visited.has(nKey)) continue;
 
-        // Keep corridors from hugging room walls; they should touch rooms only at anchors.
         const isAnchor = (nx === start.x && ny === start.y) ||
           (nx === goal.x && ny === goal.y);
         if (isInsideAnyRoom(nx, ny, rooms, 0)) continue;
         if (!isAnchor && isInsideAnyRoom(nx, ny, rooms, 1)) continue;
-
         if (occupied.has(nKey)) continue;
 
         visited.add(nKey);
-        parents.set(nKey, pathKey(current.x, current.y));
+        parents.set(nKey, pathKey(cur.x, cur.y));
         queue.push({ x: nx, y: ny });
       }
     }
-
     return null;
   }
 
+  // New function to add dead end paths
   function addDeadEndPath(mainPath, rooms, occupied, deadEndIndex) {
     if (!mainPath || mainPath.length < 4) return null;
 
+    // Pick a point along the main path (not the ends)
     const branchPoint = mainPath[rand(1, mainPath.length - 2)];
-    const dirs = shuffle([
-      { dx: 1, dy: 0 },
-      { dx: -1, dy: 0 },
-      { dx: 0, dy: 1 },
-      { dx: 0, dy: -1 },
-    ]);
 
-    for (const dir of dirs) {
-      const length = rand(2, 4);
-      const firstX = branchPoint.x + dir.dx;
-      const firstY = branchPoint.y + dir.dy;
-      const firstKey = pathKey(firstX, firstY);
+    // Try each direction
+    const dirs = shuffle([[1, 0], [-1, 0], [0, 1], [0, -1]]);
 
-      if (
-        !inBounds(firstX, firstY) ||
-        isInsideAnyRoom(firstX, firstY, rooms, 0) ||
-        occupied.has(firstKey)
-      ) {
-        continue;
-      }
-
-      const points = [{ x: branchPoint.x, y: branchPoint.y }, {
-        x: firstX,
-        y: firstY,
-      }];
+    for (const [dx, dy] of dirs) {
+      const length = rand(2, 4); // 2-4 tiles long
+      const points = [];
       let ok = true;
 
-      for (let step = 2; step <= length; step++) {
-        const nx = branchPoint.x + dir.dx * step;
-        const ny = branchPoint.y + dir.dy * step;
+      // Check each potential tile
+      for (let step = 1; step <= length; step++) {
+        const nx = branchPoint.x + dx * step;
+        const ny = branchPoint.y + dy * step;
         const key = pathKey(nx, ny);
 
+        // Check if tile is valid
         if (
-          !inBounds(nx, ny) || isInsideAnyRoom(nx, ny, rooms, 0) ||
+          !inBounds(nx, ny) ||
+          isInsideAnyRoom(nx, ny, rooms, 0) ||
           occupied.has(key)
         ) {
           ok = false;
@@ -840,14 +574,35 @@ function generateDungeon() {
         points.push({ x: nx, y: ny });
       }
 
-      if (ok && points.length >= 3) {
-        for (let i = 1; i < points.length; i++) {
-          occupied.add(pathKey(points[i].x, points[i].y));
-        }
+      // Also check the tile before the branch point isn't a room
+      if (ok && points.length >= 2) {
+        // Mark all tiles as occupied
+        points.forEach((p) => occupied.add(pathKey(p.x, p.y)));
+
+        // Add wall tiles around the dead end to prevent fusion
+        // This ensures dead ends don't merge with other corridors
+        points.forEach((p) => {
+          // Check adjacent tiles and mark them as blocked if they're not already paths
+          for (const [checkDx, checkDy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+            const checkX = p.x + checkDx;
+            const checkY = p.y + checkDy;
+            const checkKey = pathKey(checkX, checkY);
+
+            // If this adjacent tile isn't already occupied and isn't a room, mark it as blocked
+            if (
+              !occupied.has(checkKey) &&
+              !isInsideAnyRoom(checkX, checkY, rooms, 0)
+            ) {
+              // We don't actually mark it as occupied, but we'll add a wall later
+              // For now, just ensure we don't create another path through here
+            }
+          }
+        });
+
         return {
           from: 'deadend',
           to: `deadend-${deadEndIndex}`,
-          points,
+          points: [branchPoint, ...points],
         };
       }
     }
@@ -855,60 +610,79 @@ function generateDungeon() {
     return null;
   }
 
-  // make each floor
+  function pickFloorTile(room, blockedTiles, minDist = 5, hardMin = 2) {
+    const tiles = [];
+    for (let y = 0; y < room.h; y++) {
+      for (let x = 0; x < room.w; x++) {
+        if (room.maze?.[y]?.[x]?.type === 'floor') {
+          tiles.push({ x: room.x + x, y: room.y + y });
+        }
+      }
+    }
+    if (tiles.length === 0) {
+      return {
+        x: room.x + Math.floor(room.w / 2),
+        y: room.y + Math.floor(room.h / 2),
+      };
+    }
+
+    shuffle(tiles);
+
+    const far = tiles.find((t) =>
+      blockedTiles.every((b) =>
+        Math.abs(t.x - b.x) + Math.abs(t.y - b.y) >= minDist
+      )
+    );
+    if (far) return far;
+
+    const ok = tiles.find((t) =>
+      blockedTiles.every((b) =>
+        Math.abs(t.x - b.x) + Math.abs(t.y - b.y) >= hardMin
+      )
+    );
+    return ok || tiles[0];
+  }
+
+  // Generate each floor
   for (let f = 0; f < numFloors; f++) {
-    // how many rooms on this floor? (2-4)
     const numRooms = rand(2, 4);
     const rooms = [];
 
-    // make rooms that don't overlap
+    // Place rooms
     for (let r = 0; r < numRooms; r++) {
       let attempts = 0;
       let placed = false;
 
       while (!placed && attempts < 100) {
-        // random size between 5 and 10
         const w = rand(5, 10);
         const h = rand(5, 10);
-        // random position (leaving margins)
         const x = rand(2, GRID_WIDTH - 3 - w);
         const y = rand(2, GRID_HEIGHT - 3 - h);
 
-        // check if this spot overlaps any existing room
-        let overlap = false;
-        for (const room of rooms) {
-          if (
-            !(x + w + 2 < room.x ||
-              x > room.x + room.w + 2 ||
-              y + h + 2 < room.y ||
-              y > room.y + room.h + 2)
-          ) {
-            overlap = true;
-            break;
-          }
-        }
+        const overlap = rooms.some((room) =>
+          !(x + w + 2 < room.x || x > room.x + room.w + 2 ||
+            y + h + 2 < room.y || y > room.y + room.h + 2)
+        );
 
         if (!overlap) {
-          // make the room
-          const newRoom = {
+          rooms.push({
             id: `f${f}r${r}`,
-            x: x,
-            y: y,
-            w: w,
-            h: h,
-            maze: [], // will fill in later
+            x,
+            y,
+            w,
+            h,
+            maze: [],
             items: [],
             enemies: [],
             chests: [],
-          };
-          rooms.push(newRoom);
+          });
           placed = true;
         }
         attempts++;
       }
     }
 
-    // ensure we always have at least two rooms
+    // Make sure we have at least 2 rooms
     if (rooms.length < 2) {
       rooms.length = 0;
       rooms.push({
@@ -935,211 +709,183 @@ function generateDungeon() {
       });
     }
 
-    // generate an actual maze in each room + occasional mini chamber
-    rooms.forEach((room) => {
-      carveRoomMaze(room);
+    // Carve mazes in rooms
+    rooms.forEach(carveRoomMaze);
 
-      // Keep item/enemy/chest data empty for now; visual focus is stairs + exit.
-      room.items = [];
-      room.enemies = [];
-      room.chests = [];
-    });
-
-    // connect rooms with pathfinding outside room boundaries
+    // Connect rooms with paths
     rooms.sort((a, b) => a.x + a.y - (b.x + b.y));
     const paths = [];
-    const occupiedPathCells = new Set();
-    const roomDoorTiles = new Map(rooms.map((room) => [room.id, new Set()]));
+    const occupied = new Set();
+    const roomDoors = new Map(rooms.map((r) => [r.id, new Set()]));
     let deadEndIndex = 0;
 
     for (let i = 0; i < rooms.length - 1; i++) {
       const r1 = rooms[i];
       const r2 = rooms[i + 1];
-      const startCandidates = getOutsideAnchorCandidates(r1, r2);
-      const goalCandidates = getOutsideAnchorCandidates(r2, r1);
 
-      let pathPoints = null;
-      for (const start of startCandidates) {
-        for (const goal of goalCandidates) {
-          pathPoints = findPath(start, goal, rooms, occupiedPathCells);
-          if (pathPoints) break;
+      // Try to find a path between rooms
+      let path = null;
+      for (let attempts = 0; attempts < 20 && !path; attempts++) {
+        const start = {
+          x: r1.x + (Math.random() > 0.5 ? -1 : r1.w),
+          y: clamp(
+            r1.y + Math.floor(Math.random() * r1.h),
+            r1.y,
+            r1.y + r1.h - 1,
+          ),
+        };
+        const goal = {
+          x: r2.x + (Math.random() > 0.5 ? -1 : r2.w),
+          y: clamp(
+            r2.y + Math.floor(Math.random() * r2.h),
+            r2.y,
+            r2.y + r2.h - 1,
+          ),
+        };
+        path = findPath(start, goal, rooms, occupied);
+      }
+
+      if (path && path.length >= 2) {
+        const startDoor = carveDoorway(r1, path[0]);
+        const endDoor = carveDoorway(r2, path[path.length - 1]);
+
+        roomDoors.get(r1.id).add(pathKey(startDoor.x, startDoor.y));
+        roomDoors.get(r2.id).add(pathKey(endDoor.x, endDoor.y));
+
+        const fullPath = [startDoor, ...path, endDoor];
+        fullPath.forEach((p) => occupied.add(pathKey(p.x, p.y)));
+        paths.push({ from: r1.id, to: r2.id, points: fullPath });
+
+        // Add a dead end path from this main path
+        const deadEnd = addDeadEndPath(fullPath, rooms, occupied, deadEndIndex);
+        if (deadEnd) {
+          deadEndIndex++;
+          paths.push(deadEnd);
         }
-        if (pathPoints) break;
-      }
-
-      // Fallback: allow path overlap if strict mode cannot connect rooms.
-      if (!pathPoints) {
-        for (const start of startCandidates) {
-          for (const goal of goalCandidates) {
-            pathPoints = findPath(start, goal, rooms, new Set());
-            if (pathPoints) break;
-          }
-          if (pathPoints) break;
-        }
-      }
-
-      if (!pathPoints || pathPoints.length < 2) {
-        continue;
-      }
-
-      const startDoor = carveDoorway(r1, pathPoints[0]);
-      const endDoor = carveDoorway(r2, pathPoints[pathPoints.length - 1]);
-
-      roomDoorTiles.get(r1.id).add(pathKey(startDoor.x, startDoor.y));
-      roomDoorTiles.get(r2.id).add(pathKey(endDoor.x, endDoor.y));
-
-      const fullPathPoints = [startDoor, ...pathPoints, endDoor];
-
-      fullPathPoints.forEach((p) => occupiedPathCells.add(pathKey(p.x, p.y)));
-
-      paths.push({
-        from: r1.id,
-        to: r2.id,
-        points: fullPathPoints,
-      });
-
-      const deadEnd = addDeadEndPath(
-        fullPathPoints,
-        rooms,
-        occupiedPathCells,
-        deadEndIndex,
-      );
-      if (deadEnd) {
-        deadEndIndex++;
-        paths.push(deadEnd);
       }
     }
 
-    const isTileInsideRoom = (tileX, tileY, room) => {
-      return (
-        tileX >= room.x &&
-        tileX < room.x + room.w &&
-        tileY >= room.y &&
-        tileY < room.y + room.h
+    // Also try to add dead ends from each room (one per room)
+    rooms.forEach((room) => {
+      // Find a path that connects to this room
+      const roomPaths = paths.filter((p) =>
+        p.from === room.id || p.to === room.id
       );
-    };
-
-    const touchesRoomBoundary = (tileX, tileY, room) => {
-      const neighbors = [
-        { x: tileX + 1, y: tileY },
-        { x: tileX - 1, y: tileY },
-        { x: tileX, y: tileY + 1 },
-        { x: tileX, y: tileY - 1 },
-      ];
-      return neighbors.some((n) => {
-        if (!isTileInsideRoom(n.x, n.y, room)) return false;
-        const lx = n.x - room.x;
-        const ly = n.y - room.y;
-        return lx === 0 || ly === 0 || lx === room.w - 1 || ly === room.h - 1;
-      });
-    };
-
-    const touchesDoorForRoom = (tileX, tileY, room, doorSet) => {
-      if (!doorSet || doorSet.size === 0) return false;
-      const neighbors = [
-        { x: tileX + 1, y: tileY },
-        { x: tileX - 1, y: tileY },
-        { x: tileX, y: tileY + 1 },
-        { x: tileX, y: tileY - 1 },
-      ];
-      return neighbors.some((n) => {
-        if (!isTileInsideRoom(n.x, n.y, room)) return false;
-        return doorSet.has(pathKey(n.x, n.y));
-      });
-    };
-
-    // Corridors may run alongside rooms; keep only the boundary-touching tiles
-    // that are actually adjacent to designated doorway blocks.
-    const prunedPathCells = new Set();
-    occupiedPathCells.forEach((cellKey) => {
-      const [x, y] = cellKey.split(',').map(Number);
-
-      // Keep room-internal tiles (door cells and any fallback internals).
-      if (rooms.some((room) => isTileInsideRoom(x, y, room))) {
-        prunedPathCells.add(cellKey);
-        return;
-      }
-
-      let invalidTouch = false;
-      for (const room of rooms) {
-        if (!touchesRoomBoundary(x, y, room)) continue;
-        const doorSet = roomDoorTiles.get(room.id);
-        if (!touchesDoorForRoom(x, y, room, doorSet)) {
-          invalidTouch = true;
-          break;
+      if (roomPaths.length > 0) {
+        // Pick a random path connected to this room
+        const path = roomPaths[rand(0, roomPaths.length - 1)];
+        const deadEnd = addDeadEndPath(
+          path.points,
+          rooms,
+          occupied,
+          deadEndIndex,
+        );
+        if (deadEnd) {
+          deadEndIndex++;
+          paths.push(deadEnd);
         }
-      }
-
-      if (!invalidTouch) {
-        prunedPathCells.add(cellKey);
       }
     });
 
-    occupiedPathCells.clear();
-    prunedPathCells.forEach((k) => occupiedPathCells.add(k));
+    // Clean up corridor tiles and prevent fusion
+    // First, create a map of all corridor tiles
+    const corridorMap = new Map();
+    occupied.forEach((cellKey) => {
+      const [x, y] = cellKey.split(',').map(Number);
+      corridorMap.set(cellKey, { x, y, connections: 0 });
+    });
 
-    // Final room pass: door carving and corridor joins can create tiny islands;
-    // normalize each room so every room floor cell is connected.
-    rooms.forEach((room) => ensureConnectivity(room));
+    // Count connections for each corridor tile
+    corridorMap.forEach((tile, key) => {
+      const [x, y] = [tile.x, tile.y];
+      let connections = 0;
 
-    // add stairs if there's another floor
+      // Check four directions
+      [[1, 0], [-1, 0], [0, 1], [0, -1]].forEach(([dx, dy]) => {
+        const neighborKey = pathKey(x + dx, y + dy);
+        if (corridorMap.has(neighborKey)) connections++;
+      });
+
+      tile.connections = connections;
+    });
+
+    // Now build the final corridor list with walls between adjacent corridors
+    const finalCorridors = [];
+    const corridorWalls = []; // Track where walls should be between corridors
+
+    corridorMap.forEach((tile, key) => {
+      finalCorridors.push({ x: tile.x, y: tile.y });
+
+      // Check if this corridor has a neighbor that would cause fusion
+      const [x, y] = [tile.x, tile.y];
+      [[1, 0], [-1, 0], [0, 1], [0, -1]].forEach(([dx, dy]) => {
+        const nx = x + dx;
+        const ny = y + dy;
+        const neighborKey = pathKey(nx, ny);
+
+        // If there's a corridor tile adjacent, and they're not connected by a path,
+        // we need a wall between them
+        if (corridorMap.has(neighborKey)) {
+          // Check if these two corridors are part of the same path
+          let samePath = false;
+          paths.forEach((path) => {
+            for (let i = 0; i < path.points.length - 1; i++) {
+              const p1 = path.points[i];
+              const p2 = path.points[i + 1];
+              if (
+                (p1.x === x && p1.y === y && p2.x === nx && p2.y === ny) ||
+                (p2.x === x && p2.y === y && p1.x === nx && p1.y === ny)
+              ) {
+                samePath = true;
+              }
+            }
+          });
+
+          // If not same path, add a wall
+          if (!samePath) {
+            corridorWalls.push({ x1: x, y1: y, x2: nx, y2: ny });
+          }
+        }
+      });
+    });
+
+    // Filter out tiles that are inside rooms (doors)
+    const cleanedCorridors = finalCorridors.filter((tile) => {
+      return !rooms.some((r) => isInsideRoom(tile.x, tile.y, r));
+    });
+
+    // Add stairs
     const stairs = [];
-    const blockedSpecialTiles = [];
+    const blocked = [];
 
     if (f < numFloors - 1) {
-      const stairRoom = rooms[Math.floor(Math.random() * rooms.length)];
-      const stairTile = pickSpacedFloorTileInRoom(
-        stairRoom,
-        blockedSpecialTiles,
-      );
-      stairs.push({
-        x: stairTile.x,
-        y: stairTile.y,
-        dir: 'down',
-        toFloor: f + 1,
-      });
-      blockedSpecialTiles.push(stairTile);
+      const room = rooms[Math.floor(Math.random() * rooms.length)];
+      const tile = pickFloorTile(room, blocked);
+      stairs.push({ x: tile.x, y: tile.y, dir: 'down', toFloor: f + 1 });
+      blocked.push(tile);
     }
 
     if (f > 0) {
-      const stairRoom = rooms[Math.floor(Math.random() * rooms.length)];
-      const stairTile = pickSpacedFloorTileInRoom(
-        stairRoom,
-        blockedSpecialTiles,
-      );
-      stairs.push({
-        x: stairTile.x,
-        y: stairTile.y,
-        dir: 'up',
-        toFloor: f - 1,
-      });
-      blockedSpecialTiles.push(stairTile);
+      const room = rooms[Math.floor(Math.random() * rooms.length)];
+      const tile = pickFloorTile(room, blocked);
+      stairs.push({ x: tile.x, y: tile.y, dir: 'up', toFloor: f - 1 });
+      blocked.push(tile);
     }
 
-    // mark start room on first floor
+    // Mark start room on first floor
     if (f === 0 && rooms.length > 0) {
       rooms[0].isStart = true;
-      const startTile = pickSpacedFloorTileInRoom(
-        rooms[0],
-        blockedSpecialTiles,
-        4,
-        2,
-      );
-      rooms[0].startPos = { x: startTile.x, y: startTile.y };
-      blockedSpecialTiles.push(startTile);
+      const tile = pickFloorTile(rooms[0], blocked, 4, 2);
+      rooms[0].startPos = { x: tile.x, y: tile.y };
+      blocked.push(tile);
     }
 
-    // mark end room on last floor
+    // Mark end room on last floor
     if (f === numFloors - 1 && rooms.length > 0) {
       rooms[rooms.length - 1].isEnd = true;
-      const endTile = pickSpacedFloorTileInRoom(
-        rooms[rooms.length - 1],
-        blockedSpecialTiles,
-        6,
-        3,
-      );
-      rooms[rooms.length - 1].endPos = { x: endTile.x, y: endTile.y };
-      blockedSpecialTiles.push(endTile);
+      const tile = pickFloorTile(rooms[rooms.length - 1], blocked, 6, 3);
+      rooms[rooms.length - 1].endPos = { x: tile.x, y: tile.y };
+      blocked.push(tile);
     }
 
     dungeon.floors.push({
@@ -1147,10 +893,8 @@ function generateDungeon() {
       rooms: rooms,
       paths: paths,
       stairs: stairs,
-      corridorTiles: [...occupiedPathCells].map((key) => {
-        const [x, y] = key.split(',').map(Number);
-        return { x, y };
-      }),
+      corridorTiles: cleanedCorridors,
+      corridorWalls: corridorWalls, // Store walls between corridors for drawing
     });
   }
 
