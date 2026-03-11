@@ -682,6 +682,37 @@ function generateDungeon() {
     return ok || tiles[0];
   }
 
+  function pickEnemySpawnTile(room, blockedTiles) {
+    const blockedKeys = new Set(blockedTiles.map((tile) => `${tile.x},${tile.y}`));
+    const tiles = [];
+
+    for (let y = 0; y < room.h; y++) {
+      for (let x = 0; x < room.w; x++) {
+        if (room.maze?.[y]?.[x]?.type === 'floor') {
+          const tile = { x: room.x + x, y: room.y + y };
+          if (!blockedKeys.has(`${tile.x},${tile.y}`)) {
+            tiles.push(tile);
+          }
+        }
+      }
+    }
+
+    if (tiles.length === 0) {
+      return null;
+    }
+
+    shuffle(tiles);
+
+    const far = tiles.find((tile) =>
+      blockedTiles.every((blockedTile) =>
+        Math.abs(tile.x - blockedTile.x) + Math.abs(tile.y - blockedTile.y) >= 4
+      )
+    );
+    if (far) return far;
+
+    return tiles[0];
+  }
+
   // Generate each floor
   for (let f = 0; f < numFloors; f++) {
     const numRooms = rand(2, 4);
@@ -753,6 +784,10 @@ function generateDungeon() {
 
     // Connect rooms with paths
     rooms.sort((a, b) => a.x + a.y - (b.x + b.y));
+    rooms.forEach((room, index) => {
+      room.roomIndex = index + 1;
+      room.roomLabel = `Room ${index + 1}`;
+    });
     const paths = [];
     const occupied = new Set();
     const roomDoors = new Map(rooms.map((r) => [r.id, new Set()]));
@@ -919,6 +954,22 @@ function generateDungeon() {
       rooms[rooms.length - 1].endPos = { x: tile.x, y: tile.y };
       blocked.push(tile);
     }
+
+    rooms.forEach((room) => {
+      const enemyTile = pickEnemySpawnTile(room, blocked);
+      room.enemies = enemyTile
+        ? [
+          {
+            id: `${room.id}-enemy-0`,
+            x: enemyTile.x,
+            y: enemyTile.y,
+          },
+        ]
+        : [];
+      if (enemyTile) {
+        blocked.push(enemyTile);
+      }
+    });
 
     dungeon.floors.push({
       index: f,
