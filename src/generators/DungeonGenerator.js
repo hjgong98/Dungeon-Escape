@@ -452,7 +452,7 @@ function generateDungeon() {
       side = 'bottom';
     }
 
-    // New rule: if an edge block is a doorway, its adjacent edge blocks cannot also be doorways.
+    // if an edge block is a doorway, its adjacent edge blocks cannot also be doorways.
     if (side !== 'internal') {
       const slots = room.edgeDoorSlots || {
         left: [],
