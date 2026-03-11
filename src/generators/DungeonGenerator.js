@@ -34,11 +34,20 @@ function generateDungeon() {
 
   function isInsideRoom(x, y, room, padding = 0) {
     return x >= room.x - padding && x < room.x + room.w + padding &&
-      y >= room.y - padding && y < room.y + room.h + padding;
+           y >= room.y - padding && y < room.y + room.h + padding;
   }
 
   function isInsideAnyRoom(x, y, rooms, padding = 0) {
-    return rooms.some((room) => isInsideRoom(x, y, room, padding));
+    return rooms.some(room => isInsideRoom(x, y, room, padding));
+  }
+
+  // Check if a tile is adjacent to a room (touching the room boundary)
+  function isAdjacentToRoom(x, y, room) {
+    // Check if tile is just outside the room on any side
+    return (x === room.x - 1 && y >= room.y && y < room.y + room.h) || // Left side
+           (x === room.x + room.w && y >= room.y && y < room.y + room.h) || // Right side
+           (y === room.y - 1 && x >= room.x && x < room.x + room.w) || // Top side
+           (y === room.y + room.h && x >= room.x && x < room.x + room.w); // Bottom side
   }
 
   function initRoomMaze(room) {
@@ -59,22 +68,15 @@ function generateDungeon() {
 
     if (room.w <= 1 || room.h <= 1) return;
 
-    const inMiniChamber = (lx, ly) =>
-      room.miniChambers.some((c) =>
-        lx >= c.x && lx < c.x + c.w && ly >= c.y && ly < c.y + c.h
-      );
+    const inMiniChamber = (lx, ly) => room.miniChambers.some(c => 
+      lx >= c.x && lx < c.x + c.w && ly >= c.y && ly < c.y + c.h
+    );
 
-    const canUse = (lx, ly) =>
-      lx >= 0 && ly >= 0 && lx < room.w && ly < room.h &&
-      !inMiniChamber(lx, ly);
+    const canUse = (lx, ly) => lx >= 0 && ly >= 0 && lx < room.w && ly < room.h && !inMiniChamber(lx, ly);
 
     // Add 1-2 mini chambers
     const numChambers = rand(1, 2);
-    for (
-      let attempt = 0;
-      attempt < 40 && room.miniChambers.length < numChambers;
-      attempt++
-    ) {
+    for (let attempt = 0; attempt < 40 && room.miniChambers.length < numChambers; attempt++) {
       const cw = rand(2, Math.min(3, room.w));
       const ch = rand(2, Math.min(3, room.h));
       if (room.w - cw < 2 || room.h - ch < 2) continue;
@@ -82,9 +84,9 @@ function generateDungeon() {
       const cx = rand(1, room.w - cw - 1);
       const cy = rand(1, room.h - ch - 1);
 
-      const overlaps = room.miniChambers.some((c) => {
-        return !(cx + cw + 1 < c.x || cx > c.x + c.w + 1 ||
-          cy + ch + 1 < c.y || cy > c.y + c.h + 1);
+      const overlaps = room.miniChambers.some(c => {
+        return !(cx + cw + 1 < c.x || cx > c.x + c.w + 1 || 
+                 cy + ch + 1 < c.y || cy > c.y + c.h + 1);
       });
       if (overlaps) continue;
 
@@ -113,7 +115,7 @@ function generateDungeon() {
 
     const neighbors = (cell) => {
       const out = [];
-      const dirs = [[1, 0], [-1, 0], [0, 1], [0, -1]];
+      const dirs = [[1,0],[-1,0],[0,1],[0,-1]];
       for (const [dx, dy] of dirs) {
         const nx = cell.x + dx;
         const ny = cell.y + dy;
@@ -127,9 +129,7 @@ function generateDungeon() {
       visited.add(nodeKey(start.x, start.y));
       while (stack.length > 0) {
         const cur = stack[stack.length - 1];
-        const nextMoves = shuffle(neighbors(cur)).filter((n) =>
-          !visited.has(nodeKey(n.x, n.y))
-        );
+        const nextMoves = shuffle(neighbors(cur)).filter(n => !visited.has(nodeKey(n.x, n.y)));
         if (nextMoves.length === 0) {
           stack.pop();
           continue;
@@ -145,7 +145,7 @@ function generateDungeon() {
 
     // Connect disconnected components
     while (visited.size < nodes.length) {
-      const start = nodes.find((n) => !visited.has(nodeKey(n.x, n.y)));
+      const start = nodes.find(n => !visited.has(nodeKey(n.x, n.y)));
       if (!start) break;
 
       const queue = [start];
@@ -197,7 +197,7 @@ function generateDungeon() {
       const doorCandidates = [];
       for (let y = ch.y; y < ch.y + ch.h; y++) {
         for (let x = ch.x; x < ch.x + ch.w; x++) {
-          [[1, 0], [-1, 0], [0, 1], [0, -1]].forEach(([dx, dy]) => {
+          [[1,0],[-1,0],[0,1],[0,-1]].forEach(([dx, dy]) => {
             const nx = x + dx;
             const ny = y + dy;
             if (canUse(nx, ny)) doorCandidates.push({ x, y, nx, ny });
@@ -206,9 +206,7 @@ function generateDungeon() {
       }
 
       if (doorCandidates.length > 0) {
-        doorCandidates.forEach((d) =>
-          openEdges.delete(edgeKey(d.x, d.y, d.nx, d.ny))
-        );
+        doorCandidates.forEach(d => openEdges.delete(edgeKey(d.x, d.y, d.nx, d.ny)));
         const chosen = doorCandidates[rand(0, doorCandidates.length - 1)];
         openEdges.add(edgeKey(chosen.x, chosen.y, chosen.nx, chosen.ny));
       }
@@ -219,7 +217,7 @@ function generateDungeon() {
   }
 
   function ensureConnectivity(room) {
-    const dirs = [[1, 0], [-1, 0], [0, 1], [0, -1]];
+    const dirs = [[1,0],[-1,0],[0,1],[0,-1]];
     const nodeKey = (x, y) => `${x},${y}`;
     const edgeKey = (ax, ay, bx, by) => {
       const a = nodeKey(ax, ay);
@@ -227,14 +225,11 @@ function generateDungeon() {
       return a < b ? `${a}|${b}` : `${b}|${a}`;
     };
 
-    const inMiniChamber = (lx, ly) =>
-      (room.miniChambers || []).some((c) =>
-        lx >= c.x && lx < c.x + c.w && ly >= c.y && ly < c.y + c.h
-      );
+    const inMiniChamber = (lx, ly) => (room.miniChambers || []).some(c => 
+      lx >= c.x && lx < c.x + c.w && ly >= c.y && ly < c.y + c.h
+    );
 
-    const canUse = (lx, ly) =>
-      lx >= 0 && ly >= 0 && lx < room.w && ly < room.h &&
-      !inMiniChamber(lx, ly);
+    const canUse = (lx, ly) => lx >= 0 && ly >= 0 && lx < room.w && ly < room.h && !inMiniChamber(lx, ly);
 
     const nodes = [];
     for (let y = 0; y < room.h; y++) {
@@ -281,9 +276,9 @@ function generateDungeon() {
     };
 
     let connected = flood(nodes[0]);
-
+    
     while (connected.size < nodes.length) {
-      const start = nodes.find((n) => !connected.has(nodeKey(n.x, n.y)));
+      const start = nodes.find(n => !connected.has(nodeKey(n.x, n.y)));
       if (!start) break;
 
       const queue = [start];
@@ -343,38 +338,29 @@ function generateDungeon() {
     }
 
     if (side !== 'internal') {
-      const slots = room.edgeDoorSlots ||
-        { left: [], right: [], top: [], bottom: [] };
+      const slots = room.edgeDoorSlots || { left: [], right: [], top: [], bottom: [] };
       room.edgeDoorSlots = slots;
 
-      const desired = (side === 'left' || side === 'right')
+      const desired = (side === 'left' || side === 'right') 
         ? clamp(insideY - room.y, 0, room.h - 1)
         : clamp(insideX - room.x, 0, room.w - 1);
-
-      const max = (side === 'left' || side === 'right')
-        ? room.h - 1
-        : room.w - 1;
-
+      
+      const max = (side === 'left' || side === 'right') ? room.h - 1 : room.w - 1;
+      
       let chosen = desired;
       for (let d = 0; d <= max; d++) {
-        if (
-          desired - d >= 0 &&
-          slots[side].every((e) => Math.abs(e - (desired - d)) >= 2)
-        ) {
+        if (desired - d >= 0 && slots[side].every(e => Math.abs(e - (desired - d)) >= 2)) {
           chosen = desired - d;
           break;
         }
-        if (
-          desired + d <= max &&
-          slots[side].every((e) => Math.abs(e - (desired + d)) >= 2)
-        ) {
+        if (desired + d <= max && slots[side].every(e => Math.abs(e - (desired + d)) >= 2)) {
           chosen = desired + d;
           break;
         }
       }
-
+      
       slots[side].push(chosen);
-
+      
       if (side === 'left' || side === 'right') {
         insideY = room.y + chosen;
       } else {
@@ -386,28 +372,10 @@ function generateDungeon() {
     const localY = insideY - room.y;
     room.maze[localY][localX].type = 'floor';
 
-    const inwardX = clamp(
-      localX +
-        (outsideTile.x < room.x
-          ? 1
-          : outsideTile.x >= room.x + room.w
-          ? -1
-          : 0),
-      0,
-      room.w - 1,
-    );
-    const inwardY = clamp(
-      localY +
-        (outsideTile.y < room.y
-          ? 1
-          : outsideTile.y >= room.y + room.h
-          ? -1
-          : 0),
-      0,
-      room.h - 1,
-    );
+    const inwardX = clamp(localX + (outsideTile.x < room.x ? 1 : outsideTile.x >= room.x + room.w ? -1 : 0), 0, room.w - 1);
+    const inwardY = clamp(localY + (outsideTile.y < room.y ? 1 : outsideTile.y >= room.y + room.h ? -1 : 0), 0, room.h - 1);
     room.maze[inwardY][inwardX].type = 'floor';
-
+    
     connectPointToRoomMaze(room, inwardX, inwardY);
     return { x: insideX, y: insideY };
   }
@@ -420,32 +388,28 @@ function generateDungeon() {
       return a < b ? `${a}|${b}` : `${b}|${a}`;
     };
 
-    const dirs = [[1, 0], [-1, 0], [0, 1], [0, -1]];
-
+    const dirs = [[1,0],[-1,0],[0,1],[0,-1]];
+    
     const inBounds = (x, y) => x >= 0 && y >= 0 && x < room.w && y < room.h;
-    const inChamber = (x, y) =>
-      (room.miniChambers || []).some((c) =>
-        x >= c.x && x < c.x + c.w && y >= c.y && y < c.y + c.h
-      );
+    const inChamber = (x, y) => (room.miniChambers || []).some(c => 
+      x >= c.x && x < c.x + c.w && y >= c.y && y < c.y + c.h
+    );
 
     if (!inBounds(startX, startY) || inChamber(startX, startY)) return;
 
     const floorSeeds = [];
     for (let y = 0; y < room.h; y++) {
       for (let x = 0; x < room.w; x++) {
-        if (
-          (x !== startX || y !== startY) && !inChamber(x, y) &&
-          room.maze[y][x].type === 'floor'
-        ) {
+        if ((x !== startX || y !== startY) && !inChamber(x, y) && room.maze[y][x].type === 'floor') {
           floorSeeds.push({ x, y });
         }
       }
     }
     if (floorSeeds.length === 0) return;
 
-    const seedSet = new Set(floorSeeds.map((p) => nodeKey(p.x, p.y)));
+    const seedSet = new Set(floorSeeds.map(p => nodeKey(p.x, p.y)));
     const openEdges = new Set(room.openEdges || []);
-
+    
     const queue = [{ x: startX, y: startY }];
     const visited = new Set([nodeKey(startX, startY)]);
     const parent = new Map();
@@ -490,21 +454,16 @@ function generateDungeon() {
     ensureConnectivity(room);
   }
 
-  function pathKey(x, y) {
-    return `${x},${y}`;
-  }
+  function pathKey(x, y) { return `${x},${y}`; }
 
   function findPath(start, goal, rooms, occupied) {
     if (!inBounds(start.x, start.y) || !inBounds(goal.x, goal.y)) return null;
-    if (
-      occupied.has(pathKey(start.x, start.y)) ||
-      occupied.has(pathKey(goal.x, goal.y))
-    ) return null;
+    if (occupied.has(pathKey(start.x, start.y)) || occupied.has(pathKey(goal.x, goal.y))) return null;
 
     const queue = [start];
     const visited = new Set([pathKey(start.x, start.y)]);
     const parents = new Map();
-    const dirs = [[1, 0], [-1, 0], [0, 1], [0, -1]];
+    const dirs = [[1,0],[-1,0],[0,1],[0,-1]];
 
     while (queue.length > 0) {
       const cur = queue.shift();
@@ -523,13 +482,31 @@ function generateDungeon() {
         const nx = cur.x + dx;
         const ny = cur.y + dy;
         const nKey = pathKey(nx, ny);
-
+        
         if (!inBounds(nx, ny) || visited.has(nKey)) continue;
-
-        const isAnchor = (nx === start.x && ny === start.y) ||
-          (nx === goal.x && ny === goal.y);
+        
+        const isAnchor = (nx === start.x && ny === start.y) || (nx === goal.x && ny === goal.y);
+        
+        // Stricter room adjacency check - don't allow paths to run parallel to room walls
         if (isInsideAnyRoom(nx, ny, rooms, 0)) continue;
+        
+        // Check if this tile would be adjacent to a room (but not at the anchor points)
+        let adjacentToRoom = false;
+        if (!isAnchor) {
+          for (const room of rooms) {
+            if (isAdjacentToRoom(nx, ny, room)) {
+              adjacentToRoom = true;
+              break;
+            }
+          }
+        }
+        
+        if (adjacentToRoom) continue;
+        
+        // Also check if moving along this direction would create a path that runs parallel to a room
+        // This is a bit complex - for now, just prevent paths from being too close to rooms
         if (!isAnchor && isInsideAnyRoom(nx, ny, rooms, 1)) continue;
+        
         if (occupied.has(nKey)) continue;
 
         visited.add(nKey);
@@ -540,18 +517,18 @@ function generateDungeon() {
     return null;
   }
 
-  // New function to add dead end paths
+  // Updated function to add longer dead end paths (minimum 5 tiles)
   function addDeadEndPath(mainPath, rooms, occupied, deadEndIndex) {
     if (!mainPath || mainPath.length < 4) return null;
 
     // Pick a point along the main path (not the ends)
     const branchPoint = mainPath[rand(1, mainPath.length - 2)];
-
+    
     // Try each direction
-    const dirs = shuffle([[1, 0], [-1, 0], [0, 1], [0, -1]]);
+    const dirs = shuffle([[1,0],[-1,0],[0,1],[0,-1]]);
 
     for (const [dx, dy] of dirs) {
-      const length = rand(2, 4); // 2-4 tiles long
+      const length = rand(5, 8); // Increased to 5-8 tiles long
       const points = [];
       let ok = true;
 
@@ -562,11 +539,22 @@ function generateDungeon() {
         const key = pathKey(nx, ny);
 
         // Check if tile is valid
-        if (
-          !inBounds(nx, ny) ||
-          isInsideAnyRoom(nx, ny, rooms, 0) ||
-          occupied.has(key)
-        ) {
+        if (!inBounds(nx, ny) || 
+            isInsideAnyRoom(nx, ny, rooms, 0) || 
+            occupied.has(key)) {
+          ok = false;
+          break;
+        }
+        
+        // Also check that this dead end tile isn't adjacent to any room
+        let adjacentToRoom = false;
+        for (const room of rooms) {
+          if (isAdjacentToRoom(nx, ny, room)) {
+            adjacentToRoom = true;
+            break;
+          }
+        }
+        if (adjacentToRoom) {
           ok = false;
           break;
         }
@@ -574,27 +562,22 @@ function generateDungeon() {
         points.push({ x: nx, y: ny });
       }
 
-      // Also check the tile before the branch point isn't a room
-      if (ok && points.length >= 2) {
+      // Also check the tile before the branch point isn't adjacent to a room
+      if (ok && points.length >= 5) { // At least 5 tiles long
         // Mark all tiles as occupied
-        points.forEach((p) => occupied.add(pathKey(p.x, p.y)));
-
-        // Add wall tiles around the dead end to prevent fusion
-        // This ensures dead ends don't merge with other corridors
-        points.forEach((p) => {
+        points.forEach(p => occupied.add(pathKey(p.x, p.y)));
+        
+        // Add wall tiles around the dead end to prevent fusion and room adjacency
+        points.forEach(p => {
           // Check adjacent tiles and mark them as blocked if they're not already paths
-          for (const [checkDx, checkDy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+          for (const [checkDx, checkDy] of [[1,0],[-1,0],[0,1],[0,-1]]) {
             const checkX = p.x + checkDx;
             const checkY = p.y + checkDy;
             const checkKey = pathKey(checkX, checkY);
-
-            // If this adjacent tile isn't already occupied and isn't a room, mark it as blocked
-            if (
-              !occupied.has(checkKey) &&
-              !isInsideAnyRoom(checkX, checkY, rooms, 0)
-            ) {
-              // We don't actually mark it as occupied, but we'll add a wall later
-              // For now, just ensure we don't create another path through here
+            
+            // If this adjacent tile isn't already occupied and isn't a room, mark it as a wall zone
+            if (!occupied.has(checkKey) && !isInsideAnyRoom(checkX, checkY, rooms, 0)) {
+              // We'll handle this in the corridor wall generation
             }
           }
         });
@@ -602,7 +585,7 @@ function generateDungeon() {
         return {
           from: 'deadend',
           to: `deadend-${deadEndIndex}`,
-          points: [branchPoint, ...points],
+          points: [branchPoint, ...points]
         };
       }
     }
@@ -620,26 +603,19 @@ function generateDungeon() {
       }
     }
     if (tiles.length === 0) {
-      return {
-        x: room.x + Math.floor(room.w / 2),
-        y: room.y + Math.floor(room.h / 2),
-      };
+      return { x: room.x + Math.floor(room.w/2), y: room.y + Math.floor(room.h/2) };
     }
 
     shuffle(tiles);
-
-    const far = tiles.find((t) =>
-      blockedTiles.every((b) =>
-        Math.abs(t.x - b.x) + Math.abs(t.y - b.y) >= minDist
-      )
-    );
+    
+    const far = tiles.find(t => blockedTiles.every(b => 
+      Math.abs(t.x - b.x) + Math.abs(t.y - b.y) >= minDist
+    ));
     if (far) return far;
-
-    const ok = tiles.find((t) =>
-      blockedTiles.every((b) =>
-        Math.abs(t.x - b.x) + Math.abs(t.y - b.y) >= hardMin
-      )
-    );
+    
+    const ok = tiles.find(t => blockedTiles.every(b => 
+      Math.abs(t.x - b.x) + Math.abs(t.y - b.y) >= hardMin
+    ));
     return ok || tiles[0];
   }
 
@@ -659,22 +635,17 @@ function generateDungeon() {
         const x = rand(2, GRID_WIDTH - 3 - w);
         const y = rand(2, GRID_HEIGHT - 3 - h);
 
-        const overlap = rooms.some((room) =>
-          !(x + w + 2 < room.x || x > room.x + room.w + 2 ||
+        const overlap = rooms.some(room => 
+          !(x + w + 2 < room.x || x > room.x + room.w + 2 || 
             y + h + 2 < room.y || y > room.y + room.h + 2)
         );
 
         if (!overlap) {
           rooms.push({
             id: `f${f}r${r}`,
-            x,
-            y,
-            w,
-            h,
+            x, y, w, h,
             maze: [],
-            items: [],
-            enemies: [],
-            chests: [],
+            items: [], enemies: [], chests: []
           });
           placed = true;
         }
@@ -685,28 +656,8 @@ function generateDungeon() {
     // Make sure we have at least 2 rooms
     if (rooms.length < 2) {
       rooms.length = 0;
-      rooms.push({
-        id: `f${f}r0`,
-        x: 6,
-        y: 6,
-        w: 8,
-        h: 8,
-        maze: [],
-        items: [],
-        enemies: [],
-        chests: [],
-      });
-      rooms.push({
-        id: `f${f}r1`,
-        x: 28,
-        y: 24,
-        w: 8,
-        h: 8,
-        maze: [],
-        items: [],
-        enemies: [],
-        chests: [],
-      });
+      rooms.push({ id: `f${f}r0`, x: 6, y: 6, w: 8, h: 8, maze: [], items: [], enemies: [], chests: [] });
+      rooms.push({ id: `f${f}r1`, x: 28, y: 24, w: 8, h: 8, maze: [], items: [], enemies: [], chests: [] });
     }
 
     // Carve mazes in rooms
@@ -716,7 +667,7 @@ function generateDungeon() {
     rooms.sort((a, b) => a.x + a.y - (b.x + b.y));
     const paths = [];
     const occupied = new Set();
-    const roomDoors = new Map(rooms.map((r) => [r.id, new Set()]));
+    const roomDoors = new Map(rooms.map(r => [r.id, new Set()]));
     let deadEndIndex = 0;
 
     for (let i = 0; i < rooms.length - 1; i++) {
@@ -725,22 +676,14 @@ function generateDungeon() {
 
       // Try to find a path between rooms
       let path = null;
-      for (let attempts = 0; attempts < 20 && !path; attempts++) {
-        const start = {
+      for (let attempts = 0; attempts < 30 && !path; attempts++) {
+        const start = { 
           x: r1.x + (Math.random() > 0.5 ? -1 : r1.w),
-          y: clamp(
-            r1.y + Math.floor(Math.random() * r1.h),
-            r1.y,
-            r1.y + r1.h - 1,
-          ),
+          y: clamp(r1.y + Math.floor(Math.random() * r1.h), r1.y, r1.y + r1.h - 1)
         };
         const goal = {
           x: r2.x + (Math.random() > 0.5 ? -1 : r2.w),
-          y: clamp(
-            r2.y + Math.floor(Math.random() * r2.h),
-            r2.y,
-            r2.y + r2.h - 1,
-          ),
+          y: clamp(r2.y + Math.floor(Math.random() * r2.h), r2.y, r2.y + r2.h - 1)
         };
         path = findPath(start, goal, rooms, occupied);
       }
@@ -748,14 +691,14 @@ function generateDungeon() {
       if (path && path.length >= 2) {
         const startDoor = carveDoorway(r1, path[0]);
         const endDoor = carveDoorway(r2, path[path.length - 1]);
-
+        
         roomDoors.get(r1.id).add(pathKey(startDoor.x, startDoor.y));
         roomDoors.get(r2.id).add(pathKey(endDoor.x, endDoor.y));
 
         const fullPath = [startDoor, ...path, endDoor];
-        fullPath.forEach((p) => occupied.add(pathKey(p.x, p.y)));
+        fullPath.forEach(p => occupied.add(pathKey(p.x, p.y)));
         paths.push({ from: r1.id, to: r2.id, points: fullPath });
-
+        
         // Add a dead end path from this main path
         const deadEnd = addDeadEndPath(fullPath, rooms, occupied, deadEndIndex);
         if (deadEnd) {
@@ -765,21 +708,14 @@ function generateDungeon() {
       }
     }
 
-    // Also try to add dead ends from each room (one per room)
-    rooms.forEach((room) => {
+    // Also try to add dead ends from each room
+    rooms.forEach(room => {
       // Find a path that connects to this room
-      const roomPaths = paths.filter((p) =>
-        p.from === room.id || p.to === room.id
-      );
+      const roomPaths = paths.filter(p => p.from === room.id || p.to === room.id);
       if (roomPaths.length > 0) {
         // Pick a random path connected to this room
         const path = roomPaths[rand(0, roomPaths.length - 1)];
-        const deadEnd = addDeadEndPath(
-          path.points,
-          rooms,
-          occupied,
-          deadEndIndex,
-        );
+        const deadEnd = addDeadEndPath(path.points, rooms, occupied, deadEndIndex);
         if (deadEnd) {
           deadEndIndex++;
           paths.push(deadEnd);
@@ -788,9 +724,8 @@ function generateDungeon() {
     });
 
     // Clean up corridor tiles and prevent fusion
-    // First, create a map of all corridor tiles
     const corridorMap = new Map();
-    occupied.forEach((cellKey) => {
+    occupied.forEach(cellKey => {
       const [x, y] = cellKey.split(',').map(Number);
       corridorMap.set(cellKey, { x, y, connections: 0 });
     });
@@ -799,49 +734,42 @@ function generateDungeon() {
     corridorMap.forEach((tile, key) => {
       const [x, y] = [tile.x, tile.y];
       let connections = 0;
-
-      // Check four directions
-      [[1, 0], [-1, 0], [0, 1], [0, -1]].forEach(([dx, dy]) => {
+      
+      [[1,0],[-1,0],[0,1],[0,-1]].forEach(([dx, dy]) => {
         const neighborKey = pathKey(x + dx, y + dy);
         if (corridorMap.has(neighborKey)) connections++;
       });
-
+      
       tile.connections = connections;
     });
 
-    // Now build the final corridor list with walls between adjacent corridors
+    // Build final corridor list with walls between adjacent corridors
     const finalCorridors = [];
-    const corridorWalls = []; // Track where walls should be between corridors
+    const corridorWalls = [];
 
     corridorMap.forEach((tile, key) => {
       finalCorridors.push({ x: tile.x, y: tile.y });
-
-      // Check if this corridor has a neighbor that would cause fusion
+      
       const [x, y] = [tile.x, tile.y];
-      [[1, 0], [-1, 0], [0, 1], [0, -1]].forEach(([dx, dy]) => {
+      [[1,0],[-1,0],[0,1],[0,-1]].forEach(([dx, dy]) => {
         const nx = x + dx;
         const ny = y + dy;
         const neighborKey = pathKey(nx, ny);
-
-        // If there's a corridor tile adjacent, and they're not connected by a path,
-        // we need a wall between them
+        
         if (corridorMap.has(neighborKey)) {
           // Check if these two corridors are part of the same path
           let samePath = false;
-          paths.forEach((path) => {
+          paths.forEach(path => {
             for (let i = 0; i < path.points.length - 1; i++) {
               const p1 = path.points[i];
               const p2 = path.points[i + 1];
-              if (
-                (p1.x === x && p1.y === y && p2.x === nx && p2.y === ny) ||
-                (p2.x === x && p2.y === y && p1.x === nx && p1.y === ny)
-              ) {
+              if ((p1.x === x && p1.y === y && p2.x === nx && p2.y === ny) ||
+                  (p2.x === x && p2.y === y && p1.x === nx && p1.y === ny)) {
                 samePath = true;
               }
             }
           });
-
-          // If not same path, add a wall
+          
           if (!samePath) {
             corridorWalls.push({ x1: x, y1: y, x2: nx, y2: ny });
           }
@@ -850,8 +778,8 @@ function generateDungeon() {
     });
 
     // Filter out tiles that are inside rooms (doors)
-    const cleanedCorridors = finalCorridors.filter((tile) => {
-      return !rooms.some((r) => isInsideRoom(tile.x, tile.y, r));
+    const cleanedCorridors = finalCorridors.filter(tile => {
+      return !rooms.some(r => isInsideRoom(tile.x, tile.y, r));
     });
 
     // Add stairs
@@ -894,7 +822,7 @@ function generateDungeon() {
       paths: paths,
       stairs: stairs,
       corridorTiles: cleanedCorridors,
-      corridorWalls: corridorWalls, // Store walls between corridors for drawing
+      corridorWalls: corridorWalls
     });
   }
 
