@@ -19,7 +19,7 @@ class Menu extends Phaser.Scene {
       fontStyle: 'bold',
     }).setOrigin(0.5);
 
-    // NEW GAME button - creates fresh player with starter items
+    // NEW GAME button
     const newGameButton = this.add.text(400, 200, 'NEW GAME', {
       fontSize: '32px',
       fill: '#0f0',
@@ -28,7 +28,7 @@ class Menu extends Phaser.Scene {
     }).setOrigin(0.5).setInteractive();
 
     newGameButton.on('pointerdown', () => {
-      // Reset player to default stats with starter items
+      // Create a new player with starter items
       globalThis.gameState.player = {
         name: "Adventurer",
         level: 1,
@@ -36,6 +36,7 @@ class Menu extends Phaser.Scene {
         maxHP: 100,
         atk: 10,
         def: 5,
+        luck: 0,
         exp: 0,
         expToNext: 100,
         gold: 50,
@@ -63,14 +64,6 @@ class Menu extends Phaser.Scene {
             tier: 1,
             value: 5,
             stats: { hpRestore: 30 }
-          },
-          {
-            id: "scrap_1",
-            name: "Crafting Scrap",
-            type: "material",
-            tier: 1,
-            value: 2,
-            stats: {}
           }
         ],
         equipment: {
@@ -79,6 +72,16 @@ class Menu extends Phaser.Scene {
           accessory: null
         }
       };
+      
+      // Generate loot tables for all chest types
+      globalThis.lootTables = {
+        common: globalThis.lootGenerator.generate(1, 2, 0, 5),    // Tier 1, size 2, no luck, 5 boxes
+        rare: globalThis.lootGenerator.generate(2, 3, 0.2, 3),     // Tier 2, size 3, some luck, 3 boxes
+        epic: globalThis.lootGenerator.generate(3, 4, 0.1, 2),     // Tier 3, size 4, 2 boxes
+        legendary: globalThis.lootGenerator.generate(4, 5, -0.1, 1) // Tier 4, size 5, 1 box
+      };
+      
+      console.log('Loot tables generated:', globalThis.lootTables);
       
       this.scene.start('Play');
     });
@@ -94,7 +97,7 @@ class Menu extends Phaser.Scene {
     loadGameButton.on('pointerdown', () => {
       this.scene.start('Saves', {
         mode: 'load',
-        returnScene: 'Play'
+        returnScene: 'Menu'
       });
     });
 
