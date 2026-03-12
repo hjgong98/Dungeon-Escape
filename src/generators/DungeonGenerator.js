@@ -715,6 +715,39 @@ function generateDungeon() {
     return tiles[0];
   }
 
+  function pickChestSpawnTile(room, blockedTiles) {
+    const blockedKeys = new Set(
+      blockedTiles.map((tile) => `${tile.x},${tile.y}`),
+    );
+    const tiles = [];
+
+    for (let y = 0; y < room.h; y++) {
+      for (let x = 0; x < room.w; x++) {
+        if (room.maze?.[y]?.[x]?.type === 'floor') {
+          const tile = { x: room.x + x, y: room.y + y };
+          if (!blockedKeys.has(`${tile.x},${tile.y}`)) {
+            tiles.push(tile);
+          }
+        }
+      }
+    }
+
+    if (tiles.length === 0) {
+      return null;
+    }
+
+    shuffle(tiles);
+    return tiles[0];
+  }
+
+  const lootboxNoise = typeof FastNoiseLite === 'function'
+    ? new FastNoiseLite(rand(1, 999999))
+    : null;
+  if (lootboxNoise) {
+    lootboxNoise.SetNoiseType(FastNoiseLite.NoiseType.Perlin);
+    lootboxNoise.SetFrequency(0.09);
+  }
+
   // Generate each floor
   for (let f = 0; f < numFloors; f++) {
     const numRooms = rand(2, 4);
@@ -971,6 +1004,54 @@ function generateDungeon() {
       if (enemyTile) {
         blocked.push(enemyTile);
       }
+    });
+
+    const lootboxCandidates = [];
+    rooms.forEach((room, index) => {
+      room.chests = [];
+      const centerX = room.x + room.w / 2;
+      const centerY = room.y + room.h / 2;
+      const noiseValue = lootboxNoise
+        ? lootboxNoise.GetNoise(centerX + f * 17.13, centerY + index * 11.71)
+        : Math.random() * 2 - 1;
+      const spawnChance = Math.max(0.18, Math.min(0.72, 0.3 + noiseValue * 0.3));
+
+      if (noiseValue > 0.05 && Math.random() < spawnChance) {
+        lootboxCandidates.push({ room, noiseValue });
+      }
+    });
+
+    if (lootboxCandidates.length === 0 && rooms.length > 0) {
+      const fallbackRoom = rooms.reduce((bestRoom, room, index) => {
+        const centerX = room.x + room.w / 2;
+        const centerY = room.y + room.h / 2;
+        const noiseValue = lootboxNoise
+          ? lootboxNoise.GetNoise(centerX + f * 17.13, centerY + index * 11.71)
+          : 0;
+        if (!bestRoom || noiseValue > bestRoom.noiseValue) {
+          return { room, noiseValue };
+        }
+        return bestRoom;
+      }, null);
+
+      if (fallbackRoom) {
+        lootboxCandidates.push(fallbackRoom);
+      }
+    }
+
+    lootboxCandidates.forEach(({ room, noiseValue }) => {
+      const chestTile = pickChestSpawnTile(room, blocked);
+      if (!chestTile) {
+        return;
+      }
+
+      room.chests.push({
+        id: `${room.id}-lootbox-${room.chests.length}`,
+        x: chestTile.x,
+        y: chestTile.y,
+        noiseValue,
+      });
+      blocked.push(chestTile);
     });
 
     dungeon.floors.push({

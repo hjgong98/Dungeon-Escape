@@ -53,4 +53,12 @@ const gameState = {
   },
 };
 
+gameState.player.addItem = function addItem(itemData) {
+  if (!Array.isArray(this.inventory)) {
+    this.inventory = [];
+  }
+  this.inventory.push(itemData);
+  return true;
+};
+
 globalThis.gameState = gameState;

@@ -27,6 +27,7 @@ class Dungeons extends Phaser.Scene {
     this.currentRoom = null;
     this.activatedRooms = new Set();
     this.enemies = [];
+    this.lootboxes = [];
     this.enemyWanderSpeed = 0.35;
     this.enemyChaseSpeed = 0.6;
     this.enemyDetectionRange = 140;
@@ -52,6 +53,7 @@ class Dungeons extends Phaser.Scene {
   create() {
     this.resetForFreshDungeonRun();
     this.ensureLanternMaskTexture();
+    this.ensureLootboxTexture();
 
     this.dungeon = generateDungeon();
 
@@ -99,6 +101,7 @@ class Dungeons extends Phaser.Scene {
 
     this.destroyDecorTexts();
     this.destroyEnemies();
+    this.destroyLootboxes();
 
     this.calculateBounds(floor);
     this.drawFloor(floor);
@@ -111,6 +114,7 @@ class Dungeons extends Phaser.Scene {
     });
 
     this.createEnemiesForFloor(floor);
+    this.createLootboxesForFloor(floor);
     this.placePlayer(floor);
 
     this.cameras.main.setBounds(
@@ -383,6 +387,21 @@ class Dungeons extends Phaser.Scene {
     }
   }
 
+  ensureLootboxTexture() {
+    if (this.textures.exists('lootbox')) {
+      return;
+    }
+
+    const size = this.tileSize;
+    const textureGraphics = this.make.graphics({ x: 0, y: 0, add: false });
+    textureGraphics.fillStyle(0xffeb3b, 1);
+    textureGraphics.fillRect(2, 2, size - 4, size - 4);
+    textureGraphics.lineStyle(2, 0xb38f00, 1);
+    textureGraphics.strokeRect(2, 2, size - 4, size - 4);
+    textureGraphics.generateTexture('lootbox', size, size);
+    textureGraphics.destroy();
+  }
+
   createLanternOverlay() {
     if (this.exploredOverlay) {
       this.exploredOverlay.destroy();
@@ -542,6 +561,42 @@ class Dungeons extends Phaser.Scene {
           path: [],
           pathTargetKey: null,
         });
+      });
+    });
+  }
+
+  createLootboxesForFloor(floor) {
+    this.lootboxes = [];
+
+    floor.rooms.forEach((room) => {
+      (room.chests || []).forEach((chest) => {
+        const lootbox = new Lootbox(
+          this,
+          this.worldToWorldX(chest.x) + this.tileSize / 2,
+          this.worldToWorldY(chest.y) + this.tileSize / 2,
+          {
+            box_tier: chest.boxTier || 1,
+            size: 1,
+            luck: 0,
+            total_items: 3,
+            loot: chest.loot || { 'Tier 1': 3 },
+          },
+        );
+
+        lootbox.setDisplaySize(this.tileSize - 4, this.tileSize - 4);
+        lootbox.setDepth(12);
+        lootbox.chestId = chest.id;
+
+        if (chest.opened) {
+          lootbox.opened = true;
+          lootbox.setTint(0x888888);
+        } else {
+          lootbox.on('lootboxOpened', () => {
+            chest.opened = true;
+          });
+        }
+
+        this.lootboxes.push(lootbox);
       });
     });
   }
@@ -1126,6 +1181,11 @@ class Dungeons extends Phaser.Scene {
     this.enemies = [];
   }
 
+  destroyLootboxes() {
+    this.lootboxes.forEach((lootbox) => lootbox.destroy());
+    this.lootboxes = [];
+  }
+
   resetForFreshDungeonRun() {
     if (this.player) {
       this.player.destroy();
@@ -1173,6 +1233,7 @@ class Dungeons extends Phaser.Scene {
 
     this.destroyDecorTexts();
     this.destroyEnemies();
+    this.destroyLootboxes();
     this.walkableTiles.clear();
     this.corridorWallEdges.clear();
     this.roomOpenEdges.clear();
