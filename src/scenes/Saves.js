@@ -10,7 +10,12 @@ class Saves extends Phaser.Scene {
   init(data) {
     this.mode = data.mode || 'load';
     this.returnScene = data.returnScene || 'Menu';
-    console.log('Saves scene - mode:', this.mode, 'return to:', this.returnScene);
+    console.log(
+      'Saves scene - mode:',
+      this.mode,
+      'return to:',
+      this.returnScene,
+    );
   }
 
   preload() {
@@ -35,7 +40,9 @@ class Saves extends Phaser.Scene {
     this.createSaveSlots();
 
     // Back button - returns to appropriate scene
-    const backText = this.returnScene === 'Play' ? '← BACK TO PLAY' : '← BACK TO MENU';
+    const backText = this.returnScene === 'Play'
+      ? '← BACK TO PLAY'
+      : '← BACK TO MENU';
     const backButton = this.add.text(400, 550, backText, {
       fontSize: '24px',
       fill: '#fff',
@@ -80,8 +87,8 @@ class Saves extends Phaser.Scene {
 
   createSaveSlot(index, y) {
     const saveId = `save_${index + 1}`;
-    const saveInfo = this.saves.find(s => s.id === saveId);
-    
+    const saveInfo = this.saves.find((s) => s.id === saveId);
+
     // Slot background
     const slotBg = this.add.rectangle(400, y, 600, 80, 0x333333, 0.8);
     slotBg.setStrokeStyle(2, 0x666666);
@@ -195,7 +202,7 @@ class Saves extends Phaser.Scene {
   saveToSlot(saveId) {
     // Get current player data
     const player = globalThis.gameState.player;
-    
+
     // Create save data
     const saveData = {
       id: saveId,
@@ -212,19 +219,19 @@ class Saves extends Phaser.Scene {
       inventory: player.inventory,
       equipment: player.equipment,
       lootTables: globalThis.lootTables,
-      lastPlayed: new Date().toISOString()
+      lastPlayed: new Date().toISOString(),
     };
 
     // Save to localStorage
     localStorage.setItem(saveId, JSON.stringify(saveData));
 
     // Update saves list
-    const existingIndex = this.saves.findIndex(s => s.id === saveId);
+    const existingIndex = this.saves.findIndex((s) => s.id === saveId);
     const saveInfo = {
       id: saveId,
       name: player.name,
       level: player.level,
-      lastPlayed: new Date().toISOString()
+      lastPlayed: new Date().toISOString(),
     };
 
     if (existingIndex >= 0) {
@@ -244,7 +251,7 @@ class Saves extends Phaser.Scene {
     const saveData = localStorage.getItem(saveId);
     if (saveData) {
       const data = JSON.parse(saveData);
-      
+
       // Load into gameState
       globalThis.gameState.player = {
         name: data.name,
@@ -261,15 +268,15 @@ class Saves extends Phaser.Scene {
         equipment: data.equipment || {
           weapon: null,
           armor: null,
-          accessory: null
-        }
+          accessory: null,
+        },
       };
-      
+
       // Load loot tables
       globalThis.lootTables = data.lootTables || {};
-      
+
       console.log('Game loaded from', saveId);
-      
+
       // Go to Play scene
       this.scene.start('Play');
     }
@@ -278,11 +285,11 @@ class Saves extends Phaser.Scene {
   deleteSave(saveId) {
     // Remove from localStorage
     localStorage.removeItem(saveId);
-    
+
     // Remove from saves list
-    this.saves = this.saves.filter(s => s.id !== saveId);
+    this.saves = this.saves.filter((s) => s.id !== saveId);
     this.saveSaves();
-    
+
     // Refresh slots
     this.createSaveSlots();
   }

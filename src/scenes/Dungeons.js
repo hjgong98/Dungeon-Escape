@@ -3,7 +3,7 @@ class Dungeons extends Phaser.Scene {
     super('Dungeons');
 
     this.player = null;
-    this.playerSpeed = 2;
+    this.playerSpeed = 1.5;
     this.keys = {};
 
     this.dungeon = null;
@@ -22,6 +22,7 @@ class Dungeons extends Phaser.Scene {
     this.decorTexts = [];
 
     this.walkableTiles = new Set();
+    this.corridorWallEdges = new Set();
     this.roomOpenEdges = new Map();
     this.currentRoom = null;
     this.activatedRooms = new Set();
@@ -34,10 +35,10 @@ class Dungeons extends Phaser.Scene {
     this.lanternGlow = null;
     this.lanternMaskKey = 'lantern-mask';
     this.exploredMaskKey = 'explored-mask';
-    this.lanternRadius = 50;
-    this.lanternSoftness = 15;
+    this.lanternRadius = 40;
+    this.lanternSoftness = 20;
     this.darknessColor = 0x000000;
-    this.exploredDarknessAlpha = 1;
+    this.exploredDarknessAlpha = 0.82;
     this.lanternOffsetX = 0;
     this.lanternOffsetY = 0;
     this.lanternMaskSize = 0;
@@ -102,6 +103,7 @@ class Dungeons extends Phaser.Scene {
     this.calculateBounds(floor);
     this.drawFloor(floor);
     this.buildWalkableTiles(floor);
+    this.buildCorridorWallEdges(floor);
 
     this.roomOpenEdges.clear();
     floor.rooms.forEach((room) => {
@@ -178,19 +180,19 @@ class Dungeons extends Phaser.Scene {
     const contentWidth = (maxX - minX + 1) * this.tileSize;
     const contentHeight = (maxY - minY + 1) * this.tileSize;
 
-    this.worldOffset.x =
-      Math.floor((this.scale.width - contentWidth) / 2) - minX * this.tileSize;
-    this.worldOffset.y =
-      Math.floor((this.scale.height - contentHeight) / 2) - minY * this.tileSize;
+    this.worldOffset.x = Math.floor((this.scale.width - contentWidth) / 2) -
+      minX * this.tileSize;
+    this.worldOffset.y = Math.floor((this.scale.height - contentHeight) / 2) -
+      minY * this.tileSize;
 
     const padding = 2 * this.tileSize;
     this.floorBounds = {
       minX: this.worldToWorldX(minX) - padding,
       minY: this.worldToWorldY(minY) - padding,
-      width:
-        this.worldToWorldX(maxX + 1) - this.worldToWorldX(minX) + padding * 2,
-      height:
-        this.worldToWorldY(maxY + 1) - this.worldToWorldY(minY) + padding * 2,
+      width: this.worldToWorldX(maxX + 1) - this.worldToWorldX(minX) +
+        padding * 2,
+      height: this.worldToWorldY(maxY + 1) - this.worldToWorldY(minY) +
+        padding * 2,
     };
   }
 
@@ -214,7 +216,7 @@ class Dungeons extends Phaser.Scene {
           const worldY = this.worldToWorldY(room.y + y);
 
           if (tile.type === 'floor') {
-            this.graphics.fillStyle(0xc94a4a, 1);
+            this.graphics.fillStyle(0x444444, 1);
           } else {
             this.graphics.fillStyle(0x222222, 1);
           }
@@ -227,7 +229,8 @@ class Dungeons extends Phaser.Scene {
         }
       }
 
-      const openEdges = this.roomOpenEdges.get(room.id) || new Set(room.openEdges || []);
+      const openEdges = this.roomOpenEdges.get(room.id) ||
+        new Set(room.openEdges || []);
       this.graphics.lineStyle(3, 0x111111, 1);
 
       for (let y = 0; y < room.h; y++) {
@@ -263,13 +266,18 @@ class Dungeons extends Phaser.Scene {
     });
 
     floor.corridorWalls?.forEach((wall) => {
-      const wx1 = this.worldToWorldX(wall.x1) + size / 2;
-      const wy1 = this.worldToWorldY(wall.y1) + size / 2;
-      const wx2 = this.worldToWorldX(wall.x2) + size / 2;
-      const wy2 = this.worldToWorldY(wall.y2) + size / 2;
-
       this.graphics.lineStyle(3, 0x111111, 1);
-      this.graphics.lineBetween(wx1, wy1, wx2, wy2);
+      if (wall.y1 === wall.y2) {
+        // Horizontally adjacent tiles — draw a vertical wall at the shared x edge
+        const edgeX = this.worldToWorldX(Math.max(wall.x1, wall.x2));
+        const edgeY = this.worldToWorldY(wall.y1);
+        this.graphics.lineBetween(edgeX, edgeY, edgeX, edgeY + size);
+      } else {
+        // Vertically adjacent tiles — draw a horizontal wall at the shared y edge
+        const edgeX = this.worldToWorldX(wall.x1);
+        const edgeY = this.worldToWorldY(Math.max(wall.y1, wall.y2));
+        this.graphics.lineBetween(edgeX, edgeY, edgeX + size, edgeY);
+      }
     });
 
     floor.stairs.forEach((stair) => {
@@ -289,6 +297,7 @@ class Dungeons extends Phaser.Scene {
       this.decorTexts.push(stairText);
     });
 
+    // Label placed for testing purposes, comment out when not testing
     const endRoom = floor.rooms.find((room) => room.isEnd);
     if (endRoom && endRoom.endPos) {
       const exitText = this.add.text(
@@ -362,9 +371,9 @@ class Dungeons extends Phaser.Scene {
         radius + softness,
       );
 
-      exploredGradient.addColorStop(0, 'rgba(255, 255, 255, 0.22)');
-      exploredGradient.addColorStop(0.5, 'rgba(255, 245, 210, 0.12)');
-      exploredGradient.addColorStop(0.8, 'rgba(255, 210, 120, 0.05)');
+      exploredGradient.addColorStop(0, 'rgba(255, 255, 255, 1)');
+      exploredGradient.addColorStop(0.45, 'rgba(255, 245, 210, 0.85)');
+      exploredGradient.addColorStop(0.8, 'rgba(255, 210, 120, 0.4)');
       exploredGradient.addColorStop(1, 'rgba(255, 180, 80, 0)');
 
       exploredContext.clearRect(0, 0, size, size);
@@ -395,7 +404,7 @@ class Dungeons extends Phaser.Scene {
     this.lanternGlow = this.add.image(0, 0, this.lanternMaskKey);
     this.lanternGlow.setDepth(1001);
     this.lanternGlow.setBlendMode(Phaser.BlendModes.ADD);
-    this.lanternGlow.setAlpha(0.18);
+    this.lanternGlow.setAlpha(0);
     this.lanternGlow.setScale(0.7);
   }
 
@@ -408,22 +417,23 @@ class Dungeons extends Phaser.Scene {
   }
 
   syncLantern() {
-    if (!this.player || !this.lanternGlow) {
+    if (!this.player || !this.exploredOverlay) {
       return;
     }
 
     const playerWorldX = this.player.x + this.lanternOffsetX;
     const playerWorldY = this.player.y + this.lanternOffsetY;
 
-    if (this.exploredOverlay) {
-      this.exploredOverlay.erase(
-        this.exploredMaskKey,
-        playerWorldX - this.floorBounds.minX - this.lanternMaskSize / 2,
-        playerWorldY - this.floorBounds.minY - this.lanternMaskSize / 2,
-      );
-    }
+    this.resetExploredOverlay();
+    this.exploredOverlay.erase(
+      this.exploredMaskKey,
+      playerWorldX - this.floorBounds.minX - this.lanternMaskSize / 2,
+      playerWorldY - this.floorBounds.minY - this.lanternMaskSize / 2,
+    );
 
-    this.lanternGlow.setPosition(playerWorldX, playerWorldY);
+    if (this.lanternGlow) {
+      this.lanternGlow.setPosition(playerWorldX, playerWorldY);
+    }
   }
 
   buildWalkableTiles(floor) {
@@ -448,6 +458,22 @@ class Dungeons extends Phaser.Scene {
     });
   }
 
+  buildCorridorWallEdges(floor) {
+    this.corridorWallEdges.clear();
+
+    (floor.corridorWalls || []).forEach((wall) => {
+      this.corridorWallEdges.add(
+        this.makeTileEdgeKey(wall.x1, wall.y1, wall.x2, wall.y2),
+      );
+    });
+  }
+
+  makeTileEdgeKey(ax, ay, bx, by) {
+    const a = `${ax},${ay}`;
+    const b = `${bx},${by}`;
+    return a < b ? `${a}|${b}` : `${b}|${a}`;
+  }
+
   placePlayer(floor) {
     if (!this.player) {
       const startRoom = floor.rooms.find((room) => room.isStart);
@@ -461,7 +487,9 @@ class Dungeons extends Phaser.Scene {
       );
     } else {
       const targetDir = this.lastStairDir === 'down' ? 'up' : 'down';
-      const stair = floor.stairs.find((candidate) => candidate.dir === targetDir);
+      const stair = floor.stairs.find((candidate) =>
+        candidate.dir === targetDir
+      );
       const spawnTile = stair || this.findAnyFloorTile(floor);
 
       this.player.setPosition(
@@ -470,7 +498,7 @@ class Dungeons extends Phaser.Scene {
       );
     }
 
-    this.player.setDepth(20);
+    this.player.setDepth(1002);
   }
 
   findAnyFloorTile(floor) {
@@ -520,7 +548,9 @@ class Dungeons extends Phaser.Scene {
 
   updateEnemies(floor) {
     this.enemies.forEach((enemy) => {
-      const room = floor.rooms.find((candidate) => candidate.id === enemy.roomId);
+      const room = floor.rooms.find((candidate) =>
+        candidate.id === enemy.roomId
+      );
       if (!room) {
         return;
       }
@@ -559,8 +589,7 @@ class Dungeons extends Phaser.Scene {
       }
 
       if (!targetTile) {
-        const reachedWanderTarget =
-          enemyTileX === enemy.wanderTargetTile.x &&
+        const reachedWanderTarget = enemyTileX === enemy.wanderTargetTile.x &&
           enemyTileY === enemy.wanderTargetTile.y;
 
         if (reachedWanderTarget) {
@@ -718,7 +747,8 @@ class Dungeons extends Phaser.Scene {
     const neighbors = [];
     const localX = tile.x - room.x;
     const localY = tile.y - room.y;
-    const openEdges = this.roomOpenEdges.get(room.id) || new Set(room.openEdges || []);
+    const openEdges = this.roomOpenEdges.get(room.id) ||
+      new Set(room.openEdges || []);
     const directions = [
       { dx: 1, dy: 0 },
       { dx: -1, dy: 0 },
@@ -881,6 +911,20 @@ class Dungeons extends Phaser.Scene {
       return true;
     }
 
+    const manhattan = Math.abs(currentTileX - tileX) +
+      Math.abs(currentTileY - tileY);
+    if (manhattan === 1) {
+      const edgeKey = this.makeTileEdgeKey(
+        currentTileX,
+        currentTileY,
+        tileX,
+        tileY,
+      );
+      if (this.corridorWallEdges.has(edgeKey)) {
+        return false;
+      }
+    }
+
     const fromRoom = this.getRoomAtTile(
       this.currentFloorData,
       currentTileX,
@@ -939,7 +983,7 @@ class Dungeons extends Phaser.Scene {
         this.worldToWorldY(stair.y) + this.tileSize / 2,
       );
 
-      if (dist < 20) {
+      if (dist < 8) {
         found = stair;
       }
     });
@@ -993,18 +1037,18 @@ class Dungeons extends Phaser.Scene {
         this.worldToWorldY(endRoom.endPos.y) + this.tileSize / 2,
       );
 
-      if (dist < 20) {
+      if (dist < 8) {
         this.nearExit = true;
         if (!this.exitPrompt) {
           this.exitPrompt = this.add.text(
             this.player.x,
             this.player.y - 30,
-            'Press E to exit dungeon',
+            'EXIT: \nPress E to leave',
             {
               fontSize: '14px',
               fill: '#0ff',
               backgroundColor: '#000',
-              padding: { x: 4, y: 2 },
+              padding: { x: 6, y: 3 },
             },
           );
           this.exitPrompt.setOrigin(0.5);
@@ -1048,7 +1092,7 @@ class Dungeons extends Phaser.Scene {
           this.entrancePrompt = this.add.text(
             this.player.x,
             this.player.y - 30,
-            'ENTRANCE: Press Q to leave',
+            'ENTRANCE: \nPress Q to leave',
             {
               fontSize: '14px',
               fill: '#0f0',
@@ -1120,9 +1164,17 @@ class Dungeons extends Phaser.Scene {
       this.lanternGlow = null;
     }
 
+    if (this.textures.exists(this.lanternMaskKey)) {
+      this.textures.remove(this.lanternMaskKey);
+    }
+    if (this.textures.exists(this.exploredMaskKey)) {
+      this.textures.remove(this.exploredMaskKey);
+    }
+
     this.destroyDecorTexts();
     this.destroyEnemies();
     this.walkableTiles.clear();
+    this.corridorWallEdges.clear();
     this.roomOpenEdges.clear();
     this.activatedRooms.clear();
     this.currentRoom = null;

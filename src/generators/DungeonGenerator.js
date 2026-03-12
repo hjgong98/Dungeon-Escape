@@ -683,7 +683,9 @@ function generateDungeon() {
   }
 
   function pickEnemySpawnTile(room, blockedTiles) {
-    const blockedKeys = new Set(blockedTiles.map((tile) => `${tile.x},${tile.y}`));
+    const blockedKeys = new Set(
+      blockedTiles.map((tile) => `${tile.x},${tile.y}`),
+    );
     const tiles = [];
 
     for (let y = 0; y < room.h; y++) {

@@ -23,7 +23,7 @@ class Inventory extends Phaser.Scene {
 
     // Get inventory from gameState
     const inventory = globalThis.gameState.player.inventory || [];
-    
+
     // Show inventory count
     this.add.text(400, 100, `${inventory.length} items`, {
       fontSize: '20px',
@@ -49,7 +49,7 @@ class Inventory extends Phaser.Scene {
   createInventoryList(inventory) {
     const startY = 150;
     const startX = 200;
-    
+
     // Calculate which items to show based on page
     const startIdx = this.currentPage * this.itemsPerPage;
     const pageItems = inventory.slice(startIdx, startIdx + this.itemsPerPage);
@@ -63,25 +63,25 @@ class Inventory extends Phaser.Scene {
     // Show items
     pageItems.forEach((item, index) => {
       const y = startY + index * 30;
-      
+
       // Item background
       const bg = this.add.rectangle(startX + 200, y, 400, 25, 0x333333, 0.8);
-      
+
       // Item name with tier color
       const tierColors = ['#888', '#8f8', '#88f', '#f8f', '#ff8', '#f88'];
       const color = tierColors[item.tier - 1] || '#fff';
-      
+
       const itemText = this.add.text(startX, y, `${item.name}`, {
         fontSize: '18px',
         fill: color,
       });
-      
+
       // Item type and tier
       this.add.text(startX + 300, y, `${item.type} T${item.tier}`, {
         fontSize: '16px',
         fill: '#aaa',
       });
-      
+
       this.listGroup.addMultiple([bg, itemText]);
     });
 
@@ -97,7 +97,7 @@ class Inventory extends Phaser.Scene {
     // Page controls
     if (inventory.length > this.itemsPerPage) {
       const totalPages = Math.ceil(inventory.length / this.itemsPerPage);
-      
+
       if (this.currentPage > 0) {
         const prevBtn = this.add.text(300, 500, '← PREV', {
           fontSize: '20px',
@@ -105,13 +105,13 @@ class Inventory extends Phaser.Scene {
           backgroundColor: '#333',
           padding: { x: 10, y: 5 },
         }).setInteractive();
-        
+
         prevBtn.on('pointerdown', () => {
           this.currentPage--;
           this.createInventoryList(inventory);
         });
       }
-      
+
       if (this.currentPage < totalPages - 1) {
         const nextBtn = this.add.text(500, 500, 'NEXT →', {
           fontSize: '20px',
@@ -119,13 +119,13 @@ class Inventory extends Phaser.Scene {
           backgroundColor: '#333',
           padding: { x: 10, y: 5 },
         }).setInteractive();
-        
+
         nextBtn.on('pointerdown', () => {
           this.currentPage++;
           this.createInventoryList(inventory);
         });
       }
-      
+
       this.add.text(400, 530, `Page ${this.currentPage + 1}/${totalPages}`, {
         fontSize: '16px',
         fill: '#aaa',

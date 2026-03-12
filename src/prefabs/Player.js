@@ -2,13 +2,13 @@
 class Player extends Phaser.Physics.Arcade.Sprite {
   constructor(scene, x, y) {
     super(scene, x, y, 'player');
-    
+
     // Add to physics if scene exists
     if (scene) {
       scene.physics.add.existing(this);
       scene.add.existing(this);
     }
-    
+
     // Basic stats
     this.name = 'Adventurer';
     this.level = 1;
@@ -16,18 +16,18 @@ class Player extends Phaser.Physics.Arcade.Sprite {
     this.maxHp = 100;
     this.atk = 10;
     this.def = 5;
-    this.luck = 0;  // Luck affects dodge and drop rates
+    this.luck = 0; // Luck affects dodge and drop rates
     this.exp = 0;
     this.expToNext = 100;
     this.gold = 0;
-    
+
     // Equipment slots
     this.equipment = {
       weapon: null,
       armor: null,
-      accessory: null
+      accessory: null,
     };
-    
+
     // Inventory
     this.inventory = [];
     this.maxInventory = 20;
@@ -40,22 +40,22 @@ class Player extends Phaser.Physics.Arcade.Sprite {
       maxHp: this.maxHp,
       atk: this.atk,
       def: this.def,
-      luck: this.luck
+      luck: this.luck,
     };
-    
+
     // Add weapon bonus
     if (this.equipment.weapon && this.equipment.weapon.stats) {
       total.atk += this.equipment.weapon.stats.atkBonus || 0;
       total.luck += this.equipment.weapon.stats.luckBonus || 0;
     }
-    
+
     // Add armor bonus
     if (this.equipment.armor && this.equipment.armor.stats) {
       total.def += this.equipment.armor.stats.defBonus || 0;
       total.maxHp += this.equipment.armor.stats.hpBonus || 0;
       total.luck += this.equipment.armor.stats.luckBonus || 0;
     }
-    
+
     // Add accessory bonus
     if (this.equipment.accessory && this.equipment.accessory.stats) {
       total.atk += this.equipment.accessory.stats.atkBonus || 0;
@@ -63,7 +63,7 @@ class Player extends Phaser.Physics.Arcade.Sprite {
       total.maxHp += this.equipment.accessory.stats.hpBonus || 0;
       total.luck += this.equipment.accessory.stats.luckBonus || 0;
     }
-    
+
     return total;
   }
 
@@ -84,7 +84,7 @@ class Player extends Phaser.Physics.Arcade.Sprite {
   // Add experience and level up if needed
   addExp(amount) {
     this.exp += amount;
-    
+
     while (this.exp >= this.expToNext) {
       this.levelUp();
     }
@@ -95,14 +95,14 @@ class Player extends Phaser.Physics.Arcade.Sprite {
     this.level++;
     this.exp -= this.expToNext;
     this.expToNext = Math.floor(this.expToNext * 1.2);
-    
+
     // Stat increases
     this.maxHp += 10;
     this.hp = this.maxHp;
     this.atk += 2;
     this.def += 1;
-    this.luck += 1;  // Gain 1 luck per level
-    
+    this.luck += 1; // Gain 1 luck per level
+
     // Show level up effect if in a scene
     if (this.scene) {
       this.showLevelUp();
@@ -115,15 +115,15 @@ class Player extends Phaser.Physics.Arcade.Sprite {
       fontSize: '20px',
       fill: '#ff0',
       stroke: '#000',
-      strokeThickness: 3
+      strokeThickness: 3,
     }).setOrigin(0.5);
-    
+
     this.scene.tweens.add({
       targets: text,
       y: text.y - 50,
       alpha: 0,
       duration: 2000,
-      onComplete: () => text.destroy()
+      onComplete: () => text.destroy(),
     });
   }
 
@@ -138,7 +138,7 @@ class Player extends Phaser.Physics.Arcade.Sprite {
 
   // Remove item from inventory
   removeItem(itemId) {
-    const index = this.inventory.findIndex(i => i.id === itemId);
+    const index = this.inventory.findIndex((i) => i.id === itemId);
     if (index !== -1) {
       return this.inventory.splice(index, 1)[0];
     }
@@ -149,26 +149,26 @@ class Player extends Phaser.Physics.Arcade.Sprite {
   equipItem(itemData) {
     if (!itemData || !itemData.type) return false;
     if (!['weapon', 'armor', 'accessory'].includes(itemData.type)) return false;
-    
+
     // Unequip current item if exists
     if (this.equipment[itemData.type]) {
       this.inventory.push(this.equipment[itemData.type]);
     }
-    
+
     // Equip new item
     this.equipment[itemData.type] = itemData;
-    
+
     // Remove from inventory
-    const index = this.inventory.findIndex(i => i.id === itemData.id);
+    const index = this.inventory.findIndex((i) => i.id === itemData.id);
     if (index !== -1) this.inventory.splice(index, 1);
-    
+
     return true;
   }
 
   // Unequip an item from a slot
   unequipItem(slot) {
     if (!this.equipment[slot]) return false;
-    
+
     if (this.inventory.length < this.maxInventory) {
       this.inventory.push(this.equipment[slot]);
       this.equipment[slot] = null;
@@ -180,13 +180,13 @@ class Player extends Phaser.Physics.Arcade.Sprite {
   // Take damage (returns damage actually taken and if dodged)
   takeDamage(amount) {
     const stats = this.getTotalStats();
-    
+
     // Check dodge first
     const dodgeChance = this.getDodgeChance();
     if (Math.random() < dodgeChance) {
       return { damage: 0, dodged: true };
     }
-    
+
     // Calculate damage after defense
     const reducedDamage = Math.max(1, amount - stats.def);
     this.hp -= reducedDamage;
@@ -218,7 +218,7 @@ class Player extends Phaser.Physics.Arcade.Sprite {
       gold: this.gold,
       equipment: this.equipment,
       inventory: this.inventory,
-      maxInventory: this.maxInventory
+      maxInventory: this.maxInventory,
     };
   }
 
@@ -234,7 +234,8 @@ class Player extends Phaser.Physics.Arcade.Sprite {
     this.exp = data.exp || 0;
     this.expToNext = data.expToNext || 100;
     this.gold = data.gold || 0;
-    this.equipment = data.equipment || { weapon: null, armor: null, accessory: null };
+    this.equipment = data.equipment ||
+      { weapon: null, armor: null, accessory: null };
     this.inventory = data.inventory || [];
     this.maxInventory = data.maxInventory || 20;
   }

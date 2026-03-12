@@ -3,5 +3,5 @@ globalThis.Items = {
   GameItem,
   Weapon,
   Armor,
-  Accessory
+  Accessory,
 };

@@ -38,26 +38,26 @@ class SaveManager {
   // Create a completely new game
   createNewGame(playerName, playerClass) {
     console.log('Creating new game:', playerName, playerClass);
-    
+
     try {
       // Load current saves first
       this.loadSaveList();
-      
+
       // Find first available save slot
       let saveId = null;
       for (let i = 1; i <= 3; i++) {
-        const exists = this.saves.some(s => s.id === `save_${i}`);
+        const exists = this.saves.some((s) => s.id === `save_${i}`);
         if (!exists) {
           saveId = `save_${i}`;
           break;
         }
       }
-      
+
       if (!saveId) {
         // All slots full, overwrite the oldest one (save_1)
         console.log('All save slots full, overwriting save_1');
         saveId = 'save_1';
-        this.saves = this.saves.filter(s => s.id !== 'save_1');
+        this.saves = this.saves.filter((s) => s.id !== 'save_1');
       }
 
       const newSave = {
@@ -65,19 +65,19 @@ class SaveManager {
         name: playerName,
         class: playerClass,
         createdAt: new Date().toISOString(),
-        lastPlayed: new Date().toISOString()
+        lastPlayed: new Date().toISOString(),
       };
-      
+
       this.saves.push(newSave);
       this.saveSaveList();
-      
+
       // Create the save data
       const saveData = this.createNewSaveData(playerName, playerClass);
       this.writeSaveData(saveId, saveData);
-      
+
       // Generate loot for this save
       this.generateLootForSave(saveId);
-      
+
       console.log('New game created with ID:', saveId);
       return saveId;
     } catch (e) {
@@ -92,28 +92,28 @@ class SaveManager {
       // Create starter items with null checks
       let starterWeapon = null;
       let starterArmor = null;
-      
+
       if (globalThis.Weapon) {
         starterWeapon = Weapon.generate(1);
         console.log('Created starter weapon:', starterWeapon);
       } else {
         console.error('Weapon class not found');
       }
-      
+
       if (globalThis.Armor) {
         starterArmor = Armor.generate(1);
         console.log('Created starter armor:', starterArmor);
       } else {
         console.error('Armor class not found');
       }
-      
+
       const starterPotion = {
         id: `potion_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
         name: 'Health Potion',
         type: 'consumable',
         tier: 1,
         value: 10,
-        stats: { hpRestore: 30 }
+        stats: { hpRestore: 30 },
       };
 
       const inventory = [];
@@ -138,19 +138,19 @@ class SaveManager {
           equipment: {
             weapon: starterWeapon,
             armor: starterArmor,
-            accessory: null
-          }
+            accessory: null,
+          },
         },
         dungeon: {
           currentFloor: 0,
           exploredFloors: [],
-          openedLootboxes: []
+          openedLootboxes: [],
         },
         settings: {
           sound: true,
-          music: true
+          music: true,
         },
-        lastSaved: new Date().toISOString()
+        lastSaved: new Date().toISOString(),
       };
     } catch (e) {
       console.error('Error creating save data:', e);
@@ -165,15 +165,15 @@ class SaveManager {
         console.error('LootGenerator not found');
         return [];
       }
-      
+
       const lootData = globalThis.lootGenerator.generateForSave(saveId);
       localStorage.setItem(`loot_${saveId}`, JSON.stringify(lootData));
       console.log(`Generated loot for ${saveId}:`, lootData);
-      
+
       if (this.currentSave && this.currentSave.id === saveId) {
         globalThis.lootTables = lootData;
       }
-      
+
       return lootData;
     } catch (e) {
       console.error('Error generating loot:', e);
@@ -211,31 +211,31 @@ class SaveManager {
         console.error('Save data not found for:', saveId);
         return null;
       }
-      
+
       // Create a new Player instance and populate it
       const player = new Player();
       player.fromJSON(saveData.player);
-      
+
       // Update gameState
       globalThis.gameState.player = player;
       globalThis.gameState.currentSaveId = saveId;
-      
+
       // Load loot tables
       const lootData = localStorage.getItem(`loot_${saveId}`);
       globalThis.lootTables = lootData ? JSON.parse(lootData) : [];
-      
+
       // Update last played
-      const saveInfo = this.saves.find(s => s.id === saveId);
+      const saveInfo = this.saves.find((s) => s.id === saveId);
       if (saveInfo) {
         saveInfo.lastPlayed = new Date().toISOString();
         this.saveSaveList();
       }
-      
+
       this.currentSave = {
         id: saveId,
-        data: saveData
+        data: saveData,
       };
-      
+
       console.log('Save loaded successfully:', saveData.player.name);
       return saveData;
     } catch (e) {
@@ -247,18 +247,18 @@ class SaveManager {
   // Save current game state to its save file
   saveCurrentGame() {
     if (!this.currentSave || !globalThis.gameState.player) return false;
-    
+
     try {
       const saveData = {
         player: globalThis.gameState.player.toJSON(),
         dungeon: this.currentSave.data.dungeon,
         settings: this.currentSave.data.settings,
-        lastSaved: new Date().toISOString()
+        lastSaved: new Date().toISOString(),
       };
-      
+
       this.writeSaveData(this.currentSave.id, saveData);
       this.currentSave.data = saveData;
-      
+
       return true;
     } catch (e) {
       console.error('Error saving current game:', e);
@@ -269,44 +269,46 @@ class SaveManager {
   // Save current game to a specific save slot
   saveToSlot(saveId) {
     if (!globalThis.gameState.player) return false;
-    
+
     try {
       // Load current saves
       this.loadSaveList();
-      
-      let saveInfo = this.saves.find(s => s.id === saveId);
-      
+
+      let saveInfo = this.saves.find((s) => s.id === saveId);
+
       if (!saveInfo) {
         saveInfo = {
           id: saveId,
           name: globalThis.gameState.player.name || 'Adventurer',
           class: globalThis.gameState.player.class,
           createdAt: new Date().toISOString(),
-          lastPlayed: new Date().toISOString()
+          lastPlayed: new Date().toISOString(),
         };
         this.saves.push(saveInfo);
       } else {
         saveInfo.lastPlayed = new Date().toISOString();
         saveInfo.name = globalThis.gameState.player.name || saveInfo.name;
       }
-      
+
       this.saveSaveList();
-      
+
       const saveData = {
         player: globalThis.gameState.player.toJSON(),
-        dungeon: this.currentSave?.data.dungeon || { currentFloor: 0, exploredFloors: [], openedLootboxes: [] },
-        settings: this.currentSave?.data.settings || { sound: true, music: true },
-        lastSaved: new Date().toISOString()
+        dungeon: this.currentSave?.data.dungeon ||
+          { currentFloor: 0, exploredFloors: [], openedLootboxes: [] },
+        settings: this.currentSave?.data.settings ||
+          { sound: true, music: true },
+        lastSaved: new Date().toISOString(),
       };
-      
+
       this.writeSaveData(saveId, saveData);
-      
+
       this.currentSave = {
         id: saveId,
-        data: saveData
+        data: saveData,
       };
       globalThis.gameState.currentSaveId = saveId;
-      
+
       return true;
     } catch (e) {
       console.error('Error saving to slot:', e);
@@ -317,12 +319,12 @@ class SaveManager {
   // Delete a save
   deleteSave(saveId) {
     try {
-      this.saves = this.saves.filter(s => s.id !== saveId);
+      this.saves = this.saves.filter((s) => s.id !== saveId);
       this.saveSaveList();
       localStorage.removeItem(`save_${saveId}`);
       localStorage.removeItem(`loot_${saveId}`);
       console.log(`Deleted save: ${saveId}`);
-      
+
       if (this.currentSave && this.currentSave.id === saveId) {
         this.currentSave = null;
         globalThis.gameState.player = null;

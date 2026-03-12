@@ -29,7 +29,7 @@ class Play extends Phaser.Scene {
 
   createLeftHalf() {
     const player = globalThis.gameState.player;
-    
+
     // player name - click to edit
     this.playerNameText = this.add.text(200, 80, player.name || 'Adventurer', {
       fontSize: '28px',

@@ -30,7 +30,7 @@ class Menu extends Phaser.Scene {
     newGameButton.on('pointerdown', () => {
       // Create a new player with starter items
       globalThis.gameState.player = {
-        name: "Adventurer",
+        name: 'Adventurer',
         level: 1,
         hp: 100,
         maxHP: 100,
@@ -42,47 +42,47 @@ class Menu extends Phaser.Scene {
         gold: 50,
         inventory: [
           {
-            id: "starter_sword",
-            name: "Rusty Sword",
-            type: "weapon",
+            id: 'starter_sword',
+            name: 'Rusty Sword',
+            type: 'weapon',
             tier: 1,
             value: 10,
-            stats: { atkBonus: 3 }
+            stats: { atkBonus: 3 },
           },
           {
-            id: "starter_armor",
-            name: "Leather Armor",
-            type: "armor",
+            id: 'starter_armor',
+            name: 'Leather Armor',
+            type: 'armor',
             tier: 1,
             value: 10,
-            stats: { defBonus: 2 }
+            stats: { defBonus: 2 },
           },
           {
-            id: "potion_1",
-            name: "Health Potion",
-            type: "consumable",
+            id: 'potion_1',
+            name: 'Health Potion',
+            type: 'consumable',
             tier: 1,
             value: 5,
-            stats: { hpRestore: 30 }
-          }
+            stats: { hpRestore: 30 },
+          },
         ],
         equipment: {
           weapon: null,
           armor: null,
-          accessory: null
-        }
+          accessory: null,
+        },
       };
-      
+
       // Generate loot tables for all chest types
       globalThis.lootTables = {
-        common: globalThis.lootGenerator.generate(1, 2, 0, 5),    // Tier 1, size 2, no luck, 5 boxes
-        rare: globalThis.lootGenerator.generate(2, 3, 0.2, 3),     // Tier 2, size 3, some luck, 3 boxes
-        epic: globalThis.lootGenerator.generate(3, 4, 0.1, 2),     // Tier 3, size 4, 2 boxes
-        legendary: globalThis.lootGenerator.generate(4, 5, -0.1, 1) // Tier 4, size 5, 1 box
+        common: globalThis.lootGenerator.generate(1, 2, 0, 5), // Tier 1, size 2, no luck, 5 boxes
+        rare: globalThis.lootGenerator.generate(2, 3, 0.2, 3), // Tier 2, size 3, some luck, 3 boxes
+        epic: globalThis.lootGenerator.generate(3, 4, 0.1, 2), // Tier 3, size 4, 2 boxes
+        legendary: globalThis.lootGenerator.generate(4, 5, -0.1, 1), // Tier 4, size 5, 1 box
       };
-      
+
       console.log('Loot tables generated:', globalThis.lootTables);
-      
+
       this.scene.start('Play');
     });
 
@@ -97,7 +97,7 @@ class Menu extends Phaser.Scene {
     loadGameButton.on('pointerdown', () => {
       this.scene.start('Saves', {
         mode: 'load',
-        returnScene: 'Menu'
+        returnScene: 'Menu',
       });
     });
 

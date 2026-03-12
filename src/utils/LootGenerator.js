@@ -7,11 +7,11 @@ class LootGenerator {
   // Generate lootboxes based on parameters
   generate(rarity, size, luck, count) {
     const output_batch = [];
-    
+
     for (let i = 0; i < count; i++) {
       const items_dict = {};
       const box_tier = rarity;
-      
+
       // Initialize tier counts
       items_dict[box_tier + 1] = 0;
       items_dict[box_tier] = 0;
@@ -20,7 +20,8 @@ class LootGenerator {
 
       const min_items = 2 * size;
       const max_items = Math.floor(2 * size + 2 * Math.sqrt(size));
-      const total_items = Math.floor(Math.random() * (max_items - min_items + 1)) + min_items;
+      const total_items =
+        Math.floor(Math.random() * (max_items - min_items + 1)) + min_items;
       const guaranteed_num = size;
 
       if (box_tier === 1) {
@@ -35,8 +36,7 @@ class LootGenerator {
           items_dict[chosen] += 1;
           num_items++;
         }
-      } 
-      else if (box_tier === 2) {
+      } else if (box_tier === 2) {
         items_dict[box_tier] += guaranteed_num;
         let num_items = guaranteed_num;
 
@@ -48,13 +48,17 @@ class LootGenerator {
           items_dict[chosen] += 1;
           num_items++;
         }
-      } 
-      else {
+      } else {
         items_dict[box_tier] += guaranteed_num;
         let num_items = guaranteed_num;
 
         const tiers = [box_tier + 1, box_tier, box_tier - 1, box_tier - 2];
-        const weights = [5 + 95 * luck, 40 - 40 * luck, 45 - 45 * luck, 10 - 10 * luck];
+        const weights = [
+          5 + 95 * luck,
+          40 - 40 * luck,
+          45 - 45 * luck,
+          10 - 10 * luck,
+        ];
 
         while (num_items < total_items) {
           const chosen = this.weightedRandom(tiers, weights);
@@ -68,7 +72,7 @@ class LootGenerator {
         size: size,
         luck: luck,
         total_items: total_items,
-        loot: {}
+        loot: {},
       };
 
       for (const [key, value] of Object.entries(items_dict)) {
@@ -76,7 +80,7 @@ class LootGenerator {
           output.loot[`Tier ${key}`] = value;
         }
       }
-      
+
       output_batch.push(output);
     }
 
@@ -86,7 +90,7 @@ class LootGenerator {
   weightedRandom(items, weights) {
     const total = weights.reduce((a, b) => a + b, 0);
     let rand = Math.random() * total;
-    
+
     for (let i = 0; i < items.length; i++) {
       if (rand < weights[i]) return items[i];
       rand -= weights[i];
@@ -97,13 +101,13 @@ class LootGenerator {
   // Generate loot for a specific save
   generateForSave(saveId) {
     let params;
-    
+
     const saveParams = {
       'save_1': { rarity: 1, size: 2, luck: 0.2, count: 5 },
       'save_2': { rarity: 2, size: 3, luck: 0, count: 8 },
-      'save_3': { rarity: 3, size: 4, luck: -0.1, count: 10 }
+      'save_3': { rarity: 3, size: 4, luck: -0.1, count: 10 },
     };
-    
+
     params = saveParams[saveId] || saveParams['save_2'];
     console.log('Generating loot with params:', params);
     return this.generate(params.rarity, params.size, params.luck, params.count);

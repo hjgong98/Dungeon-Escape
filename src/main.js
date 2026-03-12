@@ -31,7 +31,7 @@ globalThis.game = game;
 // Game state - simple object to hold player data
 const gameState = {
   player: {
-    name: "Adventurer",
+    name: 'Adventurer',
     level: 1,
     hp: 100,
     maxHP: 100,
@@ -44,8 +44,8 @@ const gameState = {
     equipment: {
       weapon: null,
       armor: null,
-      accessory: null
-    }
+      accessory: null,
+    },
   },
   settings: {
     sound: true,

@@ -2,14 +2,14 @@
 class GameItem extends Phaser.GameObjects.Sprite {
   constructor(scene, x, y, itemData) {
     super(scene, x, y, '');
-    
+
     this.itemData = itemData || {
       id: `item_${Date.now()}_${Math.random()}`,
       name: 'Unknown Item',
       type: 'material',
       tier: 1,
       value: 1,
-      stats: {}
+      stats: {},
     };
   }
 
@@ -21,7 +21,7 @@ class GameItem extends Phaser.GameObjects.Sprite {
       3: 0x4444aa, // Rare - Blue
       4: 0xaa44aa, // Epic - Purple
       5: 0xffaa00, // Legendary - Orange
-      6: 0xff55ff  // Mythic - Pink
+      6: 0xff55ff, // Mythic - Pink
     };
     return colors[this.itemData.tier] || 0x888888;
   }
@@ -39,7 +39,10 @@ class GameItem extends Phaser.GameObjects.Sprite {
       if (typeof value === 'number') {
         if (key.includes('Bonus')) {
           stats.push(`${key.replace('Bonus', '')}: +${value}`);
-        } else if (key.includes('Chance') || key.includes('dodge') || key.includes('luck')) {
+        } else if (
+          key.includes('Chance') || key.includes('dodge') ||
+          key.includes('luck')
+        ) {
           stats.push(`${key}: +${Math.floor(value * 100)}%`);
         } else {
           stats.push(`${key}: +${value}`);

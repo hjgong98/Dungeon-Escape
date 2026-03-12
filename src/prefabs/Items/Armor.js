@@ -6,15 +6,24 @@ class Armor extends GameItem {
   }
 
   static generate(tier) {
-    const prefixes = ['Leather', 'Iron', 'Steel', 'Crystal', 'Dragon', 'Mythic'];
+    const prefixes = [
+      'Leather',
+      'Iron',
+      'Steel',
+      'Crystal',
+      'Dragon',
+      'Mythic',
+    ];
     const types = ['Chestplate', 'Helm', 'Greaves', 'Pauldrons', 'Robe'];
-    
-    const name = `${prefixes[Math.min(tier-1, prefixes.length-1)]} ${types[Math.floor(Math.random() * types.length)]}`;
-    
+
+    const name = `${prefixes[Math.min(tier - 1, prefixes.length - 1)]} ${
+      types[Math.floor(Math.random() * types.length)]
+    }`;
+
     const baseDef = tier * 4;
     const baseHp = tier * 8;
     const variance = 0.8 + Math.random() * 0.4;
-    
+
     return {
       id: `armor_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
       name: name,
@@ -24,9 +33,9 @@ class Armor extends GameItem {
       stats: {
         defBonus: Math.floor(baseDef * variance),
         hpBonus: Math.floor(baseHp * variance),
-        dodgeBonus: 0.005 * tier
+        dodgeBonus: 0.005 * tier,
       },
-      requiredLevel: Math.max(1, tier * 2 - 1)
+      requiredLevel: Math.max(1, tier * 2 - 1),
     };
   }
 }
