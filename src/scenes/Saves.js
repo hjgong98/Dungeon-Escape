@@ -8,6 +8,10 @@ class Saves extends Phaser.Scene {
   }
 
   init(data) {
+    // Scene instances are reused by Phaser. Reset transient display groups
+    // here so create() never touches a destroyed group from a prior run.
+    this.slotGroup = null;
+
     this.mode = data.mode || 'load';
     this.returnScene = data.returnScene || 'Menu';
     console.log(
@@ -61,20 +65,50 @@ class Saves extends Phaser.Scene {
   }
 
   loadSaves() {
+    if (globalThis.saveManager) {
+      this.saves = globalThis.saveManager.loadSaveList();
+      return;
+    }
+
     // Load saves from localStorage - should be empty on first play
     const saved = localStorage.getItem('dungeonSaves');
-    this.saves = saved ? JSON.parse(saved) : [];
+
+    try {
+      const parsed = saved ? JSON.parse(saved) : [];
+      this.saves = Array.isArray(parsed) ? parsed : [];
+    } catch (error) {
+      console.error('Failed to parse dungeonSaves from localStorage:', error);
+      this.saves = [];
+    }
+
     console.log('Loaded saves:', this.saves);
   }
 
   saveSaves() {
+    if (globalThis.saveManager) {
+      globalThis.saveManager.saves = this.saves;
+      globalThis.saveManager.saveSaveList();
+      return;
+    }
+
     localStorage.setItem('dungeonSaves', JSON.stringify(this.saves));
   }
 
   createSaveSlots() {
-    // Clear existing slots if they exist
-    if (this.slotGroup) {
-      this.slotGroup.clear(true, true);
+    // Recreate group if missing or previously destroyed by scene shutdown.
+    const canReuseGroup = Boolean(
+      this.slotGroup &&
+        this.slotGroup.scene === this &&
+        this.slotGroup.children &&
+        typeof this.slotGroup.clear === 'function',
+    );
+
+    if (canReuseGroup) {
+      try {
+        this.slotGroup.clear(true, true);
+      } catch (_error) {
+        this.slotGroup = this.add.group();
+      }
     } else {
       this.slotGroup = this.add.group();
     }
@@ -95,28 +129,41 @@ class Saves extends Phaser.Scene {
     this.slotGroup.add(slotBg);
 
     // Slot number
-    this.add.text(150, y - 20, `SAVE SLOT ${index + 1}`, {
-      fontSize: '20px',
-      fill: '#aaa',
-    });
+    const slotNumberText = this.add.text(
+      150,
+      y - 20,
+      `SAVE SLOT ${index + 1}`,
+      {
+        fontSize: '20px',
+        fill: '#aaa',
+      },
+    );
+    this.slotGroup.add(slotNumberText);
 
     if (saveInfo) {
       // EXISTING SAVE - show save details
-      this.add.text(250, y - 10, saveInfo.name, {
+      const saveNameText = this.add.text(250, y - 10, saveInfo.name, {
         fontSize: '24px',
         fill: '#fff',
         fontStyle: 'bold',
       });
+      this.slotGroup.add(saveNameText);
 
       const date = new Date(saveInfo.lastPlayed).toLocaleDateString();
-      this.add.text(250, y + 20, `Level ${saveInfo.level || 1} • ${date}`, {
-        fontSize: '16px',
-        fill: '#0ff',
-      });
+      const saveDetailText = this.add.text(
+        250,
+        y + 20,
+        `Level ${saveInfo.level || 1} • ${date}`,
+        {
+          fontSize: '16px',
+          fill: '#0ff',
+        },
+      );
+      this.slotGroup.add(saveDetailText);
 
       if (this.mode === 'load') {
-        // LOAD MODE - from Menu: show PLAY button to start game with this save
-        const playBtn = this.add.text(520, y - 10, 'PLAY', {
+        // LOAD MODE - from Menu: show LOAD button to start game with this save
+        const playBtn = this.add.text(520, y - 10, 'LOAD', {
           fontSize: '20px',
           fill: '#0f0',
           backgroundColor: '#444',
@@ -138,7 +185,7 @@ class Saves extends Phaser.Scene {
         this.slotGroup.add(deleteBtn);
 
         deleteBtn.on('pointerdown', () => {
-          this.deleteSave(saveId);
+          this.confirmDeleteSave(saveId, saveInfo.name);
         });
       } else {
         // SAVE MODE - from Play: show OVERWRITE button
@@ -164,24 +211,26 @@ class Saves extends Phaser.Scene {
         this.slotGroup.add(deleteBtn);
 
         deleteBtn.on('pointerdown', () => {
-          this.deleteSave(saveId);
+          this.confirmDeleteSave(saveId, saveInfo.name);
         });
       }
     } else {
       // EMPTY SLOT
-      this.add.text(400, y, 'EMPTY', {
+      const emptyText = this.add.text(400, y, 'EMPTY', {
         fontSize: '24px',
         fill: '#666',
         fontStyle: 'italic',
       }).setOrigin(0.5);
+      this.slotGroup.add(emptyText);
 
       if (this.mode === 'load') {
         // LOAD MODE - from Menu: empty slot does nothing (can't load nothing)
-        this.add.text(520, y, 'NO SAVE', {
+        const noSaveText = this.add.text(520, y, 'NO SAVE', {
           fontSize: '18px',
           fill: '#666',
           fontStyle: 'italic',
         });
+        this.slotGroup.add(noSaveText);
       } else {
         // SAVE MODE - from Play: show CREATE NEW button
         const createBtn = this.add.text(520, y, 'CREATE NEW', {
@@ -200,6 +249,26 @@ class Saves extends Phaser.Scene {
   }
 
   saveToSlot(saveId) {
+    if (globalThis.saveManager) {
+      const success = globalThis.saveManager.saveToSlot(saveId);
+      if (!success) {
+        console.error('Failed to save game to slot:', saveId);
+        return;
+      }
+
+      this.loadSaves();
+      this.createSaveSlots();
+
+      // Return to paused Play when launched from it; otherwise fall back to start.
+      if (this.returnScene === 'Play' && this.scene.isPaused('Play')) {
+        this.scene.resume('Play');
+        this.scene.stop();
+      } else {
+        this.scene.start('Play');
+      }
+      return;
+    }
+
     // Get current player data
     const player = globalThis.gameState.player;
 
@@ -243,11 +312,31 @@ class Saves extends Phaser.Scene {
     this.saveSaves();
     console.log('Game saved to', saveId);
 
-    // Return to Play
-    this.scene.start('Play');
+    // Return to paused Play when launched from it; otherwise fall back to start.
+    if (this.returnScene === 'Play' && this.scene.isPaused('Play')) {
+      this.scene.resume('Play');
+      this.scene.stop();
+    } else {
+      this.scene.start('Play');
+    }
   }
 
   loadSave(saveId) {
+    if (globalThis.saveManager) {
+      const loaded = globalThis.saveManager.loadSave(saveId);
+      if (loaded) {
+        console.log('Game loaded from', saveId);
+
+        // Ensure load always starts an unpaused fresh Play scene.
+        if (this.scene.isPaused('Play') || this.scene.isActive('Play')) {
+          this.scene.stop('Play');
+        }
+
+        this.scene.start('Play');
+      }
+      return;
+    }
+
     const saveData = localStorage.getItem(saveId);
     if (saveData) {
       const data = JSON.parse(saveData);
@@ -283,6 +372,13 @@ class Saves extends Phaser.Scene {
   }
 
   deleteSave(saveId) {
+    if (globalThis.saveManager) {
+      globalThis.saveManager.deleteSave(saveId);
+      this.loadSaves();
+      this.createSaveSlots();
+      return;
+    }
+
     // Remove from localStorage
     localStorage.removeItem(saveId);
 
@@ -292,6 +388,18 @@ class Saves extends Phaser.Scene {
 
     // Refresh slots
     this.createSaveSlots();
+  }
+
+  confirmDeleteSave(saveId, saveName = 'this save') {
+    const confirmed = globalThis.confirm(
+      `Delete ${saveName}? This cannot be undone.`,
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    this.deleteSave(saveId);
   }
 }
 

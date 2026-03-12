@@ -29,7 +29,7 @@ class Menu extends Phaser.Scene {
 
     newGameButton.on('pointerdown', () => {
       // Create a new player with starter items
-      globalThis.gameState.player = {
+      const starterPlayerData = {
         name: 'Adventurer',
         level: 1,
         hp: 100,
@@ -72,6 +72,27 @@ class Menu extends Phaser.Scene {
           accessory: null,
         },
       };
+
+      if (globalThis.saveManager?.createRuntimePlayer) {
+        globalThis.gameState.player = globalThis.saveManager
+          .createRuntimePlayer(
+            starterPlayerData,
+          );
+      } else {
+        globalThis.gameState.player = starterPlayerData;
+        globalThis.gameState.player.addItem = function addItem(itemData) {
+          if (!Array.isArray(this.inventory)) {
+            this.inventory = [];
+          }
+          this.inventory.push(itemData);
+          return true;
+        };
+      }
+
+      globalThis.gameState.currentSaveId = null;
+      if (globalThis.saveManager) {
+        globalThis.saveManager.currentSave = null;
+      }
 
       // Generate loot tables for all chest types
       globalThis.lootTables = {

@@ -11,7 +11,8 @@ class SaveManager {
     try {
       const saves = localStorage.getItem('dungeonSaves');
       if (saves) {
-        this.saves = JSON.parse(saves);
+        const parsed = JSON.parse(saves);
+        this.saves = Array.isArray(parsed) ? parsed : [];
         console.log('Loaded saves:', this.saves);
       } else {
         this.saves = []; // Start with empty saves
@@ -184,7 +185,7 @@ class SaveManager {
   // Write save data to localStorage
   writeSaveData(saveId, data) {
     try {
-      localStorage.setItem(`save_${saveId}`, JSON.stringify(data));
+      localStorage.setItem(saveId, JSON.stringify(data));
       console.log(`Saved data for ${saveId}`);
     } catch (e) {
       console.error('Error writing save data:', e);
@@ -194,12 +195,77 @@ class SaveManager {
   // Read save data from localStorage
   readSaveData(saveId) {
     try {
-      const data = localStorage.getItem(`save_${saveId}`);
+      const data = localStorage.getItem(saveId);
+
+      // Backwards compatibility for older broken key format: save_save_X
+      if (!data) {
+        const legacyData = localStorage.getItem(`save_${saveId}`);
+        if (legacyData) {
+          return JSON.parse(legacyData);
+        }
+      }
+
       return data ? JSON.parse(data) : null;
     } catch (e) {
       console.error('Error reading save data:', e);
       return null;
     }
+  }
+
+  createRuntimePlayer(playerData = {}) {
+    const player = {
+      name: playerData.name || 'Adventurer',
+      level: playerData.level || 1,
+      hp: playerData.hp || 100,
+      maxHP: playerData.maxHP || playerData.maxHp || 100,
+      atk: playerData.atk || 10,
+      def: playerData.def || 5,
+      luck: playerData.luck || 0,
+      exp: playerData.exp || 0,
+      expToNext: playerData.expToNext || 100,
+      gold: playerData.gold || 0,
+      inventory: Array.isArray(playerData.inventory)
+        ? playerData.inventory
+        : [],
+      equipment: playerData.equipment || {
+        weapon: null,
+        armor: null,
+        accessory: null,
+      },
+    };
+
+    player.addItem = function addItem(itemData) {
+      if (!Array.isArray(this.inventory)) {
+        this.inventory = [];
+      }
+      this.inventory.push(itemData);
+      return true;
+    };
+
+    return player;
+  }
+
+  serializePlayerForSave(player) {
+    const base = typeof player.toJSON === 'function' ? player.toJSON() : player;
+
+    return {
+      name: base?.name || 'Adventurer',
+      level: base?.level || 1,
+      hp: base?.hp || 100,
+      maxHP: base?.maxHP || base?.maxHp || 100,
+      atk: base?.atk || 10,
+      def: base?.def || 5,
+      luck: base?.luck || 0,
+      exp: base?.exp || 0,
+      expToNext: base?.expToNext || 100,
+      gold: base?.gold || 0,
+      inventory: Array.isArray(base?.inventory) ? base.inventory : [],
+      equipment: base?.equipment || {
+        weapon: null,
+        armor: null,
+        accessory: null,
+      },
+    };
   }
 
   // Load a save into the game
@@ -212,22 +278,42 @@ class SaveManager {
         return null;
       }
 
-      // Create a new Player instance and populate it
-      const player = new Player();
-      player.fromJSON(saveData.player);
+      // Supports both structured saves ({ player }) and legacy flat saves.
+      const playerData = saveData.player || {
+        name: saveData.name,
+        level: saveData.level,
+        hp: saveData.hp,
+        maxHP: saveData.maxHP,
+        atk: saveData.atk,
+        def: saveData.def,
+        luck: saveData.luck,
+        exp: saveData.exp,
+        expToNext: saveData.expToNext,
+        gold: saveData.gold,
+        inventory: saveData.inventory,
+        equipment: saveData.equipment,
+      };
 
       // Update gameState
-      globalThis.gameState.player = player;
+      globalThis.gameState.player = this.createRuntimePlayer(playerData);
       globalThis.gameState.currentSaveId = saveId;
 
-      // Load loot tables
-      const lootData = localStorage.getItem(`loot_${saveId}`);
-      globalThis.lootTables = lootData ? JSON.parse(lootData) : [];
+      // Load loot tables from save data first, then legacy loot key fallback.
+      if (saveData.lootTables) {
+        globalThis.lootTables = saveData.lootTables;
+      } else {
+        const lootData = localStorage.getItem(`loot_${saveId}`);
+        globalThis.lootTables = lootData ? JSON.parse(lootData) : {};
+      }
 
       // Update last played
       const saveInfo = this.saves.find((s) => s.id === saveId);
       if (saveInfo) {
         saveInfo.lastPlayed = new Date().toISOString();
+        saveInfo.level = globalThis.gameState.player.level || saveInfo.level ||
+          1;
+        saveInfo.name = globalThis.gameState.player.name || saveInfo.name ||
+          'Adventurer';
         this.saveSaveList();
       }
 
@@ -236,7 +322,7 @@ class SaveManager {
         data: saveData,
       };
 
-      console.log('Save loaded successfully:', saveData.player.name);
+      console.log('Save loaded successfully:', playerData.name || 'Adventurer');
       return saveData;
     } catch (e) {
       console.error('Error loading save:', e);
@@ -249,8 +335,15 @@ class SaveManager {
     if (!this.currentSave || !globalThis.gameState.player) return false;
 
     try {
+      const playerData = this.serializePlayerForSave(
+        globalThis.gameState.player,
+      );
       const saveData = {
-        player: globalThis.gameState.player.toJSON(),
+        id: this.currentSave.id,
+        name: playerData.name,
+        level: playerData.level,
+        player: playerData,
+        lootTables: globalThis.lootTables || {},
         dungeon: this.currentSave.data.dungeon,
         settings: this.currentSave.data.settings,
         lastSaved: new Date().toISOString(),
@@ -275,33 +368,64 @@ class SaveManager {
       this.loadSaveList();
 
       let saveInfo = this.saves.find((s) => s.id === saveId);
+      const playerData = this.serializePlayerForSave(
+        globalThis.gameState.player,
+      );
+      const now = new Date().toISOString();
+      const isOverwrite = Boolean(saveInfo);
 
       if (!saveInfo) {
         saveInfo = {
           id: saveId,
-          name: globalThis.gameState.player.name || 'Adventurer',
-          class: globalThis.gameState.player.class,
-          createdAt: new Date().toISOString(),
-          lastPlayed: new Date().toISOString(),
+          name: playerData.name || 'Adventurer',
+          level: playerData.level || 1,
+          createdAt: now,
+          lastPlayed: now,
         };
         this.saves.push(saveInfo);
       } else {
-        saveInfo.lastPlayed = new Date().toISOString();
-        saveInfo.name = globalThis.gameState.player.name || saveInfo.name;
+        saveInfo.lastPlayed = now;
+        saveInfo.level = playerData.level || saveInfo.level || 1;
+        saveInfo.name = playerData.name || saveInfo.name;
       }
 
       this.saveSaveList();
 
+      // Overwrite should replace old payload entirely for this slot.
+      if (isOverwrite) {
+        localStorage.removeItem(saveId);
+        localStorage.removeItem(`save_${saveId}`);
+      }
+
+      // Only reuse in-memory dungeon/settings if they belong to this slot.
+      const sameSlotContext = this.currentSave &&
+        this.currentSave.id === saveId;
+      const dungeonState = sameSlotContext
+        ? this.currentSave?.data.dungeon
+        : null;
+      const settingsState = sameSlotContext
+        ? this.currentSave?.data.settings
+        : null;
+
       const saveData = {
-        player: globalThis.gameState.player.toJSON(),
-        dungeon: this.currentSave?.data.dungeon ||
+        id: saveId,
+        name: playerData.name,
+        level: playerData.level,
+        player: playerData,
+        lootTables: globalThis.lootTables || {},
+        dungeon: dungeonState ||
           { currentFloor: 0, exploredFloors: [], openedLootboxes: [] },
-        settings: this.currentSave?.data.settings ||
+        settings: settingsState ||
           { sound: true, music: true },
-        lastSaved: new Date().toISOString(),
+        lastSaved: now,
+        lastPlayed: now,
       };
 
       this.writeSaveData(saveId, saveData);
+      localStorage.setItem(
+        `loot_${saveId}`,
+        JSON.stringify(globalThis.lootTables || {}),
+      );
 
       this.currentSave = {
         id: saveId,
@@ -319,15 +443,17 @@ class SaveManager {
   // Delete a save
   deleteSave(saveId) {
     try {
+      this.loadSaveList();
       this.saves = this.saves.filter((s) => s.id !== saveId);
       this.saveSaveList();
+      localStorage.removeItem(saveId);
+      // Clean up legacy key format too.
       localStorage.removeItem(`save_${saveId}`);
       localStorage.removeItem(`loot_${saveId}`);
       console.log(`Deleted save: ${saveId}`);
 
       if (this.currentSave && this.currentSave.id === saveId) {
         this.currentSave = null;
-        globalThis.gameState.player = null;
         globalThis.gameState.currentSaveId = null;
       }
     } catch (e) {

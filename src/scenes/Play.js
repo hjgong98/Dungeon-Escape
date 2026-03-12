@@ -72,13 +72,17 @@ class Play extends Phaser.Scene {
     }).setInteractive();
 
     saveButton.on('pointerdown', () => {
+      if (this.scene.isActive('Saves')) {
+        return;
+      }
+
       this.scene.launch('Saves', {
         mode: 'save',
         playerName: player.name,
         playerStats: player,
         returnScene: 'Play',
       });
-      this.scene.pause();
+      this.scene.pause('Play');
     });
 
     // Player stats display

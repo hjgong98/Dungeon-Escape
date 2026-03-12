@@ -3,6 +3,13 @@ class Inventory extends Phaser.Scene {
     super('Inventory');
     this.currentPage = 0;
     this.itemsPerPage = 10;
+    this.listGroup = null;
+  }
+
+  init() {
+    // Scene instances are reused by Phaser; transient groups must reset.
+    this.listGroup = null;
+    this.currentPage = 0;
   }
 
   preload() {
@@ -54,11 +61,23 @@ class Inventory extends Phaser.Scene {
     const startIdx = this.currentPage * this.itemsPerPage;
     const pageItems = inventory.slice(startIdx, startIdx + this.itemsPerPage);
 
-    // Clear old list if it exists
-    if (this.listGroup) {
-      this.listGroup.clear(true, true);
+    // Clear old list if it exists and is still valid.
+    const canReuseGroup = Boolean(
+      this.listGroup &&
+        this.listGroup.scene === this &&
+        this.listGroup.children &&
+        typeof this.listGroup.clear === 'function',
+    );
+
+    if (canReuseGroup) {
+      try {
+        this.listGroup.clear(true, true);
+      } catch (_error) {
+        this.listGroup = this.add.group();
+      }
+    } else {
+      this.listGroup = this.add.group();
     }
-    this.listGroup = this.add.group();
 
     // Show items
     pageItems.forEach((item, index) => {

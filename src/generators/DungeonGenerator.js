@@ -1014,7 +1014,10 @@ function generateDungeon() {
       const noiseValue = lootboxNoise
         ? lootboxNoise.GetNoise(centerX + f * 17.13, centerY + index * 11.71)
         : Math.random() * 2 - 1;
-      const spawnChance = Math.max(0.18, Math.min(0.72, 0.3 + noiseValue * 0.3));
+      const spawnChance = Math.max(
+        0.18,
+        Math.min(0.72, 0.3 + noiseValue * 0.3),
+      );
 
       if (noiseValue > 0.05 && Math.random() < spawnChance) {
         lootboxCandidates.push({ room, noiseValue });

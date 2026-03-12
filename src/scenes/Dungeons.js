@@ -48,6 +48,7 @@ class Dungeons extends Phaser.Scene {
     this.nearExit = false;
     this.nearEntrance = false;
     this.lastStairDir = null;
+    this.interactionRadius = 10;
   }
 
   create() {
@@ -1028,20 +1029,7 @@ class Dungeons extends Phaser.Scene {
   }
 
   checkStairs() {
-    let found = null;
-
-    this.currentFloorData.stairs.forEach((stair) => {
-      const dist = Phaser.Math.Distance.Between(
-        this.player.x,
-        this.player.y,
-        this.worldToWorldX(stair.x) + this.tileSize / 2,
-        this.worldToWorldY(stair.y) + this.tileSize / 2,
-      );
-
-      if (dist < 8) {
-        found = stair;
-      }
-    });
+    const found = this.findNearestStairInRange();
 
     if (found) {
       this.nearStair = found;
@@ -1085,14 +1073,12 @@ class Dungeons extends Phaser.Scene {
     const endRoom = this.currentFloorData.rooms.find((room) => room.isEnd);
 
     if (endRoom && endRoom.endPos) {
-      const dist = Phaser.Math.Distance.Between(
-        this.player.x,
-        this.player.y,
-        this.worldToWorldX(endRoom.endPos.x) + this.tileSize / 2,
-        this.worldToWorldY(endRoom.endPos.y) + this.tileSize / 2,
+      const dist = this.distanceToTileCenter(
+        endRoom.endPos.x,
+        endRoom.endPos.y,
       );
 
-      if (dist < 8) {
+      if (dist < this.interactionRadius) {
         this.nearExit = true;
         if (!this.exitPrompt) {
           this.exitPrompt = this.add.text(
@@ -1134,14 +1120,12 @@ class Dungeons extends Phaser.Scene {
 
     const startRoom = this.currentFloorData.rooms.find((room) => room.isStart);
     if (startRoom && startRoom.startPos) {
-      const dist = Phaser.Math.Distance.Between(
-        this.player.x,
-        this.player.y,
-        this.worldToWorldX(startRoom.startPos.x) + this.tileSize / 2,
-        this.worldToWorldY(startRoom.startPos.y) + this.tileSize / 2,
+      const dist = this.distanceToTileCenter(
+        startRoom.startPos.x,
+        startRoom.startPos.y,
       );
 
-      if (dist < 8) {
+      if (dist < this.interactionRadius) {
         this.nearEntrance = true;
         if (!this.entrancePrompt) {
           this.entrancePrompt = this.add.text(
@@ -1174,6 +1158,30 @@ class Dungeons extends Phaser.Scene {
   destroyDecorTexts() {
     this.decorTexts.forEach((text) => text.destroy());
     this.decorTexts = [];
+  }
+
+  findNearestStairInRange() {
+    let nearestStair = null;
+    let nearestDistance = Infinity;
+
+    this.currentFloorData.stairs.forEach((stair) => {
+      const dist = this.distanceToTileCenter(stair.x, stair.y);
+      if (dist < this.interactionRadius && dist < nearestDistance) {
+        nearestStair = stair;
+        nearestDistance = dist;
+      }
+    });
+
+    return nearestStair;
+  }
+
+  distanceToTileCenter(tileX, tileY) {
+    return Phaser.Math.Distance.Between(
+      this.player.x,
+      this.player.y,
+      this.worldToWorldX(tileX) + this.tileSize / 2,
+      this.worldToWorldY(tileY) + this.tileSize / 2,
+    );
   }
 
   destroyEnemies() {
