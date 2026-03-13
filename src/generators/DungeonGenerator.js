@@ -1006,60 +1006,61 @@ function generateDungeon() {
       }
     });
 
-    const lootboxCandidates = [];
-    rooms.forEach((room, index) => {
-      room.chests = [];
-      const centerX = room.x + room.w / 2;
-      const centerY = room.y + room.h / 2;
-      const noiseValue = lootboxNoise
-        ? lootboxNoise.GetNoise(centerX + f * 17.13, centerY + index * 11.71)
-        : Math.random() * 2 - 1;
-      const spawnChance = Math.max(
-        0.18,
-        Math.min(0.72, 0.3 + noiseValue * 0.3),
-      );
+    const chestTierWeights = [50, 25, 13, 6, 3, 1];
+    const chestTierTotal = chestTierWeights.reduce((a, b) => a + b, 0);
+    function rollChestTier() {
+      let r = Math.random() * chestTierTotal;
+      for (let t = 0; t < chestTierWeights.length; t++) {
+        if (r < chestTierWeights[t]) return t + 1;
+        r -= chestTierWeights[t];
+      }
+      return 1;
+    }
 
-      if (noiseValue > 0.05 && Math.random() < spawnChance) {
-        lootboxCandidates.push({ room, noiseValue });
+    // Build pool of all walkable tiles: room floors + corridor tiles
+    const blockedKeys = new Set(blocked.map((t) => `${t.x},${t.y}`));
+    const allWalkable = [];
+
+    rooms.forEach((room) => {
+      room.chests = [];
+      for (let ry = 0; ry < room.h; ry++) {
+        for (let rx = 0; rx < room.w; rx++) {
+          if (room.maze?.[ry]?.[rx]?.type === 'floor') {
+            const tile = { x: room.x + rx, y: room.y + ry };
+            if (!blockedKeys.has(`${tile.x},${tile.y}`)) {
+              allWalkable.push(tile);
+            }
+          }
+        }
       }
     });
 
-    if (lootboxCandidates.length === 0 && rooms.length > 0) {
-      const fallbackRoom = rooms.reduce((bestRoom, room, index) => {
-        const centerX = room.x + room.w / 2;
-        const centerY = room.y + room.h / 2;
-        const noiseValue = lootboxNoise
-          ? lootboxNoise.GetNoise(centerX + f * 17.13, centerY + index * 11.71)
-          : 0;
-        if (!bestRoom || noiseValue > bestRoom.noiseValue) {
-          return { room, noiseValue };
-        }
-        return bestRoom;
-      }, null);
-
-      if (fallbackRoom) {
-        lootboxCandidates.push(fallbackRoom);
+    cleanedCorridors.forEach((tile) => {
+      if (!blockedKeys.has(`${tile.x},${tile.y}`)) {
+        allWalkable.push(tile);
       }
-    }
+    });
 
-    lootboxCandidates.forEach(({ room, noiseValue }) => {
-      const chestTile = pickChestSpawnTile(room, blocked);
-      if (!chestTile) {
-        return;
-      }
+    shuffle(allWalkable);
 
-      const normalizedNoise = (noiseValue + 1) / 2;
-      const boxTier = clamp(Math.floor(normalizedNoise * 6) + 1, 1, 6);
+    // Pick 1-3 chests per floor from the full walkable pool
+    const numChests = Math.floor(Math.random() * 3) + 1;
+    const floorChests = [];
+    let chestIndex = 0;
 
-      room.chests.push({
-        id: `${room.id}-lootbox-${room.chests.length}`,
+    for (let c = 0; c < numChests && chestIndex < allWalkable.length; c++) {
+      const chestTile = allWalkable[chestIndex++];
+      const boxTier = rollChestTier();
+      floorChests.push({
+        id: `floor-${f}-lootbox-${c}`,
         x: chestTile.x,
         y: chestTile.y,
         boxTier,
-        noiseValue,
+        isTrap: Math.random() < 0.1,
       });
+      blockedKeys.add(`${chestTile.x},${chestTile.y}`);
       blocked.push(chestTile);
-    });
+    }
 
     dungeon.floors.push({
       index: f,
@@ -1068,6 +1069,7 @@ function generateDungeon() {
       stairs: stairs,
       corridorTiles: cleanedCorridors,
       corridorWalls: corridorWalls,
+      chests: floorChests,
     });
   }
 

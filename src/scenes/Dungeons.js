@@ -28,6 +28,8 @@ class Dungeons extends Phaser.Scene {
     this.activatedRooms = new Set();
     this.enemies = [];
     this.lootboxes = [];
+    this.nearLootbox = null;
+    this.lootboxPrompt = null;
     this.enemyWanderSpeed = 0.35;
     this.enemyChaseSpeed = 0.6;
     this.enemyDetectionRange = 140;
@@ -54,7 +56,6 @@ class Dungeons extends Phaser.Scene {
   create() {
     this.resetForFreshDungeonRun();
     this.ensureLanternMaskTexture();
-    this.ensureLootboxTexture();
 
     this.dungeon = generateDungeon();
 
@@ -569,46 +570,45 @@ class Dungeons extends Phaser.Scene {
   createLootboxesForFloor(floor) {
     this.lootboxes = [];
 
-    floor.rooms.forEach((room) => {
-      (room.chests || []).forEach((chest) => {
-        const boxTier = Math.max(1, Math.min(6, chest.boxTier || 1));
-        const rarityKey = `rarity_${boxTier}`;
-        const rarityPool = Array.isArray(globalThis.lootTables?.[rarityKey])
-          ? globalThis.lootTables[rarityKey]
-          : [];
-        const rolledLootbox = rarityPool.length > 0
-          ? rarityPool[Math.floor(Math.random() * rarityPool.length)]
-          : null;
+    (floor.chests || []).forEach((chest) => {
+      const boxTier = Math.max(1, Math.min(6, chest.boxTier || 1));
+      const rarityKey = `rarity_${boxTier}`;
+      const rarityPool = Array.isArray(globalThis.lootTables?.[rarityKey])
+        ? globalThis.lootTables[rarityKey]
+        : [];
+      const rolledLootbox = rarityPool.length > 0
+        ? rarityPool[Math.floor(Math.random() * rarityPool.length)]
+        : null;
 
-        const lootbox = new Lootbox(
-          this,
-          this.worldToWorldX(chest.x) + this.tileSize / 2,
-          this.worldToWorldY(chest.y) + this.tileSize / 2,
-          {
-            box_tier: rolledLootbox?.box_tier || boxTier,
-            size: rolledLootbox?.size || 1,
-            luck: rolledLootbox?.luck || 0,
-            total_items: rolledLootbox?.total_items || 3,
-            loot: rolledLootbox?.loot || chest.loot ||
-              { [`Tier ${boxTier}`]: 3 },
-          },
-        );
+      const lootbox = new Lootbox(
+        this,
+        this.worldToWorldX(chest.x) + this.tileSize / 2,
+        this.worldToWorldY(chest.y) + this.tileSize / 2,
+        {
+          box_tier: rolledLootbox?.box_tier || boxTier,
+          size: rolledLootbox?.size || 1,
+          luck: rolledLootbox?.luck || 0,
+          total_items: rolledLootbox?.total_items || 3,
+          loot: rolledLootbox?.loot || chest.loot ||
+            { [`Tier ${boxTier}`]: 3 },
+          isTrap: chest.isTrap || false,
+        },
+      );
 
-        lootbox.setDisplaySize(this.tileSize - 4, this.tileSize - 4);
-        lootbox.setDepth(12);
-        lootbox.chestId = chest.id;
+      lootbox.setSize(this.tileSize - 4, this.tileSize - 4);
+      lootbox.setDepth(19);
+      lootbox.chestId = chest.id;
 
-        if (chest.opened) {
-          lootbox.opened = true;
-          lootbox.setTint(0x888888);
-        } else {
-          lootbox.on('lootboxOpened', () => {
-            chest.opened = true;
-          });
-        }
+      if (chest.opened) {
+        lootbox.opened = true;
+        lootbox.setVisible(false);
+      } else {
+        lootbox.on('lootboxOpened', () => {
+          chest.opened = true;
+        });
+      }
 
-        this.lootboxes.push(lootbox);
-      });
+      this.lootboxes.push(lootbox);
     });
   }
 
@@ -944,11 +944,14 @@ class Dungeons extends Phaser.Scene {
     this.checkStairs();
     this.checkExit();
     this.checkEntrance();
+    this.checkLootboxes();
     this.updateCurrentRoom();
     this.updateEnemies(this.currentFloorData);
 
     if (Phaser.Input.Keyboard.JustDown(this.keys.e)) {
-      if (this.nearExit) {
+      if (this.nearLootbox) {
+        this.nearLootbox.open();
+      } else if (this.nearExit) {
         this.scene.start('Play');
       } else if (this.nearStair) {
         this.useStairs(this.nearStair);
@@ -1076,6 +1079,49 @@ class Dungeons extends Phaser.Scene {
     if (this.stairPrompt) {
       this.stairPrompt.destroy();
       this.stairPrompt = null;
+    }
+  }
+
+  checkLootboxes() {
+    let closest = null;
+    let closestDist = Infinity;
+
+    this.lootboxes.forEach((box) => {
+      if (box.opened || !box.visible) return;
+      const dx = this.player.x - box.x;
+      const dy = this.player.y - box.y;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      if (dist < this.interactionRadius && dist < closestDist) {
+        closest = box;
+        closestDist = dist;
+      }
+    });
+
+    if (closest) {
+      this.nearLootbox = closest;
+      if (!this.lootboxPrompt) {
+        this.lootboxPrompt = this.add.text(
+          this.player.x,
+          this.player.y - 30,
+          'CHEST\nPress E to open',
+          {
+            fontSize: '14px',
+            fill: '#ff0',
+            backgroundColor: '#000',
+            padding: { x: 6, y: 3 },
+          },
+        );
+        this.lootboxPrompt.setOrigin(0.5);
+        this.lootboxPrompt.setDepth(1100);
+      } else {
+        this.lootboxPrompt.setPosition(this.player.x, this.player.y - 30);
+      }
+    } else {
+      this.nearLootbox = null;
+      if (this.lootboxPrompt) {
+        this.lootboxPrompt.destroy();
+        this.lootboxPrompt = null;
+      }
     }
   }
 

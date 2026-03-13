@@ -57,9 +57,25 @@ class Inventory extends Phaser.Scene {
     const startY = 150;
     const startX = 200;
 
-    // Calculate which items to show based on page
+    // Stack items by name, max 99 per slot
+    const stacks = [];
+    inventory.forEach((item) => {
+      let placed = false;
+      for (const stack of stacks) {
+        if (stack.name === item.name && stack.count < 99) {
+          stack.count++;
+          placed = true;
+          break;
+        }
+      }
+      if (!placed) {
+        stacks.push({ name: item.name, tier: item.tier, count: 1 });
+      }
+    });
+
+    // Calculate which stacks to show based on page
     const startIdx = this.currentPage * this.itemsPerPage;
-    const pageItems = inventory.slice(startIdx, startIdx + this.itemsPerPage);
+    const pageItems = stacks.slice(startIdx, startIdx + this.itemsPerPage);
 
     // Clear old list if it exists and is still valid.
     const canReuseGroup = Boolean(
@@ -80,25 +96,20 @@ class Inventory extends Phaser.Scene {
     }
 
     // Show items
-    pageItems.forEach((item, index) => {
+    pageItems.forEach((stack, index) => {
       const y = startY + index * 30;
 
-      // Item background
       const bg = this.add.rectangle(startX + 200, y, 400, 25, 0x333333, 0.8);
 
-      // Item name with tier color
       const tierColors = ['#888', '#8f8', '#88f', '#f8f', '#ff8', '#f88'];
-      const color = tierColors[item.tier - 1] || '#fff';
+      const color = tierColors[(stack.tier || 1) - 1] || '#fff';
 
-      const itemText = this.add.text(startX, y, `${item.name}`, {
+      const label = stack.count > 1
+        ? `${stack.name}  x${stack.count}`
+        : stack.name;
+      const itemText = this.add.text(startX, y, label, {
         fontSize: '18px',
         fill: color,
-      });
-
-      // Item type and tier
-      this.add.text(startX + 300, y, `${item.type} T${item.tier}`, {
-        fontSize: '16px',
-        fill: '#aaa',
       });
 
       this.listGroup.addMultiple([bg, itemText]);
@@ -106,16 +117,17 @@ class Inventory extends Phaser.Scene {
 
     // Show empty message if no items
     if (pageItems.length === 0) {
-      this.add.text(400, 300, 'Inventory is empty', {
+      const emptyText = this.add.text(400, 300, 'Inventory is empty', {
         fontSize: '24px',
         fill: '#666',
         fontStyle: 'italic',
       }).setOrigin(0.5);
+      this.listGroup.add(emptyText);
     }
 
     // Page controls
-    if (inventory.length > this.itemsPerPage) {
-      const totalPages = Math.ceil(inventory.length / this.itemsPerPage);
+    if (stacks.length > this.itemsPerPage) {
+      const totalPages = Math.ceil(stacks.length / this.itemsPerPage);
 
       if (this.currentPage > 0) {
         const prevBtn = this.add.text(300, 500, '← PREV', {
@@ -129,6 +141,8 @@ class Inventory extends Phaser.Scene {
           this.currentPage--;
           this.createInventoryList(inventory);
         });
+
+        this.listGroup.add(prevBtn);
       }
 
       if (this.currentPage < totalPages - 1) {
@@ -143,12 +157,20 @@ class Inventory extends Phaser.Scene {
           this.currentPage++;
           this.createInventoryList(inventory);
         });
+
+        this.listGroup.add(nextBtn);
       }
 
-      this.add.text(400, 530, `Page ${this.currentPage + 1}/${totalPages}`, {
-        fontSize: '16px',
-        fill: '#aaa',
-      }).setOrigin(0.5);
+      const pageLabel = this.add.text(
+        400,
+        530,
+        `Page ${this.currentPage + 1}/${totalPages}`,
+        {
+          fontSize: '16px',
+          fill: '#aaa',
+        },
+      ).setOrigin(0.5);
+      this.listGroup.add(pageLabel);
     }
   }
 }

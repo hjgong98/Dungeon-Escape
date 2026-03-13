@@ -1,7 +1,8 @@
 // Lootbox.js - Lootbox prefab
-class Lootbox extends Phaser.GameObjects.Sprite {
+class Lootbox extends Phaser.GameObjects.Rectangle {
   constructor(scene, x, y, boxData) {
-    super(scene, x, y, 'lootbox');
+    super(scene, x, y, 16, 16, 0xffeb3b);
+    this.setStrokeStyle(2, 0xb38f00);
 
     this.boxData = boxData || {
       box_tier: 1,
@@ -13,42 +14,51 @@ class Lootbox extends Phaser.GameObjects.Sprite {
 
     this.opened = false;
 
-    // Add to scene
     scene.add.existing(this);
-    this.setInteractive();
-
-    // Hover effect
-    this.on('pointerover', () => {
-      if (!this.opened) this.setTint(0xffff00);
-    });
-
-    this.on('pointerout', () => {
-      if (!this.opened) this.clearTint();
-    });
-
-    // Click to open
-    this.on('pointerdown', () => {
-      if (!this.opened) this.open();
-    });
   }
 
   open() {
+    if (this.opened) return;
     this.opened = true;
-    this.setTint(0x888888);
+    this.setVisible(false);
 
-    // Generate items from loot data
+    if (this.boxData.isTrap) {
+      this.showTrapMessage();
+      this.emit('lootboxOpened', []);
+      return;
+    }
+
     const items = this.generateItems();
 
-    // Add to player inventory
     items.forEach((item) => {
       globalThis.gameState.player.addItem(item);
     });
 
-    // Show what you got
     this.showLootResults(items);
-
-    // Emit event
     this.emit('lootboxOpened', items);
+  }
+
+  showTrapMessage() {
+    const text = this.scene.add.text(
+      this.x,
+      this.y - 30,
+      'trap chest opened!\nget out now lol',
+      {
+        fontSize: '16px',
+        fill: '#ff4444',
+        stroke: '#000',
+        strokeThickness: 3,
+        align: 'center',
+      },
+    ).setOrigin(0.5).setDepth(1100);
+
+    this.scene.tweens.add({
+      targets: text,
+      y: text.y - 60,
+      alpha: 0,
+      duration: 3000,
+      onComplete: () => text.destroy(),
+    });
   }
 
   generateItems() {
@@ -56,25 +66,25 @@ class Lootbox extends Phaser.GameObjects.Sprite {
 
     for (const [tierStr, count] of Object.entries(this.boxData.loot)) {
       const tier = parseInt(tierStr.split(' ')[1]);
+      if (isNaN(tier)) continue;
 
       for (let i = 0; i < count; i++) {
-        // Randomly choose item type
         const rand = Math.random();
-        let item;
+        let itemData;
 
         if (rand < 0.2) {
-          item = new Weapon(this.scene, 0, 0, tier);
+          itemData = Weapon.generate(tier);
         } else if (rand < 0.4) {
-          item = new Armor(this.scene, 0, 0, tier);
+          itemData = Armor.generate(tier);
         } else if (rand < 0.6) {
-          item = new Accessory(this.scene, 0, 0, tier);
+          itemData = Accessory.generate(tier);
         } else if (rand < 0.8) {
-          item = { itemData: GameItem.generateCraftingMaterial(tier) };
+          itemData = GameItem.generateCraftingMaterial(tier);
         } else {
-          item = { itemData: GameItem.generateSellingMaterial(tier) };
+          itemData = GameItem.generateSellingMaterial(tier);
         }
 
-        items.push(item.itemData);
+        items.push(itemData);
       }
     }
 

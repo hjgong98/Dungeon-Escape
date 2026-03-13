@@ -76,9 +76,6 @@ class SaveManager {
       const saveData = this.createNewSaveData(playerName, playerClass);
       this.writeSaveData(saveId, saveData);
 
-      // Generate loot for this save
-      this.generateLootForSave(saveId);
-
       console.log('New game created with ID:', saveId);
       return saveId;
     } catch (e) {
