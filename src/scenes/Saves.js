@@ -131,10 +131,10 @@ class Saves extends Phaser.Scene {
     // Slot number
     const slotNumberText = this.add.text(
       150,
-      y - 20,
+      y - 28,
       `SAVE SLOT ${index + 1}`,
       {
-        fontSize: '20px',
+        fontSize: '14px',
         fill: '#aaa',
       },
     );
@@ -142,8 +142,8 @@ class Saves extends Phaser.Scene {
 
     if (saveInfo) {
       // EXISTING SAVE - show save details
-      const saveNameText = this.add.text(250, y - 10, saveInfo.name, {
-        fontSize: '24px',
+      const saveNameText = this.add.text(150, y - 10, saveInfo.name, {
+        fontSize: '22px',
         fill: '#fff',
         fontStyle: 'bold',
       });
@@ -151,11 +151,11 @@ class Saves extends Phaser.Scene {
 
       const date = new Date(saveInfo.lastPlayed).toLocaleDateString();
       const saveDetailText = this.add.text(
-        250,
-        y + 20,
+        150,
+        y + 16,
         `Level ${saveInfo.level || 1} • ${date}`,
         {
-          fontSize: '16px',
+          fontSize: '14px',
           fill: '#0ff',
         },
       );
@@ -163,7 +163,7 @@ class Saves extends Phaser.Scene {
 
       if (this.mode === 'load') {
         // LOAD MODE - from Menu: show LOAD button to start game with this save
-        const playBtn = this.add.text(520, y - 10, 'LOAD', {
+        const playBtn = this.add.text(560, y - 34, 'LOAD', {
           fontSize: '20px',
           fill: '#0f0',
           backgroundColor: '#444',
@@ -176,7 +176,7 @@ class Saves extends Phaser.Scene {
         });
 
         // Delete button
-        const deleteBtn = this.add.text(520, y + 25, 'DELETE', {
+        const deleteBtn = this.add.text(560, y + 8, 'DELETE', {
           fontSize: '16px',
           fill: '#f00',
           backgroundColor: '#444',
@@ -189,11 +189,11 @@ class Saves extends Phaser.Scene {
         });
       } else {
         // SAVE MODE - from Play: show OVERWRITE button
-        const overwriteBtn = this.add.text(520, y, 'OVERWRITE', {
-          fontSize: '20px',
+        const overwriteBtn = this.add.text(560, y - 33, 'OVERWRITE', {
+          fontSize: '18px',
           fill: '#ff0',
           backgroundColor: '#444',
-          padding: { x: 15, y: 8 },
+          padding: { x: 12, y: 8 },
         }).setInteractive();
         this.slotGroup.add(overwriteBtn);
 
@@ -202,7 +202,7 @@ class Saves extends Phaser.Scene {
         });
 
         // Delete button
-        const deleteBtn = this.add.text(520, y + 35, 'DELETE', {
+        const deleteBtn = this.add.text(560, y + 8, 'DELETE', {
           fontSize: '16px',
           fill: '#f00',
           backgroundColor: '#444',
