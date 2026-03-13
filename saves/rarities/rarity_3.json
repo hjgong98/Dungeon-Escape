@@ -1,0 +1,78 @@
+[
+  {
+    "box_tier": 3,
+    "size": 4,
+    "luck": 0.2,
+    "total_items": 14,
+    "loot": {
+      "Tier 1": 6,
+      "Tier 2": 5,
+      "Tier 3": 3
+    }
+  },
+  {
+    "box_tier": 3,
+    "size": 4,
+    "luck": 0.2,
+    "total_items": 11,
+    "loot": {
+      "Tier 1": 9,
+      "Tier 2": 2
+    }
+  },
+  {
+    "box_tier": 3,
+    "size": 4,
+    "luck": 0.2,
+    "total_items": 16,
+    "loot": {
+      "Tier 1": 9,
+      "Tier 2": 5,
+      "Tier 3": 2
+    }
+  },
+  {
+    "box_tier": 3,
+    "size": 4,
+    "luck": 0.2,
+    "total_items": 13,
+    "loot": {
+      "Tier 1": 9,
+      "Tier 2": 2,
+      "Tier 3": 2
+    }
+  },
+  {
+    "box_tier": 3,
+    "size": 4,
+    "luck": 0.2,
+    "total_items": 16,
+    "loot": {
+      "Tier 1": 11,
+      "Tier 2": 2,
+      "Tier 3": 3
+    }
+  },
+  {
+    "box_tier": 3,
+    "size": 4,
+    "luck": 0.2,
+    "total_items": 16,
+    "loot": {
+      "Tier 1": 5,
+      "Tier 2": 9,
+      "Tier 3": 2
+    }
+  },
+  {
+    "box_tier": 3,
+    "size": 4,
+    "luck": 0.2,
+    "total_items": 13,
+    "loot": {
+      "Tier 1": 8,
+      "Tier 2": 2,
+      "Tier 3": 3
+    }
+  }
+]

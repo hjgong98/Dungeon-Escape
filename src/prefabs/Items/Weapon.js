@@ -17,6 +17,7 @@ class Weapon extends GameItem {
     // Calculate stats
     const baseAtk = tier * 5;
     const variance = 0.8 + Math.random() * 0.4;
+    const luckBonus = Math.random() < 0.08 ? 0.01 * tier : 0;
 
     return {
       id: `weapon_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
@@ -24,10 +25,10 @@ class Weapon extends GameItem {
       type: 'weapon',
       tier: tier,
       value: Math.floor(20 * tier),
+      sellable: true,
       stats: {
         atkBonus: Math.floor(baseAtk * variance),
-        critChance: 0.01 * tier,
-        critDamage: 0.5 + (0.05 * tier),
+        ...(luckBonus > 0 ? { luckBonus } : {}),
       },
       requiredLevel: Math.max(1, tier * 2 - 1),
     };

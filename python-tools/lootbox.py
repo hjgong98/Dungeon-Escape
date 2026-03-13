@@ -1,5 +1,6 @@
 import random
 import json
+import os
 
 # PARAMETERS:
 # Rarity - int representing the tier of the lootbox. Has to be atleast 1
@@ -89,3 +90,31 @@ data = generate(YOUR_RARITY, YOUR_SIZE, YOUR_LUCK, BATCH_SIZE)
 
 with open("lootbox_output.json", "w") as f:
     json.dump(data, f, indent=4)
+
+
+def generate_all_rarity_files(output_dir="saves/rarities"):
+    os.makedirs(output_dir, exist_ok=True)
+
+    rarity_profiles = {
+        1: {"size": 2, "luck": 0.2, "count": 8},
+        2: {"size": 3, "luck": 0.15, "count": 8},
+        3: {"size": 4, "luck": 0.1, "count": 7},
+        4: {"size": 5, "luck": 0.05, "count": 6},
+        5: {"size": 6, "luck": 0, "count": 5},
+        6: {"size": 7, "luck": -0.05, "count": 4},
+    }
+
+    for rarity in range(1, 7):
+        profile = rarity_profiles[rarity]
+        rarity_data = generate(
+            rarity,
+            profile["size"],
+            profile["luck"],
+            profile["count"],
+        )
+        filepath = os.path.join(output_dir, f"rarity_{rarity}.json")
+        with open(filepath, "w") as f:
+            json.dump(rarity_data, f, indent=4)
+
+
+generate_all_rarity_files()

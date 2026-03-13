@@ -19,9 +19,9 @@ class Accessory extends GameItem {
       type: 'accessory',
       tier: tier,
       value: Math.floor(30 * tier),
+      sellable: true,
       stats: {
         luckBonus: 0.02 * tier,
-        dodgeBonus: 0.01 * tier,
         hpBonus: Math.floor(10 * tier),
         expBonus: 0.05 * tier,
       },

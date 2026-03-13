@@ -571,16 +571,26 @@ class Dungeons extends Phaser.Scene {
 
     floor.rooms.forEach((room) => {
       (room.chests || []).forEach((chest) => {
+        const boxTier = Math.max(1, Math.min(6, chest.boxTier || 1));
+        const rarityKey = `rarity_${boxTier}`;
+        const rarityPool = Array.isArray(globalThis.lootTables?.[rarityKey])
+          ? globalThis.lootTables[rarityKey]
+          : [];
+        const rolledLootbox = rarityPool.length > 0
+          ? rarityPool[Math.floor(Math.random() * rarityPool.length)]
+          : null;
+
         const lootbox = new Lootbox(
           this,
           this.worldToWorldX(chest.x) + this.tileSize / 2,
           this.worldToWorldY(chest.y) + this.tileSize / 2,
           {
-            box_tier: chest.boxTier || 1,
-            size: 1,
-            luck: 0,
-            total_items: 3,
-            loot: chest.loot || { 'Tier 1': 3 },
+            box_tier: rolledLootbox?.box_tier || boxTier,
+            size: rolledLootbox?.size || 1,
+            luck: rolledLootbox?.luck || 0,
+            total_items: rolledLootbox?.total_items || 3,
+            loot: rolledLootbox?.loot || chest.loot ||
+              { [`Tier ${boxTier}`]: 3 },
           },
         );
 

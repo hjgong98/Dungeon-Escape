@@ -95,12 +95,7 @@ class Menu extends Phaser.Scene {
       }
 
       // Generate loot tables for all chest types
-      globalThis.lootTables = {
-        common: globalThis.lootGenerator.generate(1, 2, 0, 5), // Tier 1, size 2, no luck, 5 boxes
-        rare: globalThis.lootGenerator.generate(2, 3, 0.2, 3), // Tier 2, size 3, some luck, 3 boxes
-        epic: globalThis.lootGenerator.generate(3, 4, 0.1, 2), // Tier 3, size 4, 2 boxes
-        legendary: globalThis.lootGenerator.generate(4, 5, -0.1, 1), // Tier 4, size 5, 1 box
-      };
+      globalThis.lootTables = globalThis.lootGenerator.generateAllRarities();
 
       console.log('Loot tables generated:', globalThis.lootTables);
 

@@ -30,10 +30,11 @@ class Armor extends GameItem {
       type: 'armor',
       tier: tier,
       value: Math.floor(25 * tier),
+      sellable: true,
       stats: {
         defBonus: Math.floor(baseDef * variance),
         hpBonus: Math.floor(baseHp * variance),
-        dodgeBonus: 0.005 * tier,
+        luckBonus: 0.015 * tier,
       },
       requiredLevel: Math.max(1, tier * 2 - 1),
     };

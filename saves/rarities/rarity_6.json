@@ -1,0 +1,49 @@
+[
+  {
+    "box_tier": 6,
+    "size": 7,
+    "luck": 0.05,
+    "total_items": 23,
+    "loot": {
+      "Tier 1": 11,
+      "Tier 2": 6,
+      "Tier 3": 4,
+      "Tier 5": 2
+    }
+  },
+  {
+    "box_tier": 6,
+    "size": 7,
+    "luck": 0.05,
+    "total_items": 22,
+    "loot": {
+      "Tier 1": 10,
+      "Tier 2": 5,
+      "Tier 3": 3,
+      "Tier 4": 4
+    }
+  },
+  {
+    "box_tier": 6,
+    "size": 7,
+    "luck": 0.05,
+    "total_items": 19,
+    "loot": {
+      "Tier 1": 10,
+      "Tier 2": 4,
+      "Tier 3": 3,
+      "Tier 4": 2
+    }
+  },
+  {
+    "box_tier": 6,
+    "size": 7,
+    "luck": 0.05,
+    "total_items": 20,
+    "loot": {
+      "Tier 1": 12,
+      "Tier 2": 5,
+      "Tier 3": 3
+    }
+  }
+]

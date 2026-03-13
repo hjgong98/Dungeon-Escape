@@ -1048,10 +1048,14 @@ function generateDungeon() {
         return;
       }
 
+      const normalizedNoise = (noiseValue + 1) / 2;
+      const boxTier = clamp(Math.floor(normalizedNoise * 6) + 1, 1, 6);
+
       room.chests.push({
         id: `${room.id}-lootbox-${room.chests.length}`,
         x: chestTile.x,
         y: chestTile.y,
+        boxTier,
         noiseValue,
       });
       blocked.push(chestTile);

@@ -62,12 +62,16 @@ class Lootbox extends Phaser.GameObjects.Sprite {
         const rand = Math.random();
         let item;
 
-        if (rand < 0.4) {
+        if (rand < 0.2) {
           item = new Weapon(this.scene, 0, 0, tier);
-        } else if (rand < 0.7) {
+        } else if (rand < 0.4) {
           item = new Armor(this.scene, 0, 0, tier);
-        } else {
+        } else if (rand < 0.6) {
           item = new Accessory(this.scene, 0, 0, tier);
+        } else if (rand < 0.8) {
+          item = { itemData: GameItem.generateCraftingMaterial(tier) };
+        } else {
+          item = { itemData: GameItem.generateSellingMaterial(tier) };
         }
 
         items.push(item.itemData);

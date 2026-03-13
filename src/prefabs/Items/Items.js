@@ -32,6 +32,33 @@ class GameItem extends Phaser.GameObjects.Sprite {
     return names[this.itemData.tier - 1] || `Tier ${this.itemData.tier}`;
   }
 
+  static generateCraftingMaterial(tier = 1) {
+    return {
+      id: `craft_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
+      name: `craft(${tier})`,
+      type: 'crafting_material',
+      tier: tier,
+      value: Math.max(1, Math.floor(8 * tier)),
+      sellable: true,
+      stats: {},
+      use: 'crafting',
+    };
+  }
+
+  static generateSellingMaterial(tier = 1) {
+    return {
+      id: `selling_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
+      name: `selling(${tier})`,
+      type: 'selling_material',
+      tier: tier,
+      value: Math.max(1, Math.floor(12 * tier)),
+      sellable: true,
+      onlyForSelling: true,
+      stats: {},
+      use: 'vendor',
+    };
+  }
+
   // Display stats as string
   getStatsString() {
     const stats = [];
