@@ -66,6 +66,7 @@ class Dungeons extends Phaser.Scene {
       d: Phaser.Input.Keyboard.KeyCodes.D,
       e: Phaser.Input.Keyboard.KeyCodes.E,
       q: Phaser.Input.Keyboard.KeyCodes.Q,
+      r: Phaser.Input.Keyboard.KeyCodes.R,
     });
 
     this.loadFloor(0);
@@ -319,6 +320,23 @@ class Dungeons extends Phaser.Scene {
       );
       exitText.setOrigin(0.5);
       this.decorTexts.push(exitText);
+    }
+
+    const startRoom = floor.rooms.find((room) => room.isStart);
+    if (startRoom && startRoom.startPos) {
+      const entranceText = this.add.text(
+        this.worldToWorldX(startRoom.startPos.x) + size / 2,
+        this.worldToWorldY(startRoom.startPos.y) + size / 2,
+        'ENTRANCE',
+        {
+          fontSize: '12px',
+          fill: '#0f0',
+          backgroundColor: '#000',
+          padding: { x: 3, y: 2 },
+        },
+      );
+      entranceText.setOrigin(0.5);
+      this.decorTexts.push(entranceText);
     }
   }
 
@@ -959,6 +977,11 @@ class Dungeons extends Phaser.Scene {
     }
 
     if (Phaser.Input.Keyboard.JustDown(this.keys.q) && this.nearEntrance) {
+      this.scene.start('Play');
+    }
+
+    // Testing purposes only, comment out for live game
+    if (Phaser.Input.Keyboard.JustDown(this.keys.r)) {
       this.scene.start('Play');
     }
 
