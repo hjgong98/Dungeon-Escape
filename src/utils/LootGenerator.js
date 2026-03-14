@@ -16,8 +16,29 @@ class LootGenerator {
     };
   }
 
+  normalizeLuck(luck) {
+    if (!Number.isFinite(luck)) {
+      return 0;
+    }
+    return Math.min(1, Math.max(0, luck));
+  }
+
+  normalizeWeights(weights) {
+    const safeWeights = weights.map((weight) =>
+      Number.isFinite(weight) ? Math.max(0, weight) : 0
+    );
+    const total = safeWeights.reduce((a, b) => a + b, 0);
+
+    if (total > 0) {
+      return safeWeights;
+    }
+
+    return safeWeights.map(() => 1);
+  }
+
   // Generate lootboxes based on parameters
   generate(rarity, size, luck, count) {
+    const safeLuck = this.normalizeLuck(luck);
     const output_batch = [];
 
     for (let i = 0; i < count; i++) {
@@ -50,7 +71,10 @@ class LootGenerator {
         num_items = guaranteed_num_of_matching_rarity;
 
         tiers = [box_tier + 1, box_tier];
-        weights = [25 + 75 * luck, 75 - 75 * luck];
+        weights = this.normalizeWeights([
+          25 + 75 * safeLuck,
+          75 - 75 * safeLuck,
+        ]);
 
         while (num_items < total_items) {
           const chosen_tier = this.weightedRandom(tiers, weights);
@@ -62,7 +86,11 @@ class LootGenerator {
         num_items = guaranteed_num_of_matching_rarity;
 
         tiers = [box_tier + 1, box_tier, box_tier - 1];
-        weights = [10 + 90 * luck, 40 - 40 * luck, 50 - 50 * luck];
+        weights = this.normalizeWeights([
+          10 + 90 * safeLuck,
+          40 - 40 * safeLuck,
+          50 - 50 * safeLuck,
+        ]);
 
         while (num_items < total_items) {
           const chosen_tier = this.weightedRandom(tiers, weights);
@@ -74,12 +102,12 @@ class LootGenerator {
         num_items = guaranteed_num_of_matching_rarity;
 
         tiers = [box_tier + 1, box_tier, box_tier - 1, box_tier - 2];
-        weights = [
-          5 + 95 * luck,
-          40 - 40 * luck,
-          45 - 45 * luck,
-          10 - 10 * luck,
-        ];
+        weights = this.normalizeWeights([
+          5 + 95 * safeLuck,
+          40 - 40 * safeLuck,
+          45 - 45 * safeLuck,
+          10 - 10 * safeLuck,
+        ]);
 
         while (num_items < total_items) {
           const chosen_tier = this.weightedRandom(tiers, weights);
@@ -91,7 +119,7 @@ class LootGenerator {
       const output = {
         box_tier: box_tier,
         size: size,
-        luck: luck,
+        luck: safeLuck,
         total_items: total_items,
         loot: {},
       };
@@ -110,6 +138,10 @@ class LootGenerator {
 
   weightedRandom(items, weights) {
     const total = weights.reduce((a, b) => a + b, 0);
+    if (total <= 0) {
+      return items[Math.floor(Math.random() * items.length)];
+    }
+
     let rand = Math.random() * total;
 
     for (let i = 0; i < items.length; i++) {

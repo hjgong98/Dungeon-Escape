@@ -243,7 +243,9 @@ class SaveManager {
   }
 
   serializePlayerForSave(player) {
-    const base = typeof player.toJSON === 'function' ? player.toJSON() : player;
+    const base = player && typeof player.toJSON === 'function'
+      ? player.toJSON()
+      : (player || {});
 
     return {
       name: base?.name || 'Adventurer',

@@ -30,9 +30,14 @@ class Lootbox extends Phaser.GameObjects.Rectangle {
 
     const items = this.generateItems();
 
-    items.forEach((item) => {
-      globalThis.gameState.player.addItem(item);
-    });
+    const addItem = globalThis.gameState?.player?.addItem;
+    if (typeof addItem === 'function') {
+      items.forEach((item) => {
+        addItem.call(globalThis.gameState.player, item);
+      });
+    } else {
+      console.warn('Lootbox opened without a valid player.addItem handler.');
+    }
 
     this.showLootResults(items);
     this.emit('lootboxOpened', items);
@@ -64,6 +69,35 @@ class Lootbox extends Phaser.GameObjects.Rectangle {
   generateItems() {
     const items = [];
 
+    const weaponGen = globalThis.Weapon?.generate;
+    const armorGen = globalThis.Armor?.generate;
+    const accessoryGen = globalThis.Accessory?.generate;
+    const craftGen = globalThis.GameItem?.generateCraftingMaterial;
+    const sellGen = globalThis.GameItem?.generateSellingMaterial;
+
+    const fallbackMaterial = (tier) => ({
+      id: `fallback_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+      name: `material(${tier})`,
+      type: 'material',
+      tier,
+      value: Math.max(1, Math.floor(8 * tier)),
+      sellable: true,
+      stats: {},
+    });
+
+    const safeGenerate = (generator, tier, fallback) => {
+      if (typeof generator !== 'function') {
+        return fallback(tier);
+      }
+
+      try {
+        const generated = generator(tier);
+        return generated || fallback(tier);
+      } catch (_error) {
+        return fallback(tier);
+      }
+    };
+
     for (const [tierStr, count] of Object.entries(this.boxData.loot)) {
       const tier = parseInt(tierStr.split(' ')[1]);
       if (isNaN(tier)) continue;
@@ -73,15 +107,15 @@ class Lootbox extends Phaser.GameObjects.Rectangle {
         let itemData;
 
         if (rand < 0.2) {
-          itemData = Weapon.generate(tier);
+          itemData = safeGenerate(weaponGen, tier, fallbackMaterial);
         } else if (rand < 0.4) {
-          itemData = Armor.generate(tier);
+          itemData = safeGenerate(armorGen, tier, fallbackMaterial);
         } else if (rand < 0.6) {
-          itemData = Accessory.generate(tier);
+          itemData = safeGenerate(accessoryGen, tier, fallbackMaterial);
         } else if (rand < 0.8) {
-          itemData = GameItem.generateCraftingMaterial(tier);
+          itemData = safeGenerate(craftGen, tier, fallbackMaterial);
         } else {
-          itemData = GameItem.generateSellingMaterial(tier);
+          itemData = safeGenerate(sellGen, tier, fallbackMaterial);
         }
 
         items.push(itemData);

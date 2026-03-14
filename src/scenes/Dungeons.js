@@ -3,7 +3,7 @@ class Dungeons extends Phaser.Scene {
     super('Dungeons');
 
     this.player = null;
-    this.playerSpeed = 1.5;
+    this.playerSpeed = 0.75;
     this.keys = {};
 
     this.dungeon = null;
@@ -27,11 +27,12 @@ class Dungeons extends Phaser.Scene {
     this.currentRoom = null;
     this.activatedRooms = new Set();
     this.enemies = [];
+    this.monsterController = null;
     this.lootboxes = [];
     this.nearLootbox = null;
     this.lootboxPrompt = null;
-    this.enemyWanderSpeed = 0.35;
-    this.enemyChaseSpeed = 0.6;
+    this.enemyWanderSpeed = 0.25;
+    this.enemyChaseSpeed = 0.5;
     this.enemyDetectionRange = 140;
 
     this.exploredOverlay = null;
@@ -51,11 +52,26 @@ class Dungeons extends Phaser.Scene {
     this.nearEntrance = false;
     this.lastStairDir = null;
     this.interactionRadius = 10;
+    this.monstersAlerted = false;
+    this.wallLineThickness = 2;
+    this.corridorWallLineThickness = 1;
+    this.floorTileColor = 0x444444;
+    this.solidTileColor = 0x222222;
+    this.wallLineColor = 0x111111;
+    this.openEdgeLineColor = this.floorTileColor;
+    this.playerCollisionRadius = 8;
+    this.monsterCollisionRadius = 7;
   }
 
   create() {
     this.resetForFreshDungeonRun();
     this.ensureLanternMaskTexture();
+
+    this.monsterController = new DungeonMonsterController(this, {
+      wanderSpeed: this.enemyWanderSpeed,
+      chaseSpeed: this.enemyChaseSpeed,
+      globalAggro: this.monstersAlerted,
+    });
 
     this.dungeon = generateDungeon();
 
@@ -206,14 +222,17 @@ class Dungeons extends Phaser.Scene {
   drawFloor(floor) {
     const size = this.tileSize;
     this.cameras.main.setBackgroundColor('#050505');
+    const wallSegments = [];
+    const openSegments = [];
 
     floor.rooms.forEach((room) => {
-      this.graphics.lineStyle(3, 0x888888, 1);
-      this.graphics.strokeRect(
+      this.queueRoomOutline(
+        wallSegments,
         this.worldToWorldX(room.x),
         this.worldToWorldY(room.y),
         room.w * size,
         room.h * size,
+        this.wallLineColor,
       );
 
       for (let y = 0; y < room.h; y++) {
@@ -223,9 +242,9 @@ class Dungeons extends Phaser.Scene {
           const worldY = this.worldToWorldY(room.y + y);
 
           if (tile.type === 'floor') {
-            this.graphics.fillStyle(0x444444, 1);
+            this.graphics.fillStyle(this.floorTileColor, 1);
           } else {
-            this.graphics.fillStyle(0x222222, 1);
+            this.graphics.fillStyle(this.solidTileColor, 1);
           }
           this.graphics.fillRect(worldX, worldY, size - 1, size - 1);
 
@@ -238,7 +257,6 @@ class Dungeons extends Phaser.Scene {
 
       const openEdges = this.roomOpenEdges.get(room.id) ||
         new Set(room.openEdges || []);
-      this.graphics.lineStyle(3, 0x111111, 1);
 
       for (let y = 0; y < room.h; y++) {
         for (let x = 0; x < room.w; x++) {
@@ -247,19 +265,33 @@ class Dungeons extends Phaser.Scene {
           }
 
           if (x + 1 < room.w && room.maze[y][x + 1]?.type === 'floor') {
-            if (!this.isRoomEdgeOpen(openEdges, x, y, x + 1, y)) {
-              const wx = this.worldToWorldX(room.x + x + 1);
-              const wy = this.worldToWorldY(room.y + y);
-              this.graphics.lineBetween(wx, wy, wx, wy + size);
-            }
+            const isOpen = this.isRoomEdgeOpen(openEdges, x, y, x + 1, y);
+            const wx = this.worldToWorldX(room.x + x + 1);
+            const wy = this.worldToWorldY(room.y + y);
+            this.queueEdgeSegment(
+              isOpen ? openSegments : wallSegments,
+              wx,
+              wy,
+              wx,
+              wy + size,
+              isOpen ? this.openEdgeLineColor : this.wallLineColor,
+              this.wallLineThickness,
+            );
           }
 
           if (y + 1 < room.h && room.maze[y + 1][x]?.type === 'floor') {
-            if (!this.isRoomEdgeOpen(openEdges, x, y, x, y + 1)) {
-              const wx = this.worldToWorldX(room.x + x);
-              const wy = this.worldToWorldY(room.y + y + 1);
-              this.graphics.lineBetween(wx, wy, wx + size, wy);
-            }
+            const isOpen = this.isRoomEdgeOpen(openEdges, x, y, x, y + 1);
+            const wx = this.worldToWorldX(room.x + x);
+            const wy = this.worldToWorldY(room.y + y + 1);
+            this.queueEdgeSegment(
+              isOpen ? openSegments : wallSegments,
+              wx,
+              wy,
+              wx + size,
+              wy,
+              isOpen ? this.openEdgeLineColor : this.wallLineColor,
+              this.wallLineThickness,
+            );
           }
         }
       }
@@ -268,24 +300,121 @@ class Dungeons extends Phaser.Scene {
     floor.corridorTiles.forEach((tile) => {
       const wx = this.worldToWorldX(tile.x);
       const wy = this.worldToWorldY(tile.y);
-      this.graphics.fillStyle(0x555555, 1);
-      this.graphics.fillRect(wx, wy, size - 1, size - 1);
+      this.graphics.fillStyle(this.floorTileColor, 1);
+      this.graphics.fillRect(wx, wy, size, size);
+    });
+
+    const corridorTileSet = new Set(
+      floor.corridorTiles.map((tile) => `${tile.x},${tile.y}`),
+    );
+    const corridorDrawnEdges = new Set();
+
+    floor.corridorTiles.forEach((tile) => {
+      const neighborOffsets = [
+        { dx: 1, dy: 0 },
+        { dx: -1, dy: 0 },
+        { dx: 0, dy: 1 },
+        { dx: 0, dy: -1 },
+      ];
+
+      neighborOffsets.forEach(({ dx, dy }) => {
+        const nx = tile.x + dx;
+        const ny = tile.y + dy;
+        const edgeKey = this.makeTileEdgeKey(tile.x, tile.y, nx, ny);
+        if (corridorDrawnEdges.has(edgeKey)) {
+          return;
+        }
+
+        const neighborIsCorridor = corridorTileSet.has(`${nx},${ny}`);
+        const neighborRoom = this.getRoomAtTile(floor, nx, ny);
+        let isWall = true;
+
+        if (neighborIsCorridor) {
+          corridorDrawnEdges.add(edgeKey);
+          isWall = this.corridorWallEdges.has(edgeKey);
+        } else if (neighborRoom) {
+          isWall = !this.isRoomDoorTransition(
+            neighborRoom,
+            nx,
+            ny,
+            tile.x,
+            tile.y,
+          );
+        }
+
+        if (dy === 0) {
+          const wx = dx > 0
+            ? this.worldToWorldX(tile.x + 1)
+            : this.worldToWorldX(tile.x);
+          const wy = this.worldToWorldY(tile.y);
+          this.queueEdgeSegment(
+            isWall ? wallSegments : openSegments,
+            wx,
+            wy,
+            wx,
+            wy + size,
+            isWall ? this.wallLineColor : this.openEdgeLineColor,
+            this.corridorWallLineThickness,
+          );
+        } else {
+          const wx = this.worldToWorldX(tile.x);
+          const wy = dy > 0
+            ? this.worldToWorldY(tile.y + 1)
+            : this.worldToWorldY(tile.y);
+          this.queueEdgeSegment(
+            isWall ? wallSegments : openSegments,
+            wx,
+            wy,
+            wx + size,
+            wy,
+            isWall ? this.wallLineColor : this.openEdgeLineColor,
+            this.corridorWallLineThickness,
+          );
+        }
+      });
     });
 
     floor.corridorWalls?.forEach((wall) => {
-      this.graphics.lineStyle(3, 0x111111, 1);
       if (wall.y1 === wall.y2) {
         // Horizontally adjacent tiles — draw a vertical wall at the shared x edge
         const edgeX = this.worldToWorldX(Math.max(wall.x1, wall.x2));
         const edgeY = this.worldToWorldY(wall.y1);
-        this.graphics.lineBetween(edgeX, edgeY, edgeX, edgeY + size);
+        this.queueEdgeSegment(
+          wallSegments,
+          edgeX,
+          edgeY,
+          edgeX,
+          edgeY + size,
+          this.wallLineColor,
+          this.corridorWallLineThickness,
+        );
       } else {
         // Vertically adjacent tiles — draw a horizontal wall at the shared y edge
         const edgeX = this.worldToWorldX(wall.x1);
         const edgeY = this.worldToWorldY(Math.max(wall.y1, wall.y2));
-        this.graphics.lineBetween(edgeX, edgeY, edgeX + size, edgeY);
+        this.queueEdgeSegment(
+          wallSegments,
+          edgeX,
+          edgeY,
+          edgeX + size,
+          edgeY,
+          this.wallLineColor,
+          this.corridorWallLineThickness,
+        );
       }
     });
+
+    openSegments.forEach((segment) => {
+      this.drawEdgeSegment(
+        segment.x1,
+        segment.y1,
+        segment.x2,
+        segment.y2,
+        segment.color,
+        segment.thickness,
+      );
+    });
+    this.drawConnectedWallSegments(wallSegments);
 
     floor.stairs.forEach((stair) => {
       const sx = this.worldToWorldX(stair.x);
@@ -338,6 +467,290 @@ class Dungeons extends Phaser.Scene {
       entranceText.setOrigin(0.5);
       this.decorTexts.push(entranceText);
     }
+  }
+
+  queueRoomOutline(segments, x, y, width, height, color) {
+    this.queueEdgeSegment(
+      segments,
+      x,
+      y,
+      x + width,
+      y,
+      color,
+      this.wallLineThickness,
+    );
+    this.queueEdgeSegment(
+      segments,
+      x + width,
+      y,
+      x + width,
+      y + height,
+      color,
+      this.wallLineThickness,
+    );
+    this.queueEdgeSegment(
+      segments,
+      x,
+      y + height,
+      x + width,
+      y + height,
+      color,
+      this.wallLineThickness,
+    );
+    this.queueEdgeSegment(
+      segments,
+      x,
+      y,
+      x,
+      y + height,
+      color,
+      this.wallLineThickness,
+    );
+  }
+
+  queueEdgeSegment(
+    segments,
+    x1,
+    y1,
+    x2,
+    y2,
+    color,
+    thickness = this.wallLineThickness,
+  ) {
+    segments.push({ x1, y1, x2, y2, color, thickness });
+  }
+
+  drawConnectedWallSegments(segments) {
+    const mergedSegments = this.mergeWallSegments(segments);
+
+    mergedSegments.forEach((segment) => {
+      this.drawEdgeSegment(
+        segment.x1,
+        segment.y1,
+        segment.x2,
+        segment.y2,
+        segment.color,
+        segment.thickness,
+      );
+    });
+
+    this.getWallConnectionPoints(mergedSegments).forEach(({ x, y, thickness }) => {
+      this.drawWallJunctionBlock(x, y, thickness);
+    });
+  }
+
+  mergeWallSegments(segments) {
+    const groupedSegments = new Map();
+
+    segments.forEach((segment) => {
+      const isVertical = segment.x1 === segment.x2;
+      const anchor = isVertical ? Math.round(segment.x1) : Math.round(segment.y1);
+      const key = [
+        isVertical ? 'v' : 'h',
+        anchor,
+        segment.color,
+        segment.thickness || this.wallLineThickness,
+      ].join(':');
+
+      if (!groupedSegments.has(key)) {
+        groupedSegments.set(key, []);
+      }
+
+      groupedSegments.get(key).push({
+        start: isVertical
+          ? Math.min(segment.y1, segment.y2)
+          : Math.min(segment.x1, segment.x2),
+        end: isVertical
+          ? Math.max(segment.y1, segment.y2)
+          : Math.max(segment.x1, segment.x2),
+        anchor,
+        isVertical,
+        color: segment.color,
+        thickness: segment.thickness || this.wallLineThickness,
+      });
+    });
+
+    const mergedSegments = [];
+
+    groupedSegments.forEach((group) => {
+      group.sort((left, right) => left.start - right.start);
+
+      let current = null;
+
+      group.forEach((segment) => {
+        if (!current) {
+          current = { ...segment };
+          return;
+        }
+
+        if (segment.start <= current.end) {
+          current.end = Math.max(current.end, segment.end);
+          return;
+        }
+
+        mergedSegments.push(
+          current.isVertical
+            ? {
+              x1: current.anchor,
+              y1: current.start,
+              x2: current.anchor,
+              y2: current.end,
+              color: current.color,
+              thickness: current.thickness,
+            }
+            : {
+              x1: current.start,
+              y1: current.anchor,
+              x2: current.end,
+              y2: current.anchor,
+              color: current.color,
+              thickness: current.thickness,
+            },
+        );
+        current = { ...segment };
+      });
+
+      if (!current) {
+        return;
+      }
+
+      mergedSegments.push(
+        current.isVertical
+          ? {
+            x1: current.anchor,
+            y1: current.start,
+            x2: current.anchor,
+            y2: current.end,
+            color: current.color,
+            thickness: current.thickness,
+          }
+          : {
+            x1: current.start,
+            y1: current.anchor,
+            x2: current.end,
+            y2: current.anchor,
+            color: current.color,
+            thickness: current.thickness,
+          },
+      );
+    });
+
+    return mergedSegments;
+  }
+
+  getWallConnectionPoints(segments) {
+    const connectionPoints = new Map();
+
+    for (let i = 0; i < segments.length; i++) {
+      for (let j = i + 1; j < segments.length; j++) {
+        const point = this.getWallSegmentConnectionPoint(
+          segments[i],
+          segments[j],
+        );
+        if (!point) {
+          continue;
+        }
+
+        const key = `${point.x},${point.y}`;
+        const existing = connectionPoints.get(key);
+        const thickness = Math.max(
+          segments[i].thickness || 1,
+          segments[j].thickness || 1,
+        );
+        connectionPoints.set(
+          key,
+          existing
+            ? {
+              x: point.x,
+              y: point.y,
+              thickness: Math.max(existing.thickness, thickness),
+            }
+            : { x: point.x, y: point.y, thickness },
+        );
+      }
+    }
+
+    return [...connectionPoints.values()];
+  }
+
+  getWallSegmentConnectionPoint(segmentA, segmentB) {
+    const aVertical = segmentA.x1 === segmentA.x2;
+    const bVertical = segmentB.x1 === segmentB.x2;
+
+    if (aVertical !== bVertical) {
+      const vertical = aVertical ? segmentA : segmentB;
+      const horizontal = aVertical ? segmentB : segmentA;
+      const point = {
+        x: Math.round(vertical.x1),
+        y: Math.round(horizontal.y1),
+      };
+
+      if (
+        this.isPointOnWallSegment(point, vertical) &&
+        this.isPointOnWallSegment(point, horizontal)
+      ) {
+        return point;
+      }
+
+      return null;
+    }
+
+    const candidatePoints = [
+      { x: Math.round(segmentA.x1), y: Math.round(segmentA.y1) },
+      { x: Math.round(segmentA.x2), y: Math.round(segmentA.y2) },
+      { x: Math.round(segmentB.x1), y: Math.round(segmentB.y1) },
+      { x: Math.round(segmentB.x2), y: Math.round(segmentB.y2) },
+    ];
+
+    return candidatePoints.find((point) =>
+      this.isPointOnWallSegment(point, segmentA) &&
+      this.isPointOnWallSegment(point, segmentB)
+    ) || null;
+  }
+
+  isPointOnWallSegment(point, segment) {
+    if (segment.x1 === segment.x2) {
+      return Math.round(segment.x1) === point.x &&
+        point.y >= Math.min(segment.y1, segment.y2) &&
+        point.y <= Math.max(segment.y1, segment.y2);
+    }
+
+    return Math.round(segment.y1) === point.y &&
+      point.x >= Math.min(segment.x1, segment.x2) &&
+      point.x <= Math.max(segment.x1, segment.x2);
+  }
+
+  drawEdgeSegment(x1, y1, x2, y2, color, thickness = this.wallLineThickness) {
+    const half = Math.floor(thickness / 2);
+
+    this.graphics.fillStyle(color, 1);
+
+    if (x1 === x2) {
+      const x = Math.round(x1) - half;
+      const y = Math.min(y1, y2) - half;
+      const height = Math.abs(y2 - y1) + thickness;
+      this.graphics.fillRect(x, y, thickness, height);
+      return;
+    }
+
+    if (y1 === y2) {
+      const x = Math.min(x1, x2) - half;
+      const y = Math.round(y1) - half;
+      const width = Math.abs(x2 - x1) + thickness;
+      this.graphics.fillRect(x, y, width, thickness);
+    }
+  }
+
+  drawWallJunctionBlock(x, y, thickness = this.wallLineThickness) {
+    const half = Math.floor(thickness / 2);
+
+    this.graphics.fillStyle(this.wallLineColor, 1);
+    this.graphics.fillRect(
+      Math.round(x) - half,
+      Math.round(y) - half,
+      thickness,
+      thickness,
+    );
   }
 
   ensureLanternMaskTexture() {
@@ -559,30 +972,9 @@ class Dungeons extends Phaser.Scene {
   }
 
   createEnemiesForFloor(floor) {
-    this.enemies = [];
-
-    floor.rooms.forEach((room) => {
-      (room.enemies || []).forEach((enemyData, index) => {
-        const sprite = this.add.circle(
-          this.worldToWorldX(enemyData.x) + this.tileSize / 2,
-          this.worldToWorldY(enemyData.y) + this.tileSize / 2,
-          7,
-          0xb84dff,
-        );
-        sprite.setDepth(19);
-
-        this.enemies.push({
-          id: enemyData.id || `${room.id}-enemy-${index}`,
-          roomId: room.id,
-          sprite,
-          homeTileX: enemyData.x,
-          homeTileY: enemyData.y,
-          wanderTargetTile: { x: enemyData.x, y: enemyData.y },
-          path: [],
-          pathTargetKey: null,
-        });
-      });
-    });
+    this.monsterController?.createForFloor(floor);
+    this.monsterController?.setGlobalAggro(this.monstersAlerted);
+    this.enemies = this.monsterController?.enemies || [];
   }
 
   createLootboxesForFloor(floor) {
@@ -623,6 +1015,10 @@ class Dungeons extends Phaser.Scene {
       } else {
         lootbox.on('lootboxOpened', () => {
           chest.opened = true;
+
+          if (lootbox.boxData?.isTrap) {
+            this.alertAllMonstersFromTrap();
+          }
         });
       }
 
@@ -631,251 +1027,13 @@ class Dungeons extends Phaser.Scene {
   }
 
   updateEnemies(floor) {
-    this.enemies.forEach((enemy) => {
-      const room = floor.rooms.find((candidate) =>
-        candidate.id === enemy.roomId
-      );
-      if (!room) {
-        return;
-      }
-
-      if (!this.activatedRooms.has(room.id)) {
-        enemy.sprite.setPosition(
-          this.worldToWorldX(enemy.homeTileX) + this.tileSize / 2,
-          this.worldToWorldY(enemy.homeTileY) + this.tileSize / 2,
-        );
-        enemy.path = [];
-        enemy.pathTargetKey = null;
-        enemy.wanderTargetTile = { x: enemy.homeTileX, y: enemy.homeTileY };
-        return;
-      }
-
-      const enemyTileX = this.worldToTileX(enemy.sprite.x);
-      const enemyTileY = this.worldToTileY(enemy.sprite.y);
-      let targetTile = null;
-      let speed = this.enemyWanderSpeed;
-
-      if (this.currentRoom?.id === room.id) {
-        const distance = Phaser.Math.Distance.Between(
-          enemy.sprite.x,
-          enemy.sprite.y,
-          this.player.x,
-          this.player.y,
-        );
-
-        if (distance <= this.enemyDetectionRange) {
-          targetTile = {
-            x: this.worldToTileX(this.player.x),
-            y: this.worldToTileY(this.player.y),
-          };
-          speed = this.enemyChaseSpeed;
-        }
-      }
-
-      if (!targetTile) {
-        const reachedWanderTarget = enemyTileX === enemy.wanderTargetTile.x &&
-          enemyTileY === enemy.wanderTargetTile.y;
-
-        if (reachedWanderTarget) {
-          enemy.wanderTargetTile = this.pickEnemyWanderTile(room, enemy);
-        }
-
-        targetTile = enemy.wanderTargetTile;
-      }
-
-      this.moveEnemyTowardTileWithAStar(enemy, room, targetTile, speed);
-    });
+    this.monsterController?.update(floor);
+    this.enemies = this.monsterController?.enemies || [];
   }
 
-  pickEnemyWanderTile(room, enemy) {
-    const candidates = [];
-
-    for (let y = 0; y < room.h; y++) {
-      for (let x = 0; x < room.w; x++) {
-        if (room.maze[y][x].type === 'floor') {
-          candidates.push({ x: room.x + x, y: room.y + y });
-        }
-      }
-    }
-
-    if (candidates.length === 0) {
-      return { x: enemy.homeTileX, y: enemy.homeTileY };
-    }
-
-    const currentTileX = this.worldToTileX(enemy.sprite.x);
-    const currentTileY = this.worldToTileY(enemy.sprite.y);
-    const pool = candidates.filter((tile) =>
-      tile.x !== currentTileX || tile.y !== currentTileY
-    );
-
-    return Phaser.Utils.Array.GetRandom(pool.length > 0 ? pool : candidates);
-  }
-
-  moveEnemyTowardTileWithAStar(enemy, room, targetTile, speed) {
-    const startTile = {
-      x: this.worldToTileX(enemy.sprite.x),
-      y: this.worldToTileY(enemy.sprite.y),
-    };
-    const targetKey = `${targetTile.x},${targetTile.y}`;
-
-    if (
-      enemy.path.length === 0 ||
-      enemy.pathTargetKey !== targetKey ||
-      enemy.path[enemy.path.length - 1]?.x !== targetTile.x ||
-      enemy.path[enemy.path.length - 1]?.y !== targetTile.y
-    ) {
-      enemy.path = this.findPathWithinRoom(room, startTile, targetTile);
-      enemy.pathTargetKey = targetKey;
-    }
-
-    while (
-      enemy.path.length > 0 &&
-      enemy.path[0].x === startTile.x &&
-      enemy.path[0].y === startTile.y
-    ) {
-      enemy.path.shift();
-    }
-
-    if (enemy.path.length === 0) {
-      return;
-    }
-
-    const nextTile = enemy.path[0];
-    const targetX = this.worldToWorldX(nextTile.x) + this.tileSize / 2;
-    const targetY = this.worldToWorldY(nextTile.y) + this.tileSize / 2;
-    const dx = targetX - enemy.sprite.x;
-    const dy = targetY - enemy.sprite.y;
-    const distance = Math.hypot(dx, dy);
-
-    if (distance <= speed) {
-      enemy.sprite.setPosition(targetX, targetY);
-      enemy.path.shift();
-      return;
-    }
-
-    enemy.sprite.x += (dx / distance) * speed;
-    enemy.sprite.y += (dy / distance) * speed;
-  }
-
-  findPathWithinRoom(room, startTile, goalTile) {
-    if (startTile.x === goalTile.x && startTile.y === goalTile.y) {
-      return [];
-    }
-
-    const openSet = [startTile];
-    const openKeys = new Set([`${startTile.x},${startTile.y}`]);
-    const cameFrom = new Map();
-    const gScore = new Map([[`${startTile.x},${startTile.y}`, 0]]);
-    const fScore = new Map([[
-      `${startTile.x},${startTile.y}`,
-      this.heuristicCost(startTile, goalTile),
-    ]]);
-
-    while (openSet.length > 0) {
-      openSet.sort((a, b) =>
-        (fScore.get(`${a.x},${a.y}`) ?? Infinity) -
-        (fScore.get(`${b.x},${b.y}`) ?? Infinity)
-      );
-
-      const current = openSet.shift();
-      const currentKey = `${current.x},${current.y}`;
-      openKeys.delete(currentKey);
-
-      if (current.x === goalTile.x && current.y === goalTile.y) {
-        return this.reconstructTilePath(cameFrom, current);
-      }
-
-      this.getRoomNeighbors(room, current).forEach((neighbor) => {
-        const neighborKey = `${neighbor.x},${neighbor.y}`;
-        const tentativeG = (gScore.get(currentKey) ?? Infinity) + 1;
-
-        if (tentativeG >= (gScore.get(neighborKey) ?? Infinity)) {
-          return;
-        }
-
-        cameFrom.set(neighborKey, current);
-        gScore.set(neighborKey, tentativeG);
-        fScore.set(
-          neighborKey,
-          tentativeG + this.heuristicCost(neighbor, goalTile),
-        );
-
-        if (!openKeys.has(neighborKey)) {
-          openSet.push(neighbor);
-          openKeys.add(neighborKey);
-        }
-      });
-    }
-
-    return [];
-  }
-
-  reconstructTilePath(cameFrom, current) {
-    const path = [current];
-    let currentKey = `${current.x},${current.y}`;
-
-    while (cameFrom.has(currentKey)) {
-      const previous = cameFrom.get(currentKey);
-      path.unshift(previous);
-      currentKey = `${previous.x},${previous.y}`;
-    }
-
-    return path;
-  }
-
-  heuristicCost(a, b) {
-    return Math.abs(a.x - b.x) + Math.abs(a.y - b.y);
-  }
-
-  getRoomNeighbors(room, tile) {
-    const neighbors = [];
-    const localX = tile.x - room.x;
-    const localY = tile.y - room.y;
-    const openEdges = this.roomOpenEdges.get(room.id) ||
-      new Set(room.openEdges || []);
-    const directions = [
-      { dx: 1, dy: 0 },
-      { dx: -1, dy: 0 },
-      { dx: 0, dy: 1 },
-      { dx: 0, dy: -1 },
-    ];
-
-    directions.forEach((direction) => {
-      const nextLocalX = localX + direction.dx;
-      const nextLocalY = localY + direction.dy;
-
-      if (
-        nextLocalX < 0 ||
-        nextLocalX >= room.w ||
-        nextLocalY < 0 ||
-        nextLocalY >= room.h
-      ) {
-        return;
-      }
-
-      if (room.maze[nextLocalY][nextLocalX]?.type !== 'floor') {
-        return;
-      }
-
-      if (
-        !this.isRoomEdgeOpen(
-          openEdges,
-          localX,
-          localY,
-          nextLocalX,
-          nextLocalY,
-        )
-      ) {
-        return;
-      }
-
-      neighbors.push({
-        x: room.x + nextLocalX,
-        y: room.y + nextLocalY,
-      });
-    });
-
-    return neighbors;
+  alertAllMonstersFromTrap() {
+    this.monstersAlerted = true;
+    this.monsterController?.setGlobalAggro(true);
   }
 
   updateCurrentRoom(force = false) {
@@ -935,17 +1093,7 @@ class Dungeons extends Phaser.Scene {
       const newX = this.player.x + dx * this.playerSpeed;
       const newY = this.player.y + dy * this.playerSpeed;
 
-      if (this.canMoveTo(newX, newY)) {
-        this.player.x = newX;
-        this.player.y = newY;
-      } else {
-        if (this.canMoveTo(newX, this.player.y)) {
-          this.player.x = newX;
-        }
-        if (this.canMoveTo(this.player.x, newY)) {
-          this.player.y = newY;
-        }
-      }
+      this.movePlayerWithCollisions(newX, newY);
     }
 
     this.player.x = Phaser.Math.Clamp(
@@ -965,6 +1113,7 @@ class Dungeons extends Phaser.Scene {
     this.checkLootboxes();
     this.updateCurrentRoom();
     this.updateEnemies(this.currentFloorData);
+    this.resolvePlayerMonsterCollisions();
 
     if (Phaser.Input.Keyboard.JustDown(this.keys.e)) {
       if (this.nearLootbox) {
@@ -988,6 +1137,169 @@ class Dungeons extends Phaser.Scene {
     this.syncLantern();
   }
 
+  movePlayerWithCollisions(targetX, targetY) {
+    this.moveEntityWithCollisions(this.player, targetX, targetY, {
+      radius: this.playerCollisionRadius,
+      blockByPlayer: false,
+      blockByEnemies: true,
+    });
+  }
+
+  moveEnemyWithCollisions(enemy, targetX, targetY) {
+    if (!enemy?.sprite) {
+      return;
+    }
+
+    this.moveEntityWithCollisions(enemy.sprite, targetX, targetY, {
+      radius: this.monsterCollisionRadius,
+      blockByPlayer: true,
+      blockByEnemies: true,
+      ignoreEnemyId: enemy.id,
+    });
+  }
+
+  moveEntityWithCollisions(entity, targetX, targetY, options = {}) {
+    if (!entity) {
+      return;
+    }
+
+    if (this.canEntityMoveTo(entity, targetX, targetY, options)) {
+      entity.x = targetX;
+      entity.y = targetY;
+    } else {
+      if (this.canEntityMoveTo(entity, targetX, entity.y, options)) {
+        entity.x = targetX;
+      }
+      if (this.canEntityMoveTo(entity, entity.x, targetY, options)) {
+        entity.y = targetY;
+      }
+    }
+
+    const radius = options.radius || this.playerCollisionRadius;
+    entity.x = Phaser.Math.Clamp(
+      entity.x,
+      this.floorBounds.minX + radius,
+      this.floorBounds.minX + this.floorBounds.width - radius,
+    );
+    entity.y = Phaser.Math.Clamp(
+      entity.y,
+      this.floorBounds.minY + radius,
+      this.floorBounds.minY + this.floorBounds.height - radius,
+    );
+  }
+
+  canEntityMoveTo(entity, worldX, worldY, options = {}) {
+    const tileX = this.worldToTileX(worldX);
+    const tileY = this.worldToTileY(worldY);
+
+    if (!this.walkableTiles.has(`${tileX},${tileY}`)) {
+      return false;
+    }
+
+    const currentTileX = this.worldToTileX(entity.x);
+    const currentTileY = this.worldToTileY(entity.y);
+
+    if (currentTileX !== tileX || currentTileY !== tileY) {
+      if (!this.canTraverseTileEdge(currentTileX, currentTileY, tileX, tileY)) {
+        return false;
+      }
+    }
+
+    const radius = options.radius || this.playerCollisionRadius;
+
+    if (options.blockByPlayer && this.player && entity !== this.player) {
+      const minDist = radius + this.playerCollisionRadius;
+      if (
+        Phaser.Math.Distance.Between(
+          worldX,
+          worldY,
+          this.player.x,
+          this.player.y,
+        ) < minDist
+      ) {
+        return false;
+      }
+    }
+
+    if (options.blockByEnemies && Array.isArray(this.enemies)) {
+      for (const enemy of this.enemies) {
+        if (!enemy?.sprite || !enemy.sprite.visible) {
+          continue;
+        }
+        if (enemy.id && enemy.id === options.ignoreEnemyId) {
+          continue;
+        }
+        if (enemy.sprite === entity) {
+          continue;
+        }
+
+        const minDist = radius + this.monsterCollisionRadius;
+        if (
+          Phaser.Math.Distance.Between(
+            worldX,
+            worldY,
+            enemy.sprite.x,
+            enemy.sprite.y,
+          ) < minDist
+        ) {
+          return false;
+        }
+      }
+    }
+
+    return true;
+  }
+
+  resolvePlayerMonsterCollisions() {
+    if (!this.player || !Array.isArray(this.enemies)) {
+      return;
+    }
+
+    const minDist = this.playerCollisionRadius + this.monsterCollisionRadius;
+
+    this.enemies.forEach((enemy) => {
+      if (!enemy?.sprite || !enemy.sprite.visible) {
+        return;
+      }
+
+      const dx = this.player.x - enemy.sprite.x;
+      const dy = this.player.y - enemy.sprite.y;
+      const dist = Math.hypot(dx, dy);
+
+      if (dist >= minDist || dist === 0) {
+        return;
+      }
+
+      const overlap = minDist - dist;
+      const nx = dx / dist;
+      const ny = dy / dist;
+      const push = overlap * 0.5;
+
+      this.moveEntityWithCollisions(
+        this.player,
+        this.player.x + nx * push,
+        this.player.y + ny * push,
+        {
+          radius: this.playerCollisionRadius,
+          blockByPlayer: false,
+          blockByEnemies: true,
+        },
+      );
+
+      this.moveEntityWithCollisions(
+        enemy.sprite,
+        enemy.sprite.x - nx * push,
+        enemy.sprite.y - ny * push,
+        {
+          radius: this.monsterCollisionRadius,
+          blockByPlayer: true,
+          blockByEnemies: true,
+          ignoreEnemyId: enemy.id,
+        },
+      );
+    });
+  }
+
   canMoveTo(worldX, worldY) {
     const tileX = this.worldToTileX(worldX);
     const tileY = this.worldToTileY(worldY);
@@ -1003,43 +1315,105 @@ class Dungeons extends Phaser.Scene {
       return true;
     }
 
-    const manhattan = Math.abs(currentTileX - tileX) +
-      Math.abs(currentTileY - tileY);
-    if (manhattan === 1) {
-      const edgeKey = this.makeTileEdgeKey(
-        currentTileX,
-        currentTileY,
-        tileX,
-        tileY,
-      );
-      if (this.corridorWallEdges.has(edgeKey)) {
-        return false;
-      }
+    return this.canTraverseTileEdge(currentTileX, currentTileY, tileX, tileY);
+  }
+
+  canTraverseTileEdge(fromTileX, fromTileY, toTileX, toTileY) {
+    if (!this.currentFloorData) {
+      return false;
+    }
+
+    const manhattan = Math.abs(fromTileX - toTileX) +
+      Math.abs(fromTileY - toTileY);
+    if (manhattan !== 1) {
+      return false;
+    }
+
+    const edgeKey = this.makeTileEdgeKey(
+      fromTileX,
+      fromTileY,
+      toTileX,
+      toTileY,
+    );
+    if (this.corridorWallEdges.has(edgeKey)) {
+      return false;
     }
 
     const fromRoom = this.getRoomAtTile(
       this.currentFloorData,
-      currentTileX,
-      currentTileY,
+      fromTileX,
+      fromTileY,
     );
-    const toRoom = this.getRoomAtTile(this.currentFloorData, tileX, tileY);
+    const toRoom = this.getRoomAtTile(this.currentFloorData, toTileX, toTileY);
 
-    if (!fromRoom || !toRoom || fromRoom !== toRoom) {
-      return true;
+    if (fromRoom && toRoom) {
+      if (fromRoom !== toRoom) {
+        return false;
+      }
+
+      const openEdges = this.roomOpenEdges.get(fromRoom.id);
+      if (!openEdges) {
+        return false;
+      }
+
+      return this.isRoomEdgeOpen(
+        openEdges,
+        fromTileX - fromRoom.x,
+        fromTileY - fromRoom.y,
+        toTileX - fromRoom.x,
+        toTileY - fromRoom.y,
+      );
     }
 
-    const openEdges = this.roomOpenEdges.get(fromRoom.id);
-    if (!openEdges) {
+    if (fromRoom && !toRoom) {
+      return this.isRoomDoorTransition(
+        fromRoom,
+        fromTileX,
+        fromTileY,
+        toTileX,
+        toTileY,
+      );
+    }
+
+    if (!fromRoom && toRoom) {
+      return this.isRoomDoorTransition(
+        toRoom,
+        toTileX,
+        toTileY,
+        fromTileX,
+        fromTileY,
+      );
+    }
+
+    return true;
+  }
+
+  isRoomDoorTransition(room, roomTileX, roomTileY, outsideTileX, outsideTileY) {
+    const slots = room.edgeDoorSlots;
+    if (!slots) {
       return false;
     }
 
-    return this.isRoomEdgeOpen(
-      openEdges,
-      currentTileX - fromRoom.x,
-      currentTileY - fromRoom.y,
-      tileX - fromRoom.x,
-      tileY - fromRoom.y,
-    );
+    if (outsideTileX < room.x && roomTileX === room.x) {
+      return slots.left?.includes(roomTileY - room.y);
+    }
+    if (
+      outsideTileX >= room.x + room.w &&
+      roomTileX === room.x + room.w - 1
+    ) {
+      return slots.right?.includes(roomTileY - room.y);
+    }
+    if (outsideTileY < room.y && roomTileY === room.y) {
+      return slots.top?.includes(roomTileX - room.x);
+    }
+    if (
+      outsideTileY >= room.y + room.h &&
+      roomTileY === room.y + room.h - 1
+    ) {
+      return slots.bottom?.includes(roomTileX - room.x);
+    }
+
+    return false;
   }
 
   isRoomEdgeOpen(openEdges, ax, ay, bx, by) {
@@ -1264,8 +1638,8 @@ class Dungeons extends Phaser.Scene {
   }
 
   destroyEnemies() {
-    this.enemies.forEach((enemy) => enemy.sprite.destroy());
-    this.enemies = [];
+    this.monsterController?.destroy();
+    this.enemies = this.monsterController?.enemies || [];
   }
 
   destroyLootboxes() {
@@ -1321,6 +1695,7 @@ class Dungeons extends Phaser.Scene {
     this.destroyDecorTexts();
     this.destroyEnemies();
     this.destroyLootboxes();
+    this.monsterController = null;
     this.walkableTiles.clear();
     this.corridorWallEdges.clear();
     this.roomOpenEdges.clear();
@@ -1330,6 +1705,7 @@ class Dungeons extends Phaser.Scene {
     this.nearStair = null;
     this.nearExit = false;
     this.nearEntrance = false;
+    this.monstersAlerted = false;
   }
 
   worldToWorldX(tileX) {
