@@ -27,10 +27,9 @@ class Weapon extends GameItem {
     const rollType = Weapon.pickRollType();
     const stats = Weapon.buildStats(tier, upgradeLevel, rollType);
 
-    // Sell price based on tier and upgrade level
-    const basePrice = Math.floor(20 * tier);
-    const upgradePriceBonus = basePrice * 0.1 * upgradeLevel;
-    const sellPrice = Math.floor(basePrice + upgradePriceBonus);
+    const sellPrice = globalThis.GameItem?.getSellValueFor
+      ? globalThis.GameItem.getSellValueFor(tier, upgradeLevel)
+      : Math.max(1, Math.floor((10 * tier) / 2));
 
     return {
       id: `weapon_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,

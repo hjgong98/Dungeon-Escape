@@ -384,10 +384,11 @@ class Inventory extends Phaser.Scene {
       });
 
       // Sell button
+      const sellValue = this.getSellValue(this.selectedItem);
       const sellBtn = this.add.text(
         660,
         actionButtonY,
-        `SELL (${this.selectedItem.value}g)`,
+        `SELL (${sellValue}g)`,
         {
           fontSize: '13px',
           fill: '#ff0',
@@ -629,6 +630,19 @@ class Inventory extends Phaser.Scene {
     return ['weapon', 'armor', 'accessory'].includes(item?.type);
   }
 
+  getSellValue(item) {
+    if (!item) return 1;
+
+    if (globalThis.GameItem?.getSellValueFor) {
+      return globalThis.GameItem.getSellValueFor(
+        item.tier || 1,
+        item.upgradeLevel || 0,
+      );
+    }
+
+    return Math.max(1, Number(item.value) || 1);
+  }
+
   getItemStatsPreview(item) {
     if (!item || !item.stats) return 'No stats';
 
@@ -746,7 +760,7 @@ class Inventory extends Phaser.Scene {
     this.closeStackDetails();
 
     const player = globalThis.gameState.player;
-    const value = this.selectedItem.value || 1;
+    const value = this.getSellValue(this.selectedItem);
 
     // Add gold
     player.gold = (player.gold || 0) + value;

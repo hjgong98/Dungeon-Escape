@@ -2502,7 +2502,8 @@ class Dungeons extends Phaser.Scene {
       enemy.isCollidingWithPlayer = true;
 
       if ((enemy.nextContactTime || 0) <= this.time.now) {
-        enemy.nextContactTime = this.time.now + this.playerMonsterContactCooldown;
+        enemy.nextContactTime = this.time.now +
+          this.playerMonsterContactCooldown;
         this.handlePlayerMonsterContact(enemy, nx, ny);
 
         if (!enemy?.sprite || !enemy.sprite.visible) {

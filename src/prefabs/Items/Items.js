@@ -68,6 +68,24 @@ class GameItem extends Phaser.GameObjects.Sprite {
     };
   }
 
+  static getEnhanceCoinCostForLevel(tier = 1, currentLevel = 0) {
+    const safeTier = Math.max(1, Number(tier) || 1);
+    const safeLevel = Math.max(0, Number(currentLevel) || 0);
+    return Math.floor(10 * safeTier + (5 * safeLevel));
+  }
+
+  static getSellValueFor(tier = 1, upgradeLevel = 0) {
+    const safeTier = Math.max(1, Number(tier) || 1);
+    const safeUpgradeLevel = Math.max(0, Number(upgradeLevel) || 0);
+
+    let totalInvested = 10 * safeTier;
+    for (let level = 0; level < safeUpgradeLevel; level++) {
+      totalInvested += GameItem.getEnhanceCoinCostForLevel(safeTier, level);
+    }
+
+    return Math.max(1, Math.floor(totalInvested / 2));
+  }
+
   // Check if item can be upgraded
   canUpgrade() {
     return this.itemData.upgradeLevel < this.itemData.maxUpgradeLevel;

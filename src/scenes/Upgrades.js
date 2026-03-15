@@ -402,9 +402,10 @@ class Upgrades extends Phaser.Scene {
   getEnhanceCost(item) {
     const tier = Math.max(1, item.tier || 1);
     const nextLevel = (item.upgradeLevel || 0) + 1;
+    const currentLevel = item.upgradeLevel || 0;
 
     return {
-      coins: Math.floor(25 * tier * nextLevel),
+      coins: Math.floor(10 * tier + (5 * currentLevel)),
       materialTier: nextLevel === 5 ? tier : Math.max(0, tier - 1),
       materialAmount: nextLevel === 5 ? tier : Math.max(0, tier - 1),
     };
@@ -765,8 +766,13 @@ class Upgrades extends Phaser.Scene {
       item.stats.luckBonus = item.stats.luckBonus * 1.1;
     }
 
-    // Update item value
-    item.value = Math.floor(item.value * 1.2);
+    // Update item sell value to reflect base + invested upgrade coins.
+    item.value = globalThis.GameItem?.getSellValueFor
+      ? globalThis.GameItem.getSellValueFor(
+        item.tier || 1,
+        item.upgradeLevel || 0,
+      )
+      : Math.max(1, Number(item.value) || 1);
 
     console.log('Item upgraded:', item);
 
