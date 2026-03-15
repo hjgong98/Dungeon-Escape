@@ -18,7 +18,7 @@ class Player extends Phaser.Physics.Arcade.Sprite {
     this.def = 5;
     this.luck = 0; // Luck affects dodge and drop rates
     this.exp = 0;
-    this.expToNext = 100;
+    this.expToNext = 10;
     this.gold = 0;
 
     // Equipment slots
@@ -83,25 +83,30 @@ class Player extends Phaser.Physics.Arcade.Sprite {
 
   // Add experience and level up if needed
   addExp(amount) {
-    this.exp += amount;
+    this.exp += Math.max(0, Math.floor(Number(amount) || 0));
+    this.expToNext = this.getRequiredExpForLevel(this.level);
 
     while (this.exp >= this.expToNext) {
+      this.exp -= this.expToNext;
       this.levelUp();
     }
+  }
+
+  getRequiredExpForLevel(level = this.level) {
+    const safeLevel = Math.max(1, Number(level) || 1);
+    return Math.max(10, Math.round(10 * (1 + (safeLevel - 1) * 0.1)));
   }
 
   // Level up increases stats
   levelUp() {
     this.level++;
-    this.exp -= this.expToNext;
-    this.expToNext = Math.floor(this.expToNext * 1.2);
+    this.expToNext = this.getRequiredExpForLevel(this.level);
 
     // Stat increases
     this.maxHp += 10;
-    this.hp = this.maxHp;
-    this.atk += 2;
+    this.hp = Math.min(this.maxHp, this.hp + 10);
+    this.atk += 1;
     this.def += 1;
-    this.luck += 1; // Gain 1 luck per level
 
     // Show level up effect if in a scene
     if (this.scene) {
@@ -214,7 +219,7 @@ class Player extends Phaser.Physics.Arcade.Sprite {
       def: this.def,
       luck: this.luck,
       exp: this.exp,
-      expToNext: this.expToNext,
+      expToNext: this.expToNext || this.getRequiredExpForLevel(this.level),
       gold: this.gold,
       equipment: this.equipment,
       inventory: this.inventory,
@@ -232,7 +237,7 @@ class Player extends Phaser.Physics.Arcade.Sprite {
     this.def = data.def || 5;
     this.luck = data.luck || 0;
     this.exp = data.exp || 0;
-    this.expToNext = data.expToNext || 100;
+    this.expToNext = data.expToNext || this.getRequiredExpForLevel(this.level);
     this.gold = data.gold || 0;
     this.equipment = data.equipment ||
       { weapon: null, armor: null, accessory: null };

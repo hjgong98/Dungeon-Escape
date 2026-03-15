@@ -21,13 +21,14 @@ class DungeonMonsterController {
 
   createEnemyCombatStats(playerProfile = {}) {
     const safeLevel = Math.max(1, Number(playerProfile.level) || 1);
-    const baseMaxHp = 100 + (safeLevel - 1) * 18;
+    const levelMultiplier = 1 + (safeLevel - 1) * 0.1;
+    const baseMaxHp = Math.max(1, Math.round(100 * levelMultiplier));
 
     return {
       level: safeLevel,
       maxHp: baseMaxHp,
       hp: baseMaxHp,
-      atk: 4 + (safeLevel - 1) * 3,
+      atk: Math.max(1, Math.round(4 * levelMultiplier)),
     };
   }
 

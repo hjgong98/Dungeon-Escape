@@ -39,7 +39,7 @@ const gameState = {
     def: 5,
     luck: 0,
     exp: 0,
-    expToNext: 100,
+    expToNext: 10,
     gold: 50,
     maxInventory: 20,
     bagSlots: 20,

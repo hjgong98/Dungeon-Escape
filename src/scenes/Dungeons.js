@@ -27,7 +27,7 @@ class Dungeons extends Phaser.Scene {
       left: 'enemy-hurt-left',
       right: 'enemy-hurt-right',
     };
-    this.enemyDisplaySize = 24;
+    this.enemyDisplaySize = 30;
     this.keys = {};
 
     this.dungeon = null;
@@ -83,8 +83,10 @@ class Dungeons extends Phaser.Scene {
     this.solidTileColor = 0x222222;
     this.wallLineColor = 0x111111;
     this.openEdgeLineColor = this.floorTileColor;
-    this.playerCollisionRadius = 8;
-    this.monsterCollisionRadius = 8;
+    this.playerCollisionRadius = 6;
+    this.monsterCollisionRadius = 4;
+    this.playerCollisionOffsetY = 4;
+    this.monsterCollisionOffsetY = 5;
     this.monsterHitPushback = 12;
     this.discardUIActive = false;
     this.discardUIPending = [];
@@ -687,7 +689,13 @@ class Dungeons extends Phaser.Scene {
       if (
         room.maze[0]?.[x]?.type === 'floor' &&
         corridorTileSet.has(`${topTileX},${topTileY - 1}`) &&
-        this.isRoomDoorTransition(room, topTileX, topTileY, topTileX, topTileY - 1)
+        this.isRoomDoorTransition(
+          room,
+          topTileX,
+          topTileY,
+          topTileX,
+          topTileY - 1,
+        )
       ) {
         slots.top.push(x);
       }
@@ -715,7 +723,13 @@ class Dungeons extends Phaser.Scene {
       if (
         room.maze[y]?.[0]?.type === 'floor' &&
         corridorTileSet.has(`${leftTileX - 1},${leftTileY}`) &&
-        this.isRoomDoorTransition(room, leftTileX, leftTileY, leftTileX - 1, leftTileY)
+        this.isRoomDoorTransition(
+          room,
+          leftTileX,
+          leftTileY,
+          leftTileX - 1,
+          leftTileY,
+        )
       ) {
         slots.left.push(y);
       }
@@ -1449,6 +1463,19 @@ class Dungeons extends Phaser.Scene {
         lootbox.on('lootboxOpened', () => {
           chest.opened = true;
 
+          if (!lootbox.boxData?.isTrap) {
+            const awardedGold = this.awardLootboxGold(
+              lootbox.boxData?.box_tier,
+            );
+            const awardedExp = this.awardLootboxExp(lootbox.boxData?.box_tier);
+            if (awardedGold > 0) {
+              this.showFloatingGoldGain(lootbox.x, lootbox.y, awardedGold);
+            }
+            if (awardedExp > 0) {
+              this.showFloatingExpGain(lootbox.x, lootbox.y - 10, awardedExp);
+            }
+          }
+
           if (lootbox.boxData?.isTrap) {
             this.alertAllMonstersFromTrap();
           }
@@ -1465,6 +1492,155 @@ class Dungeons extends Phaser.Scene {
   updateEnemies(floor) {
     this.monsterController?.update(floor);
     this.enemies = this.monsterController?.enemies || [];
+  }
+
+  awardLootboxGold(boxTier) {
+    const player = globalThis.gameState?.player;
+    if (!player) {
+      return 0;
+    }
+
+    const safeTier = Phaser.Math.Clamp(Number(boxTier) || 1, 1, 6);
+    const baseRangeByTier = {
+      1: [4, 10],
+      2: [8, 18],
+      3: [14, 28],
+      4: [22, 42],
+      5: [34, 62],
+      6: [48, 90],
+    };
+    const [minGold, maxGold] = baseRangeByTier[safeTier] || [4, 10];
+    const rolledGold = Phaser.Math.Between(minGold, maxGold);
+    const levelMultiplier = this.getPlayerRewardMultiplier(player);
+    const goldBonus = Number(player.equipment?.accessory?.stats?.goldBonus) ||
+      0;
+    const totalGold = Math.max(
+      1,
+      Math.floor(rolledGold * levelMultiplier * (1 + Math.max(0, goldBonus))),
+    );
+
+    if (typeof player.addGold === 'function') {
+      player.addGold(totalGold);
+    } else {
+      player.gold = Math.max(0, Number(player.gold) || 0) + totalGold;
+    }
+    return totalGold;
+  }
+
+  awardLootboxExp(boxTier) {
+    const player = globalThis.gameState?.player;
+    if (!player) {
+      return 0;
+    }
+
+    const safeTier = Phaser.Math.Clamp(Number(boxTier) || 1, 1, 6);
+    const rolledExp = Phaser.Math.Between(1, 10) * safeTier;
+    const levelMultiplier = this.getPlayerRewardMultiplier(player);
+    const expBonus = Number(player.equipment?.accessory?.stats?.expBonus) || 0;
+    const totalExp = Math.max(
+      1,
+      Math.floor(rolledExp * levelMultiplier * (1 + Math.max(0, expBonus))),
+    );
+
+    if (typeof player.addExp === 'function') {
+      player.addExp(totalExp);
+    } else {
+      player.exp = Math.max(0, Number(player.exp) || 0) + totalExp;
+    }
+
+    return totalExp;
+  }
+
+  getPlayerRewardMultiplier(player = globalThis.gameState?.player) {
+    if (!player) {
+      return 1;
+    }
+
+    if (typeof player.getLevelScalingMultiplier === 'function') {
+      return player.getLevelScalingMultiplier();
+    }
+
+    const level = Math.max(1, Number(player.level) || 1);
+    return 1 + (level - 1) * 0.1;
+  }
+
+  awardMonsterRewards(enemy) {
+    const player = globalThis.gameState?.player;
+    if (!player || !enemy?.sprite) {
+      return { exp: 0, gold: 0 };
+    }
+
+    const levelMultiplier = this.getPlayerRewardMultiplier(player);
+    const expBonus = Number(player.equipment?.accessory?.stats?.expBonus) || 0;
+    const goldBonus = Number(player.equipment?.accessory?.stats?.goldBonus) ||
+      0;
+    const expAward = Math.max(
+      1,
+      Math.floor(
+        Phaser.Math.Between(1, 10) * levelMultiplier *
+          (1 + Math.max(0, expBonus)),
+      ),
+    );
+    const goldAward = Math.max(
+      1,
+      Math.floor(
+        Phaser.Math.Between(1, 10) * levelMultiplier *
+          (1 + Math.max(0, goldBonus)),
+      ),
+    );
+
+    if (typeof player.addExp === 'function') {
+      player.addExp(expAward);
+    } else {
+      player.exp = Math.max(0, Number(player.exp) || 0) + expAward;
+    }
+
+    if (typeof player.addGold === 'function') {
+      player.addGold(goldAward);
+    } else {
+      player.gold = Math.max(0, Number(player.gold) || 0) + goldAward;
+    }
+
+    this.showFloatingExpGain(enemy.sprite.x, enemy.sprite.y - 8, expAward);
+    this.showFloatingGoldGain(enemy.sprite.x, enemy.sprite.y + 4, goldAward);
+
+    return { exp: expAward, gold: goldAward };
+  }
+
+  showFloatingGoldGain(x, y, amount) {
+    const text = this.add.text(x, y - 8, `+${amount} gold`, {
+      fontSize: '6px',
+      fill: '#ffd44d',
+      stroke: '#000',
+      strokeThickness: 1,
+    }).setOrigin(0.5).setDepth(2000);
+
+    this.tweens.add({
+      targets: text,
+      y: y - 20,
+      alpha: 0,
+      duration: 900,
+      ease: 'Quad.easeOut',
+      onComplete: () => text.destroy(),
+    });
+  }
+
+  showFloatingExpGain(x, y, amount) {
+    const text = this.add.text(x, y - 8, `+${amount} exp`, {
+      fontSize: '6px',
+      fill: '#7dd3fc',
+      stroke: '#000',
+      strokeThickness: 1,
+    }).setOrigin(0.5).setDepth(2000);
+
+    this.tweens.add({
+      targets: text,
+      y: y - 20,
+      alpha: 0,
+      duration: 900,
+      ease: 'Quad.easeOut',
+      onComplete: () => text.destroy(),
+    });
   }
 
   alertAllMonstersFromTrap() {
@@ -1583,6 +1759,7 @@ class Dungeons extends Phaser.Scene {
   movePlayerWithCollisions(targetX, targetY) {
     this.moveEntityWithCollisions(this.player, targetX, targetY, {
       radius: this.playerCollisionRadius,
+      collisionOffsetY: this.playerCollisionOffsetY,
       blockByPlayer: false,
       blockByEnemies: true,
     });
@@ -1595,6 +1772,7 @@ class Dungeons extends Phaser.Scene {
 
     this.moveEntityWithCollisions(enemy.sprite, targetX, targetY, {
       radius: this.monsterCollisionRadius,
+      collisionOffsetY: this.monsterCollisionOffsetY,
       blockByPlayer: true,
       blockByEnemies: true,
       ignoreEnemyId: enemy.id,
@@ -1781,6 +1959,7 @@ class Dungeons extends Phaser.Scene {
     );
 
     if (enemy.hp <= 0) {
+      this.awardMonsterRewards(enemy);
       this.cleanupDefeatedEnemy(enemy);
     }
   }
@@ -1983,15 +2162,18 @@ class Dungeons extends Phaser.Scene {
   }
 
   canEntityMoveTo(entity, worldX, worldY, options = {}) {
-    const tileX = this.worldToTileX(worldX);
-    const tileY = this.worldToTileY(worldY);
+    const collisionOffsetY = options.collisionOffsetY || 0;
+    const collisionWorldX = worldX;
+    const collisionWorldY = worldY + collisionOffsetY;
+    const tileX = this.worldToTileX(collisionWorldX);
+    const tileY = this.worldToTileY(collisionWorldY);
 
     if (!this.walkableTiles.has(`${tileX},${tileY}`)) {
       return false;
     }
 
     const currentTileX = this.worldToTileX(entity.x);
-    const currentTileY = this.worldToTileY(entity.y);
+    const currentTileY = this.worldToTileY(entity.y + collisionOffsetY);
 
     if (currentTileX !== tileX || currentTileY !== tileY) {
       if (!this.canTraverseTileEdge(currentTileX, currentTileY, tileX, tileY)) {
@@ -2001,19 +2183,29 @@ class Dungeons extends Phaser.Scene {
 
     const radius = options.radius || this.playerCollisionRadius;
 
-    if (!this.isCircleWithinWalkableArea(worldX, worldY, radius)) {
+    if (
+      !this.isCircleWithinWalkableArea(collisionWorldX, collisionWorldY, radius)
+    ) {
       return false;
     }
 
     if (options.blockByPlayer && this.player && entity !== this.player) {
       const minDist = radius + this.playerCollisionRadius;
+      const playerCollisionY = this.player.y + this.playerCollisionOffsetY;
+      const sharesCollisionSpace = this.areCollisionTilesConnected(
+        collisionWorldX,
+        collisionWorldY,
+        this.player.x,
+        playerCollisionY,
+      );
       if (
+        sharesCollisionSpace &&
         Phaser.Math.Distance.Between(
-          worldX,
-          worldY,
-          this.player.x,
-          this.player.y,
-        ) < minDist
+            collisionWorldX,
+            collisionWorldY,
+            this.player.x,
+            playerCollisionY,
+          ) < minDist
       ) {
         return false;
       }
@@ -2032,13 +2224,21 @@ class Dungeons extends Phaser.Scene {
         }
 
         const minDist = radius + this.monsterCollisionRadius;
+        const enemyCollisionY = enemy.sprite.y + this.monsterCollisionOffsetY;
+        const sharesCollisionSpace = this.areCollisionTilesConnected(
+          collisionWorldX,
+          collisionWorldY,
+          enemy.sprite.x,
+          enemyCollisionY,
+        );
         if (
+          sharesCollisionSpace &&
           Phaser.Math.Distance.Between(
-            worldX,
-            worldY,
-            enemy.sprite.x,
-            enemy.sprite.y,
-          ) < minDist
+              collisionWorldX,
+              collisionWorldY,
+              enemy.sprite.x,
+              enemyCollisionY,
+            ) < minDist
         ) {
           return false;
         }
@@ -2136,8 +2336,29 @@ class Dungeons extends Phaser.Scene {
         return;
       }
 
-      const dx = this.player.x - enemy.sprite.x;
-      const dy = this.player.y - enemy.sprite.y;
+      const playerCollisionPoint = {
+        x: this.player.x,
+        y: this.player.y + this.playerCollisionOffsetY,
+      };
+      const enemyCollisionPoint = {
+        x: enemy.sprite.x,
+        y: enemy.sprite.y + this.monsterCollisionOffsetY,
+      };
+
+      if (
+        !this.areCollisionTilesConnected(
+          playerCollisionPoint.x,
+          playerCollisionPoint.y,
+          enemyCollisionPoint.x,
+          enemyCollisionPoint.y,
+        )
+      ) {
+        enemy.isCollidingWithPlayer = false;
+        return;
+      }
+
+      const dx = playerCollisionPoint.x - enemyCollisionPoint.x;
+      const dy = playerCollisionPoint.y - enemyCollisionPoint.y;
       const dist = Math.hypot(dx, dy);
 
       if (dist > contactDist) {
@@ -2159,7 +2380,8 @@ class Dungeons extends Phaser.Scene {
       }
 
       const postDx = this.player.x - enemy.sprite.x;
-      const postDy = this.player.y - enemy.sprite.y;
+      const postDy = (this.player.y + this.playerCollisionOffsetY) -
+        (enemy.sprite.y + this.monsterCollisionOffsetY);
       const postDist = Math.hypot(postDx, postDy) || safeDist;
       const overlap = minDist - postDist;
 
@@ -2177,6 +2399,7 @@ class Dungeons extends Phaser.Scene {
         this.player.y + pushNy * push,
         {
           radius: this.playerCollisionRadius,
+          collisionOffsetY: this.playerCollisionOffsetY,
           blockByPlayer: false,
           blockByEnemies: true,
         },
@@ -2188,12 +2411,44 @@ class Dungeons extends Phaser.Scene {
         enemy.sprite.y - pushNy * push,
         {
           radius: this.monsterCollisionRadius,
+          collisionOffsetY: this.monsterCollisionOffsetY,
           blockByPlayer: true,
           blockByEnemies: true,
           ignoreEnemyId: enemy.id,
         },
       );
     });
+  }
+
+  areCollisionTilesConnected(ax, ay, bx, by) {
+    const aTileX = this.worldToTileX(ax);
+    const aTileY = this.worldToTileY(ay);
+    const bTileX = this.worldToTileX(bx);
+    const bTileY = this.worldToTileY(by);
+
+    const dx = bTileX - aTileX;
+    const dy = bTileY - aTileY;
+    const manhattan = Math.abs(dx) + Math.abs(dy);
+
+    if (manhattan === 0) {
+      return true;
+    }
+
+    if (manhattan === 1) {
+      return this.canTraverseTileEdge(aTileX, aTileY, bTileX, bTileY);
+    }
+
+    if (Math.abs(dx) === 1 && Math.abs(dy) === 1) {
+      return (
+        this.canTraverseTileEdge(aTileX, aTileY, aTileX + dx, aTileY) &&
+        this.canTraverseTileEdge(aTileX + dx, aTileY, bTileX, bTileY)
+      ) || (
+        this.canTraverseTileEdge(aTileX, aTileY, aTileX, aTileY + dy) &&
+        this.canTraverseTileEdge(aTileX, aTileY + dy, bTileX, bTileY)
+      );
+    }
+
+    return false;
   }
 
   canMoveTo(worldX, worldY) {

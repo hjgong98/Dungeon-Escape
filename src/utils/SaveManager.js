@@ -149,7 +149,7 @@ class SaveManager {
           def: 5,
           luck: 0,
           exp: 0,
-          expToNext: 100,
+          expToNext: 10,
           gold: 50,
           inventory: inventory,
           storage: storage,
@@ -231,16 +231,19 @@ class SaveManager {
 
   // Create runtime player object from saved data
   createRuntimePlayer(playerData = {}) {
+    const safeLevel = Math.max(1, Number(playerData.level) || 1);
+    const getRequiredExpForLevel = (level) =>
+      Math.max(10, Math.round(10 * (1 + (Math.max(1, level) - 1) * 0.1)));
     const player = {
       name: playerData.name || 'Adventurer',
-      level: playerData.level || 1,
+      level: safeLevel,
       hp: playerData.hp || 100,
       maxHP: playerData.maxHP || playerData.maxHp || 100,
       atk: playerData.atk || 10,
       def: playerData.def || 5,
       luck: playerData.luck || 0,
       exp: playerData.exp || 0,
-      expToNext: playerData.expToNext || 100,
+      expToNext: getRequiredExpForLevel(safeLevel),
       gold: playerData.gold || 0,
       maxInventory: playerData.maxInventory || playerData.bagSlots || 20,
       bagSlots: playerData.bagSlots || playerData.maxInventory || 20,
@@ -289,6 +292,48 @@ class SaveManager {
       return null;
     };
 
+    player.getLevelScalingMultiplier = function getLevelScalingMultiplier() {
+      return 1 + Math.max(0, (this.level || 1) - 1) * 0.1;
+    };
+
+    player.getRequiredExpForLevel = function runtimeRequiredExpForLevel(level) {
+      return getRequiredExpForLevel(level || this.level || 1);
+    };
+
+    player.addGold = function addGold(amount) {
+      const safeAmount = Math.max(0, Math.floor(Number(amount) || 0));
+      this.gold = Math.max(0, Number(this.gold) || 0) + safeAmount;
+      return safeAmount;
+    };
+
+    player.levelUp = function levelUp() {
+      this.level = Math.max(1, Number(this.level) || 1) + 1;
+      this.maxHP = Math.max(1, Number(this.maxHP) || 100) + 10;
+      this.maxHp = this.maxHP;
+      this.hp = Math.min(this.maxHP, Math.max(0, Number(this.hp) || 0) + 10);
+      this.atk = Math.max(1, Number(this.atk) || 10) + 1;
+      this.def = Math.max(0, Number(this.def) || 5) + 1;
+      this.expToNext = this.getRequiredExpForLevel(this.level);
+      return this.level;
+    };
+
+    player.addExp = function addExp(amount) {
+      const safeAmount = Math.max(0, Math.floor(Number(amount) || 0));
+      let levelsGained = 0;
+
+      this.exp = Math.max(0, Number(this.exp) || 0) + safeAmount;
+      this.expToNext = this.getRequiredExpForLevel(this.level);
+
+      while (this.exp >= this.expToNext) {
+        this.exp -= this.expToNext;
+        this.levelUp();
+        levelsGained += 1;
+      }
+
+      this.expToNext = this.getRequiredExpForLevel(this.level);
+      return { gained: safeAmount, levelsGained };
+    };
+
     player.getTotalStats = function getTotalStats() {
       const total = {
         atk: this.atk || 10,
@@ -316,6 +361,12 @@ class SaveManager {
       return total;
     };
 
+    player.maxHp = player.maxHP;
+    player.expToNext = player.getRequiredExpForLevel(player.level);
+    if (player.exp >= player.expToNext) {
+      player.addExp(0);
+    }
+
     return player;
   }
 
@@ -334,7 +385,10 @@ class SaveManager {
       def: base?.def || 5,
       luck: base?.luck || 0,
       exp: base?.exp || 0,
-      expToNext: base?.expToNext || 100,
+      expToNext: base?.expToNext || Math.max(
+        10,
+        Math.round(10 * (1 + ((base?.level || 1) - 1) * 0.1)),
+      ),
       gold: base?.gold || 0,
       maxInventory: base?.maxInventory || base?.bagSlots || 20,
       bagSlots: base?.bagSlots || base?.maxInventory || 20,
