@@ -448,62 +448,63 @@ class Upgrades extends Phaser.Scene {
     const isFullyHealed = (player.hp || 0) >= (stats.maxHP || 100);
     const canAffordPotion = (player.gold || 0) >= potionCost;
 
-    // Gray overlay
-    const overlay = this.add.rectangle(400, 300, 600, 300, 0x000000, 0.7);
+    const overlay = this.add.rectangle(400, 315, 700, 380, 0x000000, 0.72);
     this.contentGroup.add(overlay);
 
-    const title = this.add.text(400, 215, 'PURCHASE SUPPLIES', {
-      fontSize: '30px',
+    const title = this.add.text(400, 156, 'PURCHASE SUPPLIES', {
+      fontSize: '28px',
       fill: '#ff0',
       fontStyle: 'bold',
     }).setOrigin(0.5);
     this.contentGroup.add(title);
 
-    const potionPanel = this.add.rectangle(400, 335, 430, 150, 0x1f1f1f, 0.95)
+    const potionPanel = this.add.rectangle(400, 224, 620, 92, 0x1f1f1f, 0.95)
       .setStrokeStyle(2, 0x666666);
     this.contentGroup.add(potionPanel);
 
-    const potionTitle = this.add.text(400, 290, 'HEALTH POTION', {
-      fontSize: '24px',
+    const potionTitle = this.add.text(136, 203, 'HEALTH POTION', {
+      fontSize: '20px',
       fill: '#ff6b6b',
       fontStyle: 'bold',
-    }).setOrigin(0.5);
+    }).setOrigin(0, 0.5);
     this.contentGroup.add(potionTitle);
 
     const potionDesc = this.add.text(
-      400,
-      325,
+      136,
+      228,
       `Fully restores HP to ${stats.maxHP || 100}`,
       {
-        fontSize: '18px',
+        fontSize: '15px',
         fill: '#fff',
+        fixedWidth: 280,
       },
-    ).setOrigin(0.5);
+    ).setOrigin(0, 0.5);
     this.contentGroup.add(potionDesc);
 
     const hpStatus = this.add.text(
-      400,
-      355,
+      136,
+      250,
       `Current HP: ${player.hp || 0}/${stats.maxHP || 100}`,
       {
-        fontSize: '16px',
+        fontSize: '13px',
         fill: '#aaa',
+        fixedWidth: 280,
       },
-    ).setOrigin(0.5);
+    ).setOrigin(0, 0.5);
     this.contentGroup.add(hpStatus);
 
-    const potionCostText = this.add.text(400, 385, `Cost: ${potionCost} gold`, {
-      fontSize: '18px',
+    const potionCostText = this.add.text(468, 206, `Cost: ${potionCost} gold`, {
+      fontSize: '15px',
       fill: '#ffd54a',
     }).setOrigin(0.5);
     this.contentGroup.add(potionCostText);
 
     const buttonFill = canAffordPotion && !isFullyHealed ? '#0f0' : '#777';
-    const buyPotionBtn = this.add.text(400, 430, 'BUY POTION', {
-      fontSize: '18px',
+    const buyPotionBtn = this.add.text(555, 228, 'BUY POTION', {
+      fontSize: '15px',
       fill: buttonFill,
       backgroundColor: '#333',
-      padding: { x: 14, y: 6 },
+      padding: { x: 12, y: 5 },
     }).setOrigin(0.5);
     this.contentGroup.add(buyPotionBtn);
 
@@ -522,11 +523,115 @@ class Upgrades extends Phaser.Scene {
     const statusColor = isFullyHealed
       ? '#8f8'
       : (canAffordPotion ? '#aaa' : '#f88');
-    const statusText = this.add.text(400, 470, statusMessage, {
-      fontSize: '15px',
+    const statusText = this.add.text(405, 250, statusMessage, {
+      fontSize: '12px',
       fill: statusColor,
-    }).setOrigin(0.5);
+      fixedWidth: 250,
+      align: 'left',
+      wordWrap: { width: 250 },
+    }).setOrigin(0, 0.5);
     this.contentGroup.add(statusText);
+
+    const materialsTitle = this.add.text(400, 294, 'ALL EQUIPMENT UPGRADE MATERIALS', {
+      fontSize: '18px',
+      fill: '#0ff',
+      fontStyle: 'bold',
+    }).setOrigin(0.5);
+    this.contentGroup.add(materialsTitle);
+
+    const materialsHint = this.add.text(
+      400,
+      316,
+      'These crafting materials are used for weapon, armor, and accessory upgrades.',
+      {
+        fontSize: '12px',
+        fill: '#aaa',
+      },
+    ).setOrigin(0.5);
+    this.contentGroup.add(materialsHint);
+
+    for (let tier = 1; tier <= 6; tier++) {
+      const column = (tier - 1) % 3;
+      const row = Math.floor((tier - 1) / 3);
+      const panelX = 190 + column * 210;
+      const panelY = 372 + row * 78;
+      const materialCost = 10 * tier;
+      const canAffordMaterial = (player.gold || 0) >= materialCost;
+      const tierColors = ['#888', '#8f8', '#88f', '#f8f', '#ff8', '#f88'];
+      const tierColor = tierColors[tier - 1] || '#fff';
+
+      const materialPanel = this.add.rectangle(panelX, panelY, 180, 72, 0x1f1f1f, 0.95)
+        .setStrokeStyle(2, 0x555555);
+      this.contentGroup.add(materialPanel);
+
+      const materialName = this.add.text(
+        panelX,
+        panelY - 22,
+        `T${tier} MATERIAL`,
+        {
+          fontSize: '14px',
+          fill: tierColor,
+          fontStyle: 'bold',
+        },
+      ).setOrigin(0.5);
+      this.contentGroup.add(materialName);
+
+      const materialCostText = this.add.text(
+        panelX,
+        panelY,
+        `${materialCost} gold`,
+        {
+          fontSize: '12px',
+          fill: '#ffd54a',
+        },
+      ).setOrigin(0.5);
+      this.contentGroup.add(materialCostText);
+
+      const materialBtn = this.add.text(panelX, panelY + 22, 'BUY 1', {
+        fontSize: '11px',
+        fill: canAffordMaterial ? '#0f0' : '#777',
+        backgroundColor: '#333',
+        padding: { x: 7, y: 3 },
+      }).setOrigin(0.5);
+      this.contentGroup.add(materialBtn);
+
+      if (canAffordMaterial) {
+        materialBtn.setInteractive();
+        materialBtn.on('pointerdown', () => {
+          this.purchaseUpgradeMaterial(tier);
+        });
+      }
+    }
+  }
+
+  purchaseUpgradeMaterial(tier) {
+    const player = globalThis.gameState.player;
+    const cost = 10 * tier;
+
+    if ((player.gold || 0) < cost) {
+      return;
+    }
+
+    const material = globalThis.GameItem?.generateCraftingMaterial
+      ? globalThis.GameItem.generateCraftingMaterial(tier)
+      : {
+        id: `craft_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
+        name: `Crafting Material T${tier}`,
+        type: 'crafting_material',
+        tier,
+        value: Math.max(1, Math.floor(8 * tier)),
+        sellable: true,
+        stats: {},
+        use: 'crafting',
+        upgradeLevel: 0,
+        maxUpgradeLevel: 0,
+      };
+
+    player.gold -= cost;
+    if (!player.storage) player.storage = [];
+    player.storage.push(material);
+
+    this.scene.restart({ currentTab: 'purchase' });
   }
 
   purchaseHealthPotion() {
