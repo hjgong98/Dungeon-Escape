@@ -1,8 +1,8 @@
 // Lootbox.js - Lootbox prefab
-class Lootbox extends Phaser.GameObjects.Rectangle {
+class Lootbox extends Phaser.GameObjects.Sprite {
   constructor(scene, x, y, boxData) {
-    super(scene, x, y, 16, 16, 0xffeb3b);
-    this.setStrokeStyle(2, 0xb38f00);
+    super(scene, x, y, scene.lootboxSpriteKey, 2);
+    this.setDisplaySize(20, 20);
 
     this.boxData = boxData || {
       box_tier: 1,
@@ -13,14 +13,25 @@ class Lootbox extends Phaser.GameObjects.Rectangle {
     };
 
     this.opened = false;
+    this.isOpening = false;
 
     scene.add.existing(this);
   }
 
   open() {
-    if (this.opened) return;
+    if (this.opened || this.isOpening) return;
+    this.isOpening = true;
+    this.play(this.scene.lootboxOpenAnimKey);
+    this.once(Phaser.Animations.Events.ANIMATION_COMPLETE, () => {
+      this.isOpening = false;
+      this.opened = true;
+      this.setFrame(29);
+      this.finishOpening();
+    });
+  }
+
+  finishOpening() {
     this.opened = true;
-    this.setVisible(false);
 
     if (this.boxData.isTrap) {
       this.showTrapMessage();
@@ -142,27 +153,39 @@ class Lootbox extends Phaser.GameObjects.Rectangle {
   }
 
   showLootResults(items) {
-    // Create floating text for each item
+    const camera = this.scene.cameras.main;
+    const screenX = Phaser.Math.Clamp(
+      (this.x - camera.worldView.x) * camera.zoom,
+      120,
+      this.scene.scale.width - 120,
+    );
+    const startY = Phaser.Math.Clamp(
+      (this.y - camera.worldView.y) * camera.zoom - 40,
+      100,
+      this.scene.scale.height - 140,
+    );
+
     items.forEach((item, index) => {
-      const yOffset = index * 20;
+      const yOffset = index * 14;
       const text = this.scene.add.text(
-        this.x,
-        this.y - 30 - yOffset,
+        screenX,
+        startY - yOffset,
         `+ ${item.name}`,
         {
-          fontSize: '14px',
+          fontSize: '9px',
           fill: '#0f0',
           stroke: '#000',
-          strokeThickness: 2,
+          strokeThickness: 1,
+          backgroundColor: 'rgba(0,0,0,0.55)',
+          padding: { x: 3, y: 1 },
         },
-      ).setOrigin(0.5);
+      ).setOrigin(0.5).setScrollFactor(0).setDepth(2000);
 
-      // Fade out and float up
       this.scene.tweens.add({
         targets: text,
-        y: text.y - 50,
+        y: text.y - 20,
         alpha: 0,
-        duration: 2000,
+        duration: 1500,
         onComplete: () => text.destroy(),
       });
     });

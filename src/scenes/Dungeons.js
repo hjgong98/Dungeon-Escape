@@ -29,6 +29,8 @@ class Dungeons extends Phaser.Scene {
       right: 'enemy-hurt-right',
     };
     this.enemyDisplaySize = 30;
+    this.lootboxSpriteKey = 'lootbox';
+    this.lootboxOpenAnimKey = 'lootbox-open';
     this.keys = {};
 
     this.dungeon = null;
@@ -152,6 +154,17 @@ class Dungeons extends Phaser.Scene {
         },
       );
     }
+
+    if (!this.textures.exists(this.lootboxSpriteKey)) {
+      this.load.spritesheet(
+        this.lootboxSpriteKey,
+        './assets/player/RPG Chests.png',
+        {
+          frameWidth: 32,
+          frameHeight: 32,
+        },
+      );
+    }
   }
 
   create() {
@@ -161,6 +174,7 @@ class Dungeons extends Phaser.Scene {
     this.ensureLanternMaskTexture();
     this.ensurePlayerAnimation();
     this.ensureEnemyAnimation();
+    this.ensureLootboxAnimation();
 
     this.monsterController = new DungeonMonsterController(this, {
       wanderSpeed: this.enemyWanderSpeed,
@@ -292,6 +306,22 @@ class Dungeons extends Phaser.Scene {
         frameRate: 14,
         repeat: 0,
       });
+    });
+  }
+
+  ensureLootboxAnimation() {
+    if (this.anims.exists(this.lootboxOpenAnimKey)) {
+      return;
+    }
+
+    this.anims.create({
+      key: this.lootboxOpenAnimKey,
+      frames: [2, 11, 20, 29].map((frame) => ({
+        key: this.lootboxSpriteKey,
+        frame,
+      })),
+      frameRate: 10,
+      repeat: 0,
     });
   }
 
@@ -2013,12 +2043,15 @@ class Dungeons extends Phaser.Scene {
     }
 
     const knockbackDistance = this.monsterHitPushback;
+    enemy.path = [];
+    enemy.pathTargetKey = null;
     this.moveEntityWithCollisions(
       enemy.sprite,
       enemy.sprite.x - normalX * knockbackDistance,
       enemy.sprite.y - normalY * knockbackDistance,
       {
         radius: this.monsterCollisionRadius,
+        collisionOffsetY: this.monsterCollisionOffsetY,
         blockByPlayer: false,
         blockByEnemies: true,
         ignoreEnemyId: enemy.id,
@@ -2720,10 +2753,10 @@ class Dungeons extends Phaser.Scene {
           this.player.y - 30,
           'CHEST\nPress E to open',
           {
-            fontSize: '14px',
+            fontSize: '10px',
             fill: '#ff0',
             backgroundColor: '#000',
-            padding: { x: 6, y: 3 },
+            padding: { x: 3, y: 2 },
           },
         );
         this.lootboxPrompt.setOrigin(0.5);
