@@ -28,6 +28,27 @@ const config = {
 const game = new Phaser.Game(config);
 globalThis.game = game;
 
+const playerSpriteOptions = [
+  {
+    id: 'owlet',
+    name: 'Owlet',
+    walkPath: './assets/player/Owlet_Monster_Walk_6.png',
+    idlePath: './assets/player/Owlet_Monster_Idle_4.png',
+    attackPath: './assets/player/Owlet_Monster_Attack1_4.png',
+    frameWidth: 32,
+    frameHeight: 32,
+    walkFrameCount: 6,
+    idleFrameCount: 4,
+    attackFrameCount: 4,
+  },
+];
+
+globalThis.PLAYER_SPRITE_OPTIONS = playerSpriteOptions;
+globalThis.getPlayerSpriteOption = function getPlayerSpriteOption(id) {
+  return playerSpriteOptions.find((option) => option.id === id) ||
+    playerSpriteOptions[0];
+};
+
 // Game state
 const gameState = {
   player: {
@@ -41,6 +62,7 @@ const gameState = {
     exp: 0,
     expToNext: 10,
     gold: 50,
+    selectedSpriteId: playerSpriteOptions[0].id,
     maxInventory: 20,
     bagSlots: 20,
     storageSlots: 20,

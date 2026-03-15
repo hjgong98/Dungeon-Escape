@@ -5,13 +5,27 @@ class Play extends Phaser.Scene {
     this.playerName = 'Adventurer';
     this.editingName = false;
     this.nameInput = '';
+    this.playerPreview = null;
+    this.spritePickerElements = [];
   }
 
   preload() {
     this.load.image('playBackground', './assets/character.png');
+
+    this.getPlayerSpriteOptions().forEach((option) => {
+      const textureKey = this.getIdleTextureKey(option.id);
+      if (!this.textures.exists(textureKey)) {
+        this.load.spritesheet(textureKey, option.idlePath, {
+          frameWidth: option.frameWidth,
+          frameHeight: option.frameHeight,
+        });
+      }
+    });
   }
 
   create() {
+    this.ensurePlayerIdleAnimations();
+
     // Background
     this.background = this.add.image(0, 0, 'playBackground').setOrigin(0, 0);
     this.background.setDisplaySize(800, 600);
@@ -44,11 +58,24 @@ class Play extends Phaser.Scene {
       this.startNameEditing();
     });
 
-    // player avatar placeholder
-    this.add.rectangle(200, 220, 100, 100, 0x444444, 0.3);
-    this.add.text(200, 220, 'PLAYER', {
-      fontSize: '16px',
-      fill: '#fff',
+    const selectedOption = this.getSelectedPlayerSpriteOption();
+    const playerPreview = this.add.sprite(
+      200,
+      220,
+      this.getIdleTextureKey(selectedOption.id),
+      0,
+    );
+    playerPreview.setDisplaySize(96, 96);
+    playerPreview.setInteractive({ useHandCursor: true });
+    playerPreview.on('pointerdown', () => {
+      this.openSpritePicker();
+    });
+    this.playerPreview = playerPreview;
+    this.refreshPlayerPreview();
+
+    this.add.text(200, 275, 'Click sprite to change', {
+      fontSize: '11px',
+      fill: '#bbb',
     }).setOrigin(0.5);
 
     // back to menu
@@ -113,13 +140,171 @@ class Play extends Phaser.Scene {
     });
 
     // EXP bar
-    const expPercent = player.exp / player.expToNext;
-    this.add.rectangle(200, 480, 200, 15, 0x444444);
-    this.add.rectangle(100, 480, expPercent * 200, 15, 0x00ff00);
+    const expPercent = Phaser.Math.Clamp(player.exp / player.expToNext, 0, 1);
+    this.add.rectangle(100, 480, expPercent * 200, 15, 0x00ff00).setOrigin(
+      0,
+      0.5,
+    );
     this.add.text(200, 505, `${player.exp}/${player.expToNext} EXP`, {
       fontSize: '12px',
       fill: '#aaa',
     }).setOrigin(0.5);
+  }
+
+  getPlayerSpriteOptions() {
+    return globalThis.PLAYER_SPRITE_OPTIONS || [
+      {
+        id: 'owlet',
+        name: 'Owlet',
+        idlePath: './assets/player/Owlet_Monster_Idle_4.png',
+        frameWidth: 32,
+        frameHeight: 32,
+        idleFrameCount: 4,
+      },
+    ];
+  }
+
+  getSelectedPlayerSpriteOption() {
+    const selectedId = globalThis.gameState?.player?.selectedSpriteId;
+    return globalThis.getPlayerSpriteOption?.(selectedId) ||
+      this.getPlayerSpriteOptions()[0];
+  }
+
+  getIdleTextureKey(optionId) {
+    return `play-player-idle-${optionId}`;
+  }
+
+  getIdleAnimKey(optionId) {
+    return `play-player-idle-anim-${optionId}`;
+  }
+
+  ensurePlayerIdleAnimations() {
+    this.getPlayerSpriteOptions().forEach((option) => {
+      const animKey = this.getIdleAnimKey(option.id);
+      if (this.anims.exists(animKey)) {
+        return;
+      }
+
+      this.anims.create({
+        key: animKey,
+        frames: this.anims.generateFrameNumbers(
+          this.getIdleTextureKey(option.id),
+          {
+            start: 0,
+            end: Math.max(0, (option.idleFrameCount || 4) - 1),
+          },
+        ),
+        frameRate: 6,
+        repeat: -1,
+      });
+    });
+  }
+
+  refreshPlayerPreview() {
+    if (!this.playerPreview) {
+      return;
+    }
+
+    const option = this.getSelectedPlayerSpriteOption();
+    this.playerPreview.setTexture(this.getIdleTextureKey(option.id), 0);
+    this.playerPreview.play(this.getIdleAnimKey(option.id), true);
+  }
+
+  openSpritePicker() {
+    if ((this.spritePickerElements || []).length > 0) {
+      return;
+    }
+
+    const options = this.getPlayerSpriteOptions();
+    const columns = 2;
+    const cardWidth = 140;
+    const cardHeight = 130;
+    const gap = 22;
+    const rows = Math.max(1, Math.ceil(options.length / columns));
+    const panelWidth = 360;
+    const panelHeight = 120 + rows * cardHeight + Math.max(0, rows - 1) * gap;
+
+    const reg = (element, depth = 3000) => {
+      element.setDepth(depth);
+      this.spritePickerElements.push(element);
+      return element;
+    };
+
+    const overlay = reg(
+      this.add.rectangle(400, 300, 800, 600, 0x000000, 0.75).setInteractive(),
+      3000,
+    );
+    overlay.on('pointerdown', () => this.closeSpritePicker());
+
+    reg(
+      this.add.rectangle(400, 300, panelWidth, panelHeight, 0x111111, 0.96)
+        .setStrokeStyle(2, 0x666666),
+      3001,
+    );
+    reg(
+      this.add.text(400, 150, 'Choose Player Sprite', {
+        fontSize: '22px',
+        fill: '#fff',
+      }).setOrigin(0.5),
+      3002,
+    );
+    const startX = 400 - ((columns - 1) * (cardWidth + gap)) / 2;
+    const startY = 255;
+    const selectedId = this.getSelectedPlayerSpriteOption().id;
+
+    options.forEach((option, index) => {
+      const column = index % columns;
+      const row = Math.floor(index / columns);
+      const x = startX + column * (cardWidth + gap);
+      const y = startY + row * (cardHeight + gap);
+      const isSelected = option.id === selectedId;
+
+      const card = reg(
+        this.add.rectangle(x, y, cardWidth, cardHeight, 0x1f1f1f, 1)
+          .setStrokeStyle(2, isSelected ? 0xf5d742 : 0x555555)
+          .setInteractive({ useHandCursor: true }),
+        3002,
+      );
+      card.on('pointerdown', () => {
+        this.selectPlayerSprite(option.id);
+      });
+
+      reg(
+        this.add.sprite(x, y - 15, this.getIdleTextureKey(option.id), 0)
+          .setDisplaySize(72, 72)
+          .play(this.getIdleAnimKey(option.id)),
+        3003,
+      );
+      reg(
+        this.add.text(x, y + 42, option.name, {
+          fontSize: '13px',
+          fill: isSelected ? '#f5d742' : '#fff',
+        }).setOrigin(0.5),
+        3003,
+      );
+    });
+  }
+
+  closeSpritePicker() {
+    (this.spritePickerElements || []).forEach((element) => element.destroy());
+    this.spritePickerElements = [];
+  }
+
+  selectPlayerSprite(optionId) {
+    const player = globalThis.gameState?.player;
+    if (!player) {
+      return;
+    }
+
+    if (typeof player.setSelectedSprite === 'function') {
+      player.setSelectedSprite(optionId);
+    } else {
+      player.selectedSpriteId =
+        globalThis.getPlayerSpriteOption?.(optionId)?.id || optionId;
+    }
+
+    this.refreshPlayerPreview();
+    this.closeSpritePicker();
   }
 
   createRightHalf() {

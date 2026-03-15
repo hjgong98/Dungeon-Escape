@@ -151,6 +151,7 @@ class SaveManager {
           exp: 0,
           expToNext: 10,
           gold: 50,
+          selectedSpriteId: globalThis.getPlayerSpriteOption?.().id || 'owlet',
           inventory: inventory,
           storage: storage,
           equipment: {
@@ -234,6 +235,7 @@ class SaveManager {
     const safeLevel = Math.max(1, Number(playerData.level) || 1);
     const getRequiredExpForLevel = (level) =>
       Math.max(10, Math.round(10 * (1 + (Math.max(1, level) - 1) * 0.1)));
+    const defaultSpriteId = globalThis.getPlayerSpriteOption?.().id || 'owlet';
     const player = {
       name: playerData.name || 'Adventurer',
       level: safeLevel,
@@ -245,6 +247,7 @@ class SaveManager {
       exp: playerData.exp || 0,
       expToNext: getRequiredExpForLevel(safeLevel),
       gold: playerData.gold || 0,
+      selectedSpriteId: playerData.selectedSpriteId || defaultSpriteId,
       maxInventory: playerData.maxInventory || playerData.bagSlots || 20,
       bagSlots: playerData.bagSlots || playerData.maxInventory || 20,
       storageSlots: playerData.storageSlots || 20,
@@ -304,6 +307,13 @@ class SaveManager {
       const safeAmount = Math.max(0, Math.floor(Number(amount) || 0));
       this.gold = Math.max(0, Number(this.gold) || 0) + safeAmount;
       return safeAmount;
+    };
+
+    player.setSelectedSprite = function setSelectedSprite(spriteId) {
+      this.selectedSpriteId =
+        globalThis.getPlayerSpriteOption?.(spriteId)?.id ||
+        defaultSpriteId;
+      return this.selectedSpriteId;
     };
 
     player.levelUp = function levelUp() {
@@ -390,6 +400,8 @@ class SaveManager {
         Math.round(10 * (1 + ((base?.level || 1) - 1) * 0.1)),
       ),
       gold: base?.gold || 0,
+      selectedSpriteId: base?.selectedSpriteId ||
+        globalThis.getPlayerSpriteOption?.().id || 'owlet',
       maxInventory: base?.maxInventory || base?.bagSlots || 20,
       bagSlots: base?.bagSlots || base?.maxInventory || 20,
       storageSlots: base?.storageSlots || 20,
@@ -425,6 +437,7 @@ class SaveManager {
         exp: saveData.exp,
         expToNext: saveData.expToNext,
         gold: saveData.gold,
+        selectedSpriteId: saveData.selectedSpriteId,
         maxInventory: saveData.maxInventory || saveData.bagSlots || 20,
         bagSlots: saveData.bagSlots || saveData.maxInventory || 20,
         storageSlots: saveData.storageSlots || 20,

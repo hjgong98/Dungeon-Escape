@@ -10,6 +10,7 @@ class Dungeons extends Phaser.Scene {
     this.playerWalkAnimKey = 'player-walk';
     this.playerIdleAnimKey = 'player-idle';
     this.playerAttackAnimKey = 'player-attack';
+    this.activePlayerSpriteOption = null;
     this.playerFacing = 'right';
     this.playerIdleCropTop = 2;
     this.playerAttackLockUntil = 0;
@@ -94,13 +95,15 @@ class Dungeons extends Phaser.Scene {
   }
 
   preload() {
+    this.configurePlayerSpriteOption();
+
     if (!this.textures.exists(this.playerSpriteKey)) {
       this.load.spritesheet(
         this.playerSpriteKey,
-        './assets/player/Owlet_Monster_Walk_6.png',
+        this.activePlayerSpriteOption.walkPath,
         {
-          frameWidth: 32,
-          frameHeight: 32,
+          frameWidth: this.activePlayerSpriteOption.frameWidth,
+          frameHeight: this.activePlayerSpriteOption.frameHeight,
         },
       );
     }
@@ -108,10 +111,10 @@ class Dungeons extends Phaser.Scene {
     if (!this.textures.exists(this.playerIdleSpriteKey)) {
       this.load.spritesheet(
         this.playerIdleSpriteKey,
-        './assets/player/Owlet_Monster_Idle_4.png',
+        this.activePlayerSpriteOption.idlePath,
         {
-          frameWidth: 32,
-          frameHeight: 32,
+          frameWidth: this.activePlayerSpriteOption.frameWidth,
+          frameHeight: this.activePlayerSpriteOption.frameHeight,
         },
       );
     }
@@ -119,10 +122,10 @@ class Dungeons extends Phaser.Scene {
     if (!this.textures.exists(this.playerAttackSpriteKey)) {
       this.load.spritesheet(
         this.playerAttackSpriteKey,
-        './assets/player/Owlet_Monster_Attack1_4.png',
+        this.activePlayerSpriteOption.attackPath,
         {
-          frameWidth: 32,
-          frameHeight: 32,
+          frameWidth: this.activePlayerSpriteOption.frameWidth,
+          frameHeight: this.activePlayerSpriteOption.frameHeight,
         },
       );
     }
@@ -151,6 +154,7 @@ class Dungeons extends Phaser.Scene {
   }
 
   create() {
+    this.configurePlayerSpriteOption();
     this.resetForFreshDungeonRun();
     this.ensureLanternMaskTexture();
     this.ensurePlayerAnimation();
@@ -186,7 +190,7 @@ class Dungeons extends Phaser.Scene {
         key: this.playerWalkAnimKey,
         frames: this.anims.generateFrameNumbers(this.playerSpriteKey, {
           start: 0,
-          end: 5,
+          end: Math.max(0, this.activePlayerSpriteOption.walkFrameCount - 1),
         }),
         frameRate: 10,
         repeat: -1,
@@ -198,7 +202,7 @@ class Dungeons extends Phaser.Scene {
         key: this.playerIdleAnimKey,
         frames: this.anims.generateFrameNumbers(this.playerIdleSpriteKey, {
           start: 0,
-          end: 3,
+          end: Math.max(0, this.activePlayerSpriteOption.idleFrameCount - 1),
         }),
         frameRate: 6,
         repeat: -1,
@@ -210,12 +214,40 @@ class Dungeons extends Phaser.Scene {
         key: this.playerAttackAnimKey,
         frames: this.anims.generateFrameNumbers(this.playerAttackSpriteKey, {
           start: 0,
-          end: 3,
+          end: Math.max(0, this.activePlayerSpriteOption.attackFrameCount - 1),
         }),
         frameRate: 14,
         repeat: 0,
       });
     }
+  }
+
+  configurePlayerSpriteOption() {
+    const selectedId = globalThis.gameState?.player?.selectedSpriteId;
+    const fallbackOption = {
+      id: 'owlet',
+      walkPath: './assets/player/Owlet_Monster_Walk_6.png',
+      idlePath: './assets/player/Owlet_Monster_Idle_4.png',
+      attackPath: './assets/player/Owlet_Monster_Attack1_4.png',
+      frameWidth: 32,
+      frameHeight: 32,
+      walkFrameCount: 6,
+      idleFrameCount: 4,
+      attackFrameCount: 4,
+    };
+    this.activePlayerSpriteOption =
+      globalThis.getPlayerSpriteOption?.(selectedId) || fallbackOption;
+    this.playerSpriteKey = `player-${this.activePlayerSpriteOption.id}-walk`;
+    this.playerIdleSpriteKey =
+      `player-${this.activePlayerSpriteOption.id}-idle`;
+    this.playerAttackSpriteKey =
+      `player-${this.activePlayerSpriteOption.id}-attack`;
+    this.playerWalkAnimKey =
+      `player-${this.activePlayerSpriteOption.id}-walk-anim`;
+    this.playerIdleAnimKey =
+      `player-${this.activePlayerSpriteOption.id}-idle-anim`;
+    this.playerAttackAnimKey =
+      `player-${this.activePlayerSpriteOption.id}-attack-anim`;
   }
 
   ensureEnemyAnimation() {

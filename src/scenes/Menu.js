@@ -55,6 +55,7 @@ class Menu extends Phaser.Scene {
         exp: 0,
         expToNext: 10,
         gold: 50,
+        selectedSpriteId: globalThis.getPlayerSpriteOption?.().id || 'owlet',
         maxInventory: 20,
         bagSlots: 20,
         storageSlots: 20,
