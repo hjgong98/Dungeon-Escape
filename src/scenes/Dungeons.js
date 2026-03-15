@@ -92,6 +92,7 @@ class Dungeons extends Phaser.Scene {
     this.discardUIActive = false;
     this.discardUIPending = [];
     this.discardUIElements = [];
+    this.isPlayerDefeated = false;
   }
 
   preload() {
@@ -155,6 +156,7 @@ class Dungeons extends Phaser.Scene {
 
   create() {
     this.configurePlayerSpriteOption();
+    this.isPlayerDefeated = false;
     this.resetForFreshDungeonRun();
     this.ensureLanternMaskTexture();
     this.ensurePlayerAnimation();
@@ -1896,6 +1898,30 @@ class Dungeons extends Phaser.Scene {
     }
   }
 
+  handlePlayerDefeat() {
+    if (this.isPlayerDefeated) {
+      return;
+    }
+    this.isPlayerDefeated = true;
+
+    const playerData = globalThis.gameState?.player;
+    if (playerData) {
+      // Bag is temporary loot during dungeon runs.
+      playerData.inventory = [];
+      const baseMaxHp = Math.max(
+        1,
+        Number(playerData.maxHP ?? playerData.maxHp) || 50,
+      );
+      playerData.hp = baseMaxHp;
+      playerData.maxHP = baseMaxHp;
+      if ('maxHp' in playerData) {
+        playerData.maxHp = baseMaxHp;
+      }
+    }
+
+    this.scene.start('Play');
+  }
+
   resolveCombatDamage(incomingDamage, defense) {
     return Math.max(1, Math.floor(incomingDamage) - Math.max(0, defense));
   }
@@ -1944,6 +1970,10 @@ class Dungeons extends Phaser.Scene {
   }
 
   handlePlayerMonsterContact(enemy, normalX, normalY) {
+    if (this.isPlayerDefeated) {
+      return;
+    }
+
     const playerProfile = this.getPlayerCombatProfile();
     const playerDamage = Math.max(1, Math.floor(playerProfile.atk));
     const didPlayerDodge = this.rollPlayerDodge(playerProfile);
@@ -1976,6 +2006,11 @@ class Dungeons extends Phaser.Scene {
     }
 
     this.syncPlayerCombatProfile(playerProfile);
+
+    if (playerProfile.hp <= 0) {
+      this.handlePlayerDefeat();
+      return;
+    }
 
     const knockbackDistance = this.monsterHitPushback;
     this.moveEntityWithCollisions(

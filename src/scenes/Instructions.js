@@ -29,35 +29,59 @@ class Instructions extends Phaser.Scene {
       fill: '#ff0',
     }).setOrigin(0.5);
 
-    this.add.text(400, 260, '• Use WASD to move in the dungeon', {
-      fontSize: '20px',
+    this.add.text(400, 245, '• Start a New Game or Load a Save to begin', {
+      fontSize: '18px',
       fill: '#fff',
     }).setOrigin(0.5);
 
-    this.add.text(400, 300, '• Press E to interact with stairs and exits', {
-      fontSize: '20px',
+    this.add.text(400, 280, '• Rename your adventurer in the Play screen', {
+      fontSize: '18px',
       fill: '#fff',
     }).setOrigin(0.5);
 
-    this.add.text(400, 340, '• Press Q to leave dungeon at entrance', {
-      fontSize: '20px',
+    this.add.text(400, 315, '• Click your character sprite to choose a look', {
+      fontSize: '18px',
       fill: '#fff',
     }).setOrigin(0.5);
 
-    this.add.text(400, 380, '• Collect items and fight monsters', {
-      fontSize: '20px',
+    this.add.text(
+      400,
+      350,
+      '• Move items from bag (temporary) into storage (permanent)',
+      {
+        fontSize: '18px',
+        fill: '#fff',
+      },
+    ).setOrigin(0.5);
+
+    this.add.text(
+      400,
+      385,
+      '• If you die in a dungeon, your bag items are lost',
+      {
+        fontSize: '18px',
+        fill: '#fff',
+      },
+    ).setOrigin(0.5);
+
+    this.add.text(
+      400,
+      420,
+      '• Equip and upgrade gear at the Upgrades station',
+      {
+        fontSize: '18px',
+        fill: '#fff',
+      },
+    ).setOrigin(0.5);
+
+    this.add.text(400, 455, '• Buy health potions in Upgrades when HP is low', {
+      fontSize: '18px',
       fill: '#fff',
     }).setOrigin(0.5);
 
-    this.add.text(400, 420, '• Upgrade your gear in the Upgrades menu', {
-      fontSize: '20px',
+    this.add.text(400, 490, "• Explore the dungeon and don't die", {
+      fontSize: '18px',
       fill: '#fff',
-    }).setOrigin(0.5);
-
-    this.add.text(400, 480, 'Change Controls? (Coming Soon)', {
-      fontSize: '24px',
-      fill: '#aaa',
-      fontStyle: 'italic',
     }).setOrigin(0.5);
 
     const backButton = this.add.text(400, 550, '← BACK TO MENU', {
