@@ -24,40 +24,8 @@ class Accessory extends GameItem {
     const type = types[Math.floor(Math.random() * types.length)];
     const name = `${prefix} ${type}`;
 
-    // Accessory stats distribution:
-    // 40% luck, 30% exp, 30% gold
-    const stats = {
-      luckBonus: 0.02 * tier, // Base luck
-      hpBonus: Math.floor(10 * tier), // Base HP
-    };
-
-    // Randomly assign bonus stat based on chances
-    const rand = Math.random();
-    if (rand < 0.4) {
-      // 40% chance for extra luck
-      stats.luckBonus = 0.03 * tier; // 3% per tier
-    } else if (rand < 0.7) {
-      // 30% chance for exp bonus
-      stats.expBonus = 0.05 * tier; // 5% per tier
-    } else {
-      // 30% chance for gold bonus (we'll add this stat)
-      stats.goldBonus = 0.05 * tier; // 5% more gold
-    }
-
-    // Apply upgrade level to stats (each upgrade increases by 4% of base)
-    // At max level (5) with tier 1: +20% of base stat
-    // At max level (5) with tier 6: +30% of base stat
-    const upgradeMultiplier = 1 + (upgradeLevel * 0.04 * (1 + (tier * 0.02)));
-
-    for (const key in stats) {
-      if (typeof stats[key] === 'number') {
-        if (key.includes('Bonus') && !key.includes('hp')) {
-          stats[key] = stats[key] * upgradeMultiplier;
-        } else if (key === 'hpBonus') {
-          stats[key] = Math.floor(stats[key] * upgradeMultiplier);
-        }
-      }
-    }
+    const rollType = Accessory.pickRollType();
+    const stats = Accessory.buildStats(tier, upgradeLevel, rollType);
 
     // Sell price based on tier and upgrade level
     const basePrice = Math.floor(30 * tier);
@@ -69,6 +37,7 @@ class Accessory extends GameItem {
       name: name,
       type: 'accessory',
       tier: tier,
+      accessoryRollType: rollType,
       upgradeLevel: upgradeLevel,
       maxUpgradeLevel: 5,
       value: sellPrice,
@@ -77,6 +46,60 @@ class Accessory extends GameItem {
       stats: stats,
       requiredLevel: Math.max(1, tier * 2 - 1),
     };
+  }
+
+  static pickRollType() {
+    const rand = Math.random();
+    if (rand < 0.4) return 'luck';
+    if (rand < 0.7) return 'exp';
+    return 'gold';
+  }
+
+  static scaleByLevel(minValue, maxValue, upgradeLevel) {
+    const safeLevel = Phaser.Math.Clamp(Number(upgradeLevel) || 0, 0, 5);
+    return minValue + (maxValue - minValue) * (safeLevel / 5);
+  }
+
+  static getLuckRangeForTier(tier) {
+    const safeTier = Phaser.Math.Clamp(Number(tier) || 1, 1, 6);
+    return {
+      min: 0.1 + (safeTier - 1) * 0.02,
+      max: 0.2 + (safeTier - 1) * 0.02,
+    };
+  }
+
+  static getExpGoldRangeForTier(tier) {
+    const safeTier = Phaser.Math.Clamp(Number(tier) || 1, 1, 6);
+    return {
+      min: 0.3 + (safeTier - 1) * 0.04,
+      max: 0.4 + (safeTier - 1) * 0.04,
+    };
+  }
+
+  static buildStats(tier = 1, upgradeLevel = 0, rollType = null) {
+    const safeTier = Phaser.Math.Clamp(Number(tier) || 1, 1, 6);
+    const safeLevel = Phaser.Math.Clamp(Number(upgradeLevel) || 0, 0, 5);
+    const resolvedRollType = ['luck', 'exp', 'gold'].includes(rollType)
+      ? rollType
+      : Accessory.pickRollType();
+    const stats = {};
+
+    if (resolvedRollType === 'luck') {
+      const range = Accessory.getLuckRangeForTier(safeTier);
+      stats.luckBonus = Accessory.scaleByLevel(range.min, range.max, safeLevel);
+    } else if (resolvedRollType === 'exp') {
+      const range = Accessory.getExpGoldRangeForTier(safeTier);
+      stats.expBonus = Accessory.scaleByLevel(range.min, range.max, safeLevel);
+    } else {
+      const range = Accessory.getExpGoldRangeForTier(safeTier);
+      stats.goldBonus = Accessory.scaleByLevel(
+        range.min,
+        range.max,
+        safeLevel,
+      );
+    }
+
+    return stats;
   }
 
   // Get upgrade cost for next level
@@ -96,20 +119,24 @@ class Accessory extends GameItem {
   getNextUpgradePreview() {
     if (this.upgradeLevel >= this.maxUpgradeLevel) return null;
 
-    const currentStats = { ...this.itemData.stats };
-    const nextMultiplier = 1 +
-      ((this.upgradeLevel + 1) * 0.04 * (1 + (this.itemData.tier * 0.02)));
-    const currentMultiplier = 1 +
-      (this.upgradeLevel * 0.04 * (1 + (this.itemData.tier * 0.02)));
+    const currentRollType = this.itemData.accessoryRollType ||
+      (this.itemData.stats?.expBonus
+        ? 'exp'
+        : (this.itemData.stats?.goldBonus ? 'gold' : 'luck'));
+    const currentStats = Accessory.buildStats(
+      this.itemData.tier,
+      this.upgradeLevel,
+      currentRollType,
+    );
+    const nextStats = Accessory.buildStats(
+      this.itemData.tier,
+      this.upgradeLevel + 1,
+      currentRollType,
+    );
 
     const increase = {};
-    for (const [key, value] of Object.entries(currentStats)) {
-      if (key === 'hpBonus') {
-        increase[key] =
-          Math.floor(value * (nextMultiplier / currentMultiplier)) - value;
-      } else {
-        increase[key] = (value * (nextMultiplier / currentMultiplier)) - value;
-      }
+    for (const [key, value] of Object.entries(nextStats)) {
+      increase[key] = value - (currentStats[key] || 0);
     }
 
     return increase;

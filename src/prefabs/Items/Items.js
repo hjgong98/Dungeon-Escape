@@ -112,6 +112,16 @@ class GameItem extends Phaser.GameObjects.Sprite {
     const stats = [];
     for (const [key, value] of Object.entries(this.itemData.stats)) {
       if (typeof value === 'number') {
+        if (key.includes('PctBonus')) {
+          if (key.includes('atk')) {
+            stats.push(`ATK+${Math.floor(value * 100)}%`);
+          } else if (key.includes('def')) {
+            stats.push(`DEF+${Math.floor(value * 100)}%`);
+          } else if (key.includes('hp')) {
+            stats.push(`HP+${Math.floor(value * 100)}%`);
+          }
+          continue;
+        }
         if (key.includes('atk')) stats.push(`ATK+${value}`);
         else if (key.includes('def')) stats.push(`DEF+${value}`);
         else if (key.includes('hp')) stats.push(`HP+${value}`);
@@ -145,6 +155,12 @@ class GameItem extends Phaser.GameObjects.Sprite {
     const stats = [];
     for (const [key, value] of Object.entries(this.itemData.stats)) {
       if (typeof value === 'number') {
+        if (key.includes('PctBonus')) {
+          stats.push(
+            `${key.replace('Bonus', '')}: +${Math.floor(value * 100)}%`,
+          );
+          continue;
+        }
         if (key.includes('Bonus')) {
           stats.push(`${key.replace('Bonus', '')}: +${value}`);
         } else if (

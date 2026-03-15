@@ -39,6 +39,7 @@ class Play extends Phaser.Scene {
 
   createLeftHalf() {
     const player = globalThis.gameState.player;
+    const statSummary = this.getPlayerStatSummary(player);
 
     // player name - click to edit
     this.playerNameText = this.add.text(200, 80, player.name || 'Adventurer', {
@@ -100,28 +101,57 @@ class Play extends Phaser.Scene {
       fill: '#fff',
     });
 
-    this.add.text(100, 205, `HP: ${player.hp}/${player.maxHP}`, {
-      fontSize: '16px',
-      fill: '#f00',
-    });
+    this.add.text(
+      100,
+      205,
+      `HP: ${statSummary.currentHp}/${statSummary.maxHP}${
+        this.formatStatBonus(statSummary.hpBonus)
+      }`,
+      {
+        fontSize: '16px',
+        fill: '#f00',
+      },
+    );
 
-    this.add.text(100, 230, `ATK: ${player.atk}`, {
-      fontSize: '16px',
-      fill: '#ff0',
-    });
+    this.add.text(
+      100,
+      230,
+      `ATK: ${statSummary.atk}${this.formatStatBonus(statSummary.atkBonus)}`,
+      {
+        fontSize: '16px',
+        fill: '#ff0',
+      },
+    );
 
-    this.add.text(100, 255, `DEF: ${player.def}`, {
-      fontSize: '16px',
-      fill: '#0ff',
-    });
+    this.add.text(
+      100,
+      255,
+      `DEF: ${statSummary.def}${this.formatStatBonus(statSummary.defBonus)}`,
+      {
+        fontSize: '16px',
+        fill: '#0ff',
+      },
+    );
+
+    this.add.text(
+      100,
+      280,
+      `LCK: ${Math.floor(statSummary.luck * 100)}%${
+        this.formatPercentBonus(statSummary.luckBonus)
+      }`,
+      {
+        fontSize: '16px',
+        fill: '#9f9',
+      },
+    );
 
     // EXP bar
     const expPercent = Phaser.Math.Clamp(player.exp / player.expToNext, 0, 1);
-    this.add.rectangle(100, 290, expPercent * 200, 15, 0x00ff00).setOrigin(
+    this.add.rectangle(100, 310, expPercent * 200, 15, 0x00ff00).setOrigin(
       0,
       0.5,
     );
-    this.add.text(200, 315, `${player.exp}/${player.expToNext} EXP`, {
+    this.add.text(200, 335, `${player.exp}/${player.expToNext} EXP`, {
       fontSize: '12px',
       fill: '#aaa',
     }).setOrigin(0.5);
@@ -129,7 +159,7 @@ class Play extends Phaser.Scene {
     const selectedOption = this.getSelectedPlayerSpriteOption();
     const playerPreview = this.add.sprite(
       200,
-      410,
+      425,
       this.getIdleTextureKey(selectedOption.id),
       0,
     );
@@ -141,10 +171,64 @@ class Play extends Phaser.Scene {
     this.playerPreview = playerPreview;
     this.refreshPlayerPreview();
 
-    this.add.text(200, 468, 'Click sprite to change', {
+    this.add.text(200, 483, 'Click sprite to change', {
       fontSize: '11px',
       fill: '#bbb',
     }).setOrigin(0.5);
+  }
+
+  getPlayerStatSummary(player) {
+    const baseAtk = Number(player?.atk) || 10;
+    const baseDef = Number(player?.def) || 5;
+    const baseLuck = Number(player?.luck) || 0;
+    const baseMaxHp = Math.max(1, Number(player?.maxHP ?? player?.maxHp) || 50);
+    const currentHp = Math.max(0, Number(player?.hp) || 0);
+
+    let totalAtk = baseAtk;
+    let totalDef = baseDef;
+    let totalLuck = baseLuck;
+    let totalMaxHp = baseMaxHp;
+
+    const totalStats = typeof player?.getTotalStats === 'function'
+      ? player.getTotalStats()
+      : null;
+    if (totalStats) {
+      totalAtk = Number(totalStats.atk) || totalAtk;
+      totalDef = Number(totalStats.def) || totalDef;
+      totalLuck = Number(totalStats.luck) || totalLuck;
+      totalMaxHp = Math.max(
+        1,
+        Number(totalStats.maxHP ?? totalStats.maxHp) || totalMaxHp,
+      );
+    }
+
+    return {
+      currentHp: Math.min(currentHp, totalMaxHp),
+      maxHP: totalMaxHp,
+      atk: totalAtk,
+      def: totalDef,
+      luck: totalLuck,
+      hpBonus: totalMaxHp - baseMaxHp,
+      atkBonus: totalAtk - baseAtk,
+      defBonus: totalDef - baseDef,
+      luckBonus: totalLuck - baseLuck,
+    };
+  }
+
+  formatStatBonus(value) {
+    const safe = Math.round(Number(value) || 0);
+    if (safe <= 0) {
+      return '';
+    }
+    return ` (+${safe})`;
+  }
+
+  formatPercentBonus(value) {
+    const safe = Number(value) || 0;
+    if (safe <= 0) {
+      return '';
+    }
+    return ` (+${Math.floor(safe * 100)}%)`;
   }
 
   getPlayerSpriteOptions() {

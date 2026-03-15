@@ -674,10 +674,10 @@ class Dungeons extends Phaser.Scene {
         this.worldToWorldY(endRoom.endPos.y) + size / 2,
         'EXIT',
         {
-          fontSize: '12px',
+          fontSize: '10px',
           fill: '#0ff',
           backgroundColor: '#000',
-          padding: { x: 3, y: 2 },
+          padding: { x: 2, y: 2 },
         },
       );
       exitText.setOrigin(0.5);
@@ -1893,20 +1893,48 @@ class Dungeons extends Phaser.Scene {
     };
 
     if (equipment.weapon?.stats) {
-      profile.atk += equipment.weapon.stats.atkBonus || 0;
+      const weaponBaseAtk = Number(equipment.weapon.stats.atkBonus) || 0;
+      const weaponAtkPct = Number(equipment.weapon.stats.atkPctBonus) || 0;
+
+      if (weaponAtkPct > 0) {
+        profile.atk = Math.floor(
+          (profile.atk + weaponBaseAtk) * (1 + weaponAtkPct),
+        );
+      } else {
+        profile.atk += weaponBaseAtk;
+      }
+
       profile.luck += equipment.weapon.stats.luckBonus || 0;
     }
 
     if (equipment.armor?.stats) {
-      profile.def += equipment.armor.stats.defBonus || 0;
-      profile.maxHp += equipment.armor.stats.hpBonus || 0;
+      const armorBaseDef = Number(equipment.armor.stats.defBonus) || 0;
+      const armorBaseHp = Number(equipment.armor.stats.hpBonus) || 0;
+      const armorDefPct = Number(equipment.armor.stats.defPctBonus) || 0;
+      const armorHpPct = Number(equipment.armor.stats.hpPctBonus) || 0;
+
+      if (armorDefPct > 0) {
+        profile.def = Math.floor(
+          (profile.def + armorBaseDef) * (1 + armorDefPct),
+        );
+      } else {
+        profile.def += armorBaseDef;
+      }
+
+      if (armorHpPct > 0) {
+        profile.maxHp = Math.floor(
+          (profile.maxHp + armorBaseHp) * (1 + armorHpPct),
+        );
+      } else {
+        profile.maxHp += armorBaseHp;
+      }
+
       profile.luck += equipment.armor.stats.luckBonus || 0;
     }
 
     if (equipment.accessory?.stats) {
       profile.atk += equipment.accessory.stats.atkBonus || 0;
       profile.def += equipment.accessory.stats.defBonus || 0;
-      profile.maxHp += equipment.accessory.stats.hpBonus || 0;
       profile.luck += equipment.accessory.stats.luckBonus || 0;
     }
 
@@ -2697,13 +2725,16 @@ class Dungeons extends Phaser.Scene {
 
     if (found) {
       this.nearStair = found;
+      const stairPromptText = `Press E to go ${
+        found.dir === 'up' ? 'UP' : 'DOWN'
+      }`;
       if (!this.stairPrompt) {
         this.stairPrompt = this.add.text(
           this.player.x,
           this.player.y - 30,
-          `Press E to go ${found.dir === 'up' ? 'UP' : 'DOWN'}`,
+          stairPromptText,
           {
-            fontSize: '14px',
+            fontSize: '10px',
             fill: '#ff0',
             backgroundColor: '#000',
             padding: { x: 4, y: 2 },
@@ -2712,6 +2743,7 @@ class Dungeons extends Phaser.Scene {
         this.stairPrompt.setOrigin(0.5);
         this.stairPrompt.setDepth(1100);
       } else {
+        this.stairPrompt.setText(stairPromptText);
         this.stairPrompt.setPosition(this.player.x, this.player.y - 30);
       }
     } else {
@@ -2754,12 +2786,12 @@ class Dungeons extends Phaser.Scene {
         this.lootboxPrompt = this.add.text(
           this.player.x,
           this.player.y - 30,
-          'CHEST\nPress E to open',
+          'Press E to open',
           {
             fontSize: '10px',
             fill: '#ff0',
             backgroundColor: '#000',
-            padding: { x: 3, y: 2 },
+            padding: { x: 4, y: 2 },
           },
         );
         this.lootboxPrompt.setOrigin(0.5);
@@ -2791,12 +2823,12 @@ class Dungeons extends Phaser.Scene {
           this.exitPrompt = this.add.text(
             this.player.x,
             this.player.y - 30,
-            'EXIT: \nPress E to leave',
+            'Press E to exit',
             {
-              fontSize: '14px',
+              fontSize: '10px',
               fill: '#0ff',
               backgroundColor: '#000',
-              padding: { x: 6, y: 3 },
+              padding: { x: 4, y: 2 },
             },
           );
           this.exitPrompt.setOrigin(0.5);

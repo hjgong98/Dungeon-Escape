@@ -24,31 +24,8 @@ class Weapon extends GameItem {
     const type = types[Math.floor(Math.random() * types.length)];
     const name = `${prefix} ${type}`;
 
-    // Calculate base stats
-    const baseAtk = tier * 5;
-    const variance = 0.8 + Math.random() * 0.4;
-
-    // 80% chance for ATK bonus, 20% chance for luck
-    const stats = {
-      atkBonus: Math.floor(baseAtk * variance),
-    };
-
-    // 20% chance for luck bonus
-    if (Math.random() < 0.2) {
-      stats.luckBonus = 0.01 * tier; // 1% per tier
-    }
-
-    // Apply upgrade level to stats (each upgrade increases by 4% of base)
-    // At max level (5) with tier 1: +20% of base stat
-    // At max level (5) with tier 6: +30% of base stat
-    const upgradeMultiplier = 1 + (upgradeLevel * 0.04 * (1 + (tier * 0.02)));
-
-    if (stats.atkBonus) {
-      stats.atkBonus = Math.floor(stats.atkBonus * upgradeMultiplier);
-    }
-    if (stats.luckBonus) {
-      stats.luckBonus = stats.luckBonus * upgradeMultiplier;
-    }
+    const rollType = Weapon.pickRollType();
+    const stats = Weapon.buildStats(tier, upgradeLevel, rollType);
 
     // Sell price based on tier and upgrade level
     const basePrice = Math.floor(20 * tier);
@@ -60,6 +37,7 @@ class Weapon extends GameItem {
       name: name,
       type: 'weapon',
       tier: tier,
+      weaponRollType: rollType,
       upgradeLevel: upgradeLevel,
       maxUpgradeLevel: 5,
       value: sellPrice, // Sell price
@@ -68,6 +46,61 @@ class Weapon extends GameItem {
       stats: stats,
       requiredLevel: Math.max(1, tier * 2 - 1),
     };
+  }
+
+  static pickRollType() {
+    return Math.random() < 0.8 ? 'atkPct' : 'luck';
+  }
+
+  static getRarityScaledMaxAtkPct(tier) {
+    const safeTier = Phaser.Math.Clamp(Number(tier) || 1, 1, 6);
+    return 0.2 + (safeTier - 1) * 0.04;
+  }
+
+  static getRarityScaledMinAtkPct(tier) {
+    return Math.max(0, Weapon.getRarityScaledMaxAtkPct(tier) - 0.1);
+  }
+
+  static getRarityScaledMaxLuck(tier) {
+    const safeTier = Phaser.Math.Clamp(Number(tier) || 1, 1, 6);
+    return 0.2 + (safeTier - 1) * 0.02;
+  }
+
+  static getRarityScaledMinLuck(tier) {
+    return Math.max(0, Weapon.getRarityScaledMaxLuck(tier) - 0.1);
+  }
+
+  static scaleByLevel(minValue, maxValue, upgradeLevel) {
+    const safeLevel = Phaser.Math.Clamp(Number(upgradeLevel) || 0, 0, 5);
+    return minValue + (maxValue - minValue) * (safeLevel / 5);
+  }
+
+  static buildStats(tier = 1, upgradeLevel = 0, rollType = null) {
+    const safeTier = Phaser.Math.Clamp(Number(tier) || 1, 1, 6);
+    const safeLevel = Phaser.Math.Clamp(Number(upgradeLevel) || 0, 0, 5);
+    const resolvedRollType = rollType === 'atkPct' || rollType === 'luck'
+      ? rollType
+      : Weapon.pickRollType();
+
+    const stats = {
+      atkBonus: safeTier * 5 + safeLevel * 5,
+    };
+
+    if (resolvedRollType === 'atkPct') {
+      stats.atkPctBonus = Weapon.scaleByLevel(
+        Weapon.getRarityScaledMinAtkPct(safeTier),
+        Weapon.getRarityScaledMaxAtkPct(safeTier),
+        safeLevel,
+      );
+    } else {
+      stats.luckBonus = Weapon.scaleByLevel(
+        Weapon.getRarityScaledMinLuck(safeTier),
+        Weapon.getRarityScaledMaxLuck(safeTier),
+        safeLevel,
+      );
+    }
+
+    return stats;
   }
 
   // Get upgrade cost for next level
@@ -87,16 +120,22 @@ class Weapon extends GameItem {
   getNextUpgradePreview() {
     if (this.upgradeLevel >= this.maxUpgradeLevel) return null;
 
-    const currentStats = { ...this.itemData.stats };
-    const nextMultiplier = 1 +
-      ((this.upgradeLevel + 1) * 0.04 * (1 + (this.itemData.tier * 0.02)));
-    const currentMultiplier = 1 +
-      (this.upgradeLevel * 0.04 * (1 + (this.itemData.tier * 0.02)));
+    const currentRollType = this.itemData.weaponRollType ||
+      (this.itemData.stats?.atkPctBonus ? 'atkPct' : 'luck');
+    const currentStats = Weapon.buildStats(
+      this.itemData.tier,
+      this.upgradeLevel,
+      currentRollType,
+    );
+    const nextStats = Weapon.buildStats(
+      this.itemData.tier,
+      this.upgradeLevel + 1,
+      currentRollType,
+    );
 
     const increase = {};
-    for (const [key, value] of Object.entries(currentStats)) {
-      increase[key] = Math.floor(value * (nextMultiplier / currentMultiplier)) -
-        value;
+    for (const [key, value] of Object.entries(nextStats)) {
+      increase[key] = value - (currentStats[key] || 0);
     }
 
     return increase;

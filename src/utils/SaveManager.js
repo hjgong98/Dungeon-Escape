@@ -353,19 +353,49 @@ class SaveManager {
       };
 
       if (this.equipment.weapon?.stats) {
-        total.atk += this.equipment.weapon.stats.atkBonus || 0;
+        const weaponBaseAtk = Number(this.equipment.weapon.stats.atkBonus) || 0;
+        const weaponAtkPct = Number(this.equipment.weapon.stats.atkPctBonus) ||
+          0;
+
+        if (weaponAtkPct > 0) {
+          total.atk = Math.floor(
+            (total.atk + weaponBaseAtk) * (1 + weaponAtkPct),
+          );
+        } else {
+          total.atk += weaponBaseAtk;
+        }
+
         total.luck += this.equipment.weapon.stats.luckBonus || 0;
       }
 
       if (this.equipment.armor?.stats) {
-        total.def += this.equipment.armor.stats.defBonus || 0;
-        total.maxHP += this.equipment.armor.stats.hpBonus || 0;
+        const armorBaseDef = Number(this.equipment.armor.stats.defBonus) || 0;
+        const armorBaseHp = Number(this.equipment.armor.stats.hpBonus) || 0;
+        const armorDefPct = Number(this.equipment.armor.stats.defPctBonus) ||
+          0;
+        const armorHpPct = Number(this.equipment.armor.stats.hpPctBonus) || 0;
+
+        if (armorDefPct > 0) {
+          total.def = Math.floor(
+            (total.def + armorBaseDef) * (1 + armorDefPct),
+          );
+        } else {
+          total.def += armorBaseDef;
+        }
+
+        if (armorHpPct > 0) {
+          total.maxHP = Math.floor(
+            (total.maxHP + armorBaseHp) * (1 + armorHpPct),
+          );
+        } else {
+          total.maxHP += armorBaseHp;
+        }
+
         total.luck += this.equipment.armor.stats.luckBonus || 0;
       }
 
       if (this.equipment.accessory?.stats) {
         total.luck += this.equipment.accessory.stats.luckBonus || 0;
-        total.maxHP += this.equipment.accessory.stats.hpBonus || 0;
       }
 
       return total;

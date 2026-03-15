@@ -555,19 +555,43 @@ class Upgrades extends Phaser.Scene {
     const eq = player.equipment || {};
 
     if (eq.weapon?.stats) {
-      base.atk += eq.weapon.stats.atkBonus || 0;
+      const weaponBaseAtk = Number(eq.weapon.stats.atkBonus) || 0;
+      const weaponAtkPct = Number(eq.weapon.stats.atkPctBonus) || 0;
+
+      if (weaponAtkPct > 0) {
+        base.atk = Math.floor((base.atk + weaponBaseAtk) * (1 + weaponAtkPct));
+      } else {
+        base.atk += weaponBaseAtk;
+      }
+
       base.luck += eq.weapon.stats.luckBonus || 0;
     }
 
     if (eq.armor?.stats) {
-      base.def += eq.armor.stats.defBonus || 0;
-      base.maxHP += eq.armor.stats.hpBonus || 0;
+      const armorBaseDef = Number(eq.armor.stats.defBonus) || 0;
+      const armorBaseHp = Number(eq.armor.stats.hpBonus) || 0;
+      const armorDefPct = Number(eq.armor.stats.defPctBonus) || 0;
+      const armorHpPct = Number(eq.armor.stats.hpPctBonus) || 0;
+
+      if (armorDefPct > 0) {
+        base.def = Math.floor((base.def + armorBaseDef) * (1 + armorDefPct));
+      } else {
+        base.def += armorBaseDef;
+      }
+
+      if (armorHpPct > 0) {
+        base.maxHP = Math.floor(
+          (base.maxHP + armorBaseHp) * (1 + armorHpPct),
+        );
+      } else {
+        base.maxHP += armorBaseHp;
+      }
+
       base.luck += eq.armor.stats.luckBonus || 0;
     }
 
     if (eq.accessory?.stats) {
       base.luck += eq.accessory.stats.luckBonus || 0;
-      base.maxHP += eq.accessory.stats.hpBonus || 0;
     }
 
     return base;
@@ -578,8 +602,17 @@ class Upgrades extends Phaser.Scene {
 
     const parts = [];
     if (item.stats.atkBonus) parts.push(`ATK+${item.stats.atkBonus}`);
+    if (item.stats.atkPctBonus) {
+      parts.push(`ATK+${Math.floor(item.stats.atkPctBonus * 100)}%`);
+    }
     if (item.stats.defBonus) parts.push(`DEF+${item.stats.defBonus}`);
     if (item.stats.hpBonus) parts.push(`HP+${item.stats.hpBonus}`);
+    if (item.stats.defPctBonus) {
+      parts.push(`DEF+${Math.floor(item.stats.defPctBonus * 100)}%`);
+    }
+    if (item.stats.hpPctBonus) {
+      parts.push(`HP+${Math.floor(item.stats.hpPctBonus * 100)}%`);
+    }
     if (item.stats.luckBonus) {
       parts.push(`LCK+${Math.floor(item.stats.luckBonus * 100)}%`);
     }
@@ -658,19 +691,77 @@ class Upgrades extends Phaser.Scene {
     // Increment upgrade level
     item.upgradeLevel = (item.upgradeLevel || 0) + 1;
 
+    if (item.type === 'armor') {
+      const inferredRollType = item.armorRollType ||
+        (item.stats?.defPctBonus
+          ? 'defPct'
+          : (item.stats?.hpPctBonus ? 'hpPct' : 'luck'));
+
+      if (globalThis.Armor?.buildStats) {
+        item.stats = globalThis.Armor.buildStats(
+          item.tier || 1,
+          item.upgradeLevel,
+          inferredRollType,
+        );
+        item.armorRollType = inferredRollType;
+      }
+    }
+
+    if (item.type === 'weapon') {
+      const inferredRollType = item.weaponRollType ||
+        (item.stats?.atkPctBonus ? 'atkPct' : 'luck');
+
+      if (globalThis.Weapon?.buildStats) {
+        item.stats = globalThis.Weapon.buildStats(
+          item.tier || 1,
+          item.upgradeLevel,
+          inferredRollType,
+        );
+        item.weaponRollType = inferredRollType;
+      }
+    }
+
+    if (item.type === 'accessory') {
+      const inferredRollType = item.accessoryRollType ||
+        (item.stats?.expBonus
+          ? 'exp'
+          : (item.stats?.goldBonus ? 'gold' : 'luck'));
+
+      if (globalThis.Accessory?.buildStats) {
+        item.stats = globalThis.Accessory.buildStats(
+          item.tier || 1,
+          item.upgradeLevel,
+          inferredRollType,
+        );
+        item.accessoryRollType = inferredRollType;
+      }
+    }
+
     // Update stats based on new upgrade level
     // This would need proper stat recalculation based on your formula
     // For now, just a simple boost
-    if (item.stats.atkBonus) {
+    if (
+      !['armor', 'weapon', 'accessory'].includes(item.type) &&
+      item.stats.atkBonus
+    ) {
       item.stats.atkBonus = Math.floor(item.stats.atkBonus * 1.1);
     }
-    if (item.stats.defBonus) {
+    if (
+      !['armor', 'weapon', 'accessory'].includes(item.type) &&
+      item.stats.defBonus
+    ) {
       item.stats.defBonus = Math.floor(item.stats.defBonus * 1.1);
     }
-    if (item.stats.hpBonus) {
+    if (
+      !['armor', 'weapon', 'accessory'].includes(item.type) &&
+      item.stats.hpBonus
+    ) {
       item.stats.hpBonus = Math.floor(item.stats.hpBonus * 1.1);
     }
-    if (item.stats.luckBonus) {
+    if (
+      !['armor', 'weapon', 'accessory'].includes(item.type) &&
+      item.stats.luckBonus
+    ) {
       item.stats.luckBonus = item.stats.luckBonus * 1.1;
     }
 

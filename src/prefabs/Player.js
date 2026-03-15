@@ -45,14 +45,41 @@ class Player extends Phaser.Physics.Arcade.Sprite {
 
     // Add weapon bonus
     if (this.equipment.weapon && this.equipment.weapon.stats) {
-      total.atk += this.equipment.weapon.stats.atkBonus || 0;
+      const weaponBaseAtk = Number(this.equipment.weapon.stats.atkBonus) || 0;
+      const weaponAtkPct = Number(this.equipment.weapon.stats.atkPctBonus) || 0;
+
+      if (weaponAtkPct > 0) {
+        total.atk = Math.floor(
+          (total.atk + weaponBaseAtk) * (1 + weaponAtkPct),
+        );
+      } else {
+        total.atk += weaponBaseAtk;
+      }
+
       total.luck += this.equipment.weapon.stats.luckBonus || 0;
     }
 
     // Add armor bonus
     if (this.equipment.armor && this.equipment.armor.stats) {
-      total.def += this.equipment.armor.stats.defBonus || 0;
-      total.maxHp += this.equipment.armor.stats.hpBonus || 0;
+      const armorBaseDef = Number(this.equipment.armor.stats.defBonus) || 0;
+      const armorBaseHp = Number(this.equipment.armor.stats.hpBonus) || 0;
+      const armorDefPct = Number(this.equipment.armor.stats.defPctBonus) || 0;
+      const armorHpPct = Number(this.equipment.armor.stats.hpPctBonus) || 0;
+
+      if (armorDefPct > 0) {
+        total.def = Math.floor((total.def + armorBaseDef) * (1 + armorDefPct));
+      } else {
+        total.def += armorBaseDef;
+      }
+
+      if (armorHpPct > 0) {
+        total.maxHp = Math.floor(
+          (total.maxHp + armorBaseHp) * (1 + armorHpPct),
+        );
+      } else {
+        total.maxHp += armorBaseHp;
+      }
+
       total.luck += this.equipment.armor.stats.luckBonus || 0;
     }
 
@@ -60,7 +87,6 @@ class Player extends Phaser.Physics.Arcade.Sprite {
     if (this.equipment.accessory && this.equipment.accessory.stats) {
       total.atk += this.equipment.accessory.stats.atkBonus || 0;
       total.def += this.equipment.accessory.stats.defBonus || 0;
-      total.maxHp += this.equipment.accessory.stats.hpBonus || 0;
       total.luck += this.equipment.accessory.stats.luckBonus || 0;
     }
 

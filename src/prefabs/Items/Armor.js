@@ -24,26 +24,8 @@ class Armor extends GameItem {
     const type = types[Math.floor(Math.random() * types.length)];
     const name = `${prefix} ${type}`;
 
-    // Calculate base stats
-    const baseDef = tier * 4;
-    const baseHp = tier * 8;
-    const variance = 0.8 + Math.random() * 0.4;
-
-    // Armor always has def and hp, plus 20% chance for extra luck
-    const stats = {
-      defBonus: Math.floor(baseDef * variance),
-      hpBonus: Math.floor(baseHp * variance),
-      luckBonus: 0.015 * tier, // Always has some luck (your original had this)
-    };
-
-    // Apply upgrade level to stats (each upgrade increases by 4% of base)
-    // At max level (5) with tier 1: +20% of base stat
-    // At max level (5) with tier 6: +30% of base stat
-    const upgradeMultiplier = 1 + (upgradeLevel * 0.04 * (1 + (tier * 0.02)));
-
-    stats.defBonus = Math.floor(stats.defBonus * upgradeMultiplier);
-    stats.hpBonus = Math.floor(stats.hpBonus * upgradeMultiplier);
-    stats.luckBonus = stats.luckBonus * upgradeMultiplier;
+    const rollType = Armor.pickRollType();
+    const stats = Armor.buildStats(tier, upgradeLevel, rollType);
 
     // Sell price based on tier and upgrade level
     const basePrice = Math.floor(25 * tier);
@@ -55,6 +37,7 @@ class Armor extends GameItem {
       name: name,
       type: 'armor',
       tier: tier,
+      armorRollType: rollType,
       upgradeLevel: upgradeLevel,
       maxUpgradeLevel: 5,
       value: sellPrice,
@@ -63,6 +46,81 @@ class Armor extends GameItem {
       stats: stats,
       requiredLevel: Math.max(1, tier * 2 - 1),
     };
+  }
+
+  static pickRollType() {
+    const roll = Math.random();
+    if (roll < 0.4) return 'defPct';
+    if (roll < 0.8) return 'hpPct';
+    return 'luck';
+  }
+
+  static getRarityScaledMaxPct(tier) {
+    const safeTier = Phaser.Math.Clamp(Number(tier) || 1, 1, 6);
+    // Tier 1 => 20%, Tier 6 => 40% in +4% steps.
+    return 0.2 + (safeTier - 1) * 0.04;
+  }
+
+  static getRarityScaledMinPct(tier) {
+    const maxPct = Armor.getRarityScaledMaxPct(tier);
+    return Math.max(0, maxPct - 0.1);
+  }
+
+  static getRarityScaledMaxLuck(tier) {
+    const safeTier = Phaser.Math.Clamp(Number(tier) || 1, 1, 6);
+    return 0.2 + (safeTier - 1) * 0.02;
+  }
+
+  static getRarityScaledMinLuck(tier) {
+    const maxLuck = Armor.getRarityScaledMaxLuck(tier);
+    return Math.max(0, maxLuck - 0.1);
+  }
+
+  static scaleByLevel(minValue, maxValue, upgradeLevel) {
+    const safeLevel = Phaser.Math.Clamp(Number(upgradeLevel) || 0, 0, 5);
+    const t = safeLevel / 5;
+    return minValue + (maxValue - minValue) * t;
+  }
+
+  static buildStats(tier = 1, upgradeLevel = 0, rollType = null) {
+    const safeTier = Phaser.Math.Clamp(Number(tier) || 1, 1, 6);
+    const safeLevel = Phaser.Math.Clamp(Number(upgradeLevel) || 0, 0, 5);
+
+    const stats = {
+      defBonus: safeTier * 5 + safeLevel * 5,
+      hpBonus: safeTier * 10 + safeLevel * 10,
+    };
+
+    const resolvedRollType =
+      rollType === 'defPct' || rollType === 'hpPct' || rollType === 'luck'
+        ? rollType
+        : Armor.pickRollType();
+
+    const maxPctAtLevel5 = Armor.getRarityScaledMaxPct(safeTier);
+    const minPctAtLevel0 = Armor.getRarityScaledMinPct(safeTier);
+    const scaledPct = Armor.scaleByLevel(
+      minPctAtLevel0,
+      maxPctAtLevel5,
+      safeLevel,
+    );
+
+    const maxLuckAtLevel5 = Armor.getRarityScaledMaxLuck(safeTier);
+    const minLuckAtLevel0 = Armor.getRarityScaledMinLuck(safeTier);
+    const scaledLuck = Armor.scaleByLevel(
+      minLuckAtLevel0,
+      maxLuckAtLevel5,
+      safeLevel,
+    );
+
+    if (resolvedRollType === 'defPct') {
+      stats.defPctBonus = scaledPct;
+    } else if (resolvedRollType === 'hpPct') {
+      stats.hpPctBonus = scaledPct;
+    } else {
+      stats.luckBonus = scaledLuck;
+    }
+
+    return stats;
   }
 
   // Get upgrade cost for next level
@@ -82,20 +140,24 @@ class Armor extends GameItem {
   getNextUpgradePreview() {
     if (this.upgradeLevel >= this.maxUpgradeLevel) return null;
 
-    const currentStats = { ...this.itemData.stats };
-    const nextMultiplier = 1 +
-      ((this.upgradeLevel + 1) * 0.04 * (1 + (this.itemData.tier * 0.02)));
-    const currentMultiplier = 1 +
-      (this.upgradeLevel * 0.04 * (1 + (this.itemData.tier * 0.02)));
+    const currentRollType = this.itemData.armorRollType ||
+      (this.itemData.stats?.defPctBonus
+        ? 'defPct'
+        : (this.itemData.stats?.hpPctBonus ? 'hpPct' : 'luck'));
+    const currentStats = Armor.buildStats(
+      this.itemData.tier,
+      this.upgradeLevel,
+      currentRollType,
+    );
+    const nextStats = Armor.buildStats(
+      this.itemData.tier,
+      this.upgradeLevel + 1,
+      currentRollType,
+    );
 
     const increase = {};
-    for (const [key, value] of Object.entries(currentStats)) {
-      if (key === 'defBonus' || key === 'hpBonus') {
-        increase[key] =
-          Math.floor(value * (nextMultiplier / currentMultiplier)) - value;
-      } else {
-        increase[key] = (value * (nextMultiplier / currentMultiplier)) - value;
-      }
+    for (const [key, value] of Object.entries(nextStats)) {
+      increase[key] = value - (currentStats[key] || 0);
     }
 
     return increase;

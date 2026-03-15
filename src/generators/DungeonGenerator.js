@@ -1043,8 +1043,8 @@ function generateDungeon() {
 
     shuffle(allWalkable);
 
-    // Pick 1-3 chests per floor from the full walkable pool
-    const numChests = Math.floor(Math.random() * 3) + 1;
+    // Spawn chest count based on floor room count.
+    const numChests = rooms.length + 2;
     const floorChests = [];
     let chestIndex = 0;
 

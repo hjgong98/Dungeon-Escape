@@ -14,12 +14,29 @@ class Lootbox extends Phaser.GameObjects.Sprite {
 
     this.opened = false;
     this.isOpening = false;
+    this.pendingItems = null;
 
     scene.add.existing(this);
   }
 
   open() {
     if (this.opened || this.isOpening) return;
+
+    if (!this.boxData.isTrap) {
+      const items = this.generateItems();
+      const player = globalThis.gameState?.player;
+      const bagCap = typeof player?.bagSlots === 'number'
+        ? player.bagSlots
+        : (typeof player?.maxInventory === 'number' ? player.maxInventory : 20);
+
+      if (!this.canFitAllItems(player, bagCap, items)) {
+        this.showBagFullMessage();
+        return;
+      }
+
+      this.pendingItems = items;
+    }
+
     this.isOpening = true;
     this.play(this.scene.lootboxOpenAnimKey);
     this.once(Phaser.Animations.Events.ANIMATION_COMPLETE, () => {
@@ -39,7 +56,8 @@ class Lootbox extends Phaser.GameObjects.Sprite {
       return;
     }
 
-    const items = this.generateItems();
+    const items = this.pendingItems || this.generateItems();
+    this.pendingItems = null;
     const player = globalThis.gameState?.player;
     const addItem = player?.addItem;
 
@@ -50,24 +68,59 @@ class Lootbox extends Phaser.GameObjects.Sprite {
       return;
     }
 
-    const bagCap = typeof player.bagSlots === 'number'
-      ? player.bagSlots
-      : (typeof player.maxInventory === 'number' ? player.maxInventory : 20);
-    const currentCount = Array.isArray(player.inventory)
-      ? player.inventory.length
-      : 0;
-    const freeSlots = Math.max(0, bagCap - currentCount);
+    items.forEach((item) => addItem.call(player, item));
+    this.showLootResults(items);
+    this.emit('lootboxOpened', items);
+  }
 
-    const fittingItems = items.slice(0, freeSlots);
-    const overflowItems = items.slice(freeSlots);
+  canFitAllItems(player, bagCap, items) {
+    const inventory = Array.isArray(player?.inventory) ? player.inventory : [];
+    const stackCounts = new Map();
 
-    fittingItems.forEach((item) => addItem.call(player, item));
-    this.showLootResults(fittingItems);
-    this.emit('lootboxOpened', fittingItems);
+    inventory.forEach((item) => {
+      const key = item?.name || 'Unknown';
+      stackCounts.set(key, (stackCounts.get(key) || 0) + 1);
+    });
 
-    if (overflowItems.length > 0) {
-      this.emit('lootboxOverflow', overflowItems);
+    let usedSlots = stackCounts.size;
+
+    for (const item of items) {
+      const key = item?.name || 'Unknown';
+      if (!stackCounts.has(key)) {
+        usedSlots += 1;
+        if (usedSlots > bagCap) {
+          return false;
+        }
+        stackCounts.set(key, 1);
+      } else {
+        stackCounts.set(key, stackCounts.get(key) + 1);
+      }
     }
+
+    return true;
+  }
+
+  showBagFullMessage() {
+    const text = this.scene.add.text(
+      this.x,
+      this.y - 30,
+      'Bag full\nOpen Inventory first',
+      {
+        fontSize: '14px',
+        fill: '#ffcc66',
+        stroke: '#000',
+        strokeThickness: 3,
+        align: 'center',
+      },
+    ).setOrigin(0.5).setDepth(1100);
+
+    this.scene.tweens.add({
+      targets: text,
+      y: text.y - 40,
+      alpha: 0,
+      duration: 1400,
+      onComplete: () => text.destroy(),
+    });
   }
 
   showTrapMessage() {
@@ -165,12 +218,19 @@ class Lootbox extends Phaser.GameObjects.Sprite {
       this.scene.scale.height - 140,
     );
 
+    const cleanDisplayName = (name) =>
+      String(name || 'Unknown')
+        .replace(/\s*\(\s*T\d+\s*\)$/i, '')
+        .replace(/\s+T\d+$/i, '')
+        .replace(/\s+Tier\s*\d+$/i, '')
+        .trim();
+
     items.forEach((item, index) => {
       const yOffset = index * 14;
       const text = this.scene.add.text(
         screenX,
         startY - yOffset,
-        `+ ${item.name}`,
+        `+ ${cleanDisplayName(item.name)}`,
         {
           fontSize: '9px',
           fill: '#0f0',

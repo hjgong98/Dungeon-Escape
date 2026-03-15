@@ -634,8 +634,17 @@ class Inventory extends Phaser.Scene {
 
     const parts = [];
     if (item.stats.atkBonus) parts.push(`ATK+${item.stats.atkBonus}`);
+    if (item.stats.atkPctBonus) {
+      parts.push(`ATK+${Math.floor(item.stats.atkPctBonus * 100)}%`);
+    }
     if (item.stats.defBonus) parts.push(`DEF+${item.stats.defBonus}`);
     if (item.stats.hpBonus) parts.push(`HP+${item.stats.hpBonus}`);
+    if (item.stats.defPctBonus) {
+      parts.push(`DEF+${Math.floor(item.stats.defPctBonus * 100)}%`);
+    }
+    if (item.stats.hpPctBonus) {
+      parts.push(`HP+${Math.floor(item.stats.hpPctBonus * 100)}%`);
+    }
     if (item.stats.luckBonus) {
       parts.push(`LCK+${Math.floor(item.stats.luckBonus * 100)}%`);
     }
@@ -653,8 +662,17 @@ class Inventory extends Phaser.Scene {
 
     const stats = item.stats;
     if (typeof stats.atkBonus === 'number') return `+${stats.atkBonus}`;
+    if (typeof stats.atkPctBonus === 'number') {
+      return `+${Math.floor(stats.atkPctBonus * 100)}%`;
+    }
     if (typeof stats.defBonus === 'number') return `+${stats.defBonus}`;
     if (typeof stats.hpBonus === 'number') return `+${stats.hpBonus}`;
+    if (typeof stats.defPctBonus === 'number') {
+      return `+${Math.floor(stats.defPctBonus * 100)}%`;
+    }
+    if (typeof stats.hpPctBonus === 'number') {
+      return `+${Math.floor(stats.hpPctBonus * 100)}%`;
+    }
     if (typeof stats.luckBonus === 'number') {
       return `+${Math.floor(stats.luckBonus * 100)}%`;
     }
