@@ -92,32 +92,51 @@ class SaveManager {
       let starterArmor = null;
 
       if (globalThis.Weapon) {
-        starterWeapon = Weapon.generate(1);
+        starterWeapon = Weapon.generate(1, 0); // Tier 1, upgrade level 0
         console.log('Created starter weapon:', starterWeapon);
       } else {
         console.error('Weapon class not found');
       }
 
       if (globalThis.Armor) {
-        starterArmor = Armor.generate(1);
+        starterArmor = Armor.generate(1, 0); // Tier 1, upgrade level 0
         console.log('Created starter armor:', starterArmor);
       } else {
         console.error('Armor class not found');
       }
 
-      const starterPotion = {
-        id: `potion_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
-        name: 'Health Potion',
-        type: 'consumable',
+      const starterMaterial = globalThis.GameItem
+        ? GameItem.generateCraftingMaterial(Math.floor(Math.random() * 3) + 1)
+        : {
+          id: `craft_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
+          name: 'Crafting Material T1',
+          type: 'crafting_material',
+          tier: 1,
+          value: 8,
+          sellable: true,
+          stats: {},
+          use: 'crafting',
+          upgradeLevel: 0,
+          maxUpgradeLevel: 0,
+        };
+
+      const starterSword = {
+        id: 'starter_sword',
+        name: 'Rusty Sword',
+        type: 'weapon',
         tier: 1,
         value: 10,
-        stats: { hpRestore: 30 },
+        stats: { atkBonus: 3 },
+        upgradeLevel: 0,
+        maxUpgradeLevel: 5,
       };
 
       const inventory = [];
-      if (starterWeapon) inventory.push(starterWeapon);
+      const storage = []; // Empty storage initially
+
+      inventory.push(starterSword);
       if (starterArmor) inventory.push(starterArmor);
-      inventory.push(starterPotion);
+      inventory.push(starterMaterial);
 
       return {
         player: {
@@ -133,6 +152,7 @@ class SaveManager {
           expToNext: 100,
           gold: 50,
           inventory: inventory,
+          storage: storage,
           equipment: {
             weapon: starterWeapon,
             armor: starterArmor,
@@ -209,6 +229,7 @@ class SaveManager {
     }
   }
 
+  // Create runtime player object from saved data
   createRuntimePlayer(playerData = {}) {
     const player = {
       name: playerData.name || 'Adventurer',
@@ -221,9 +242,13 @@ class SaveManager {
       exp: playerData.exp || 0,
       expToNext: playerData.expToNext || 100,
       gold: playerData.gold || 0,
+      maxInventory: playerData.maxInventory || playerData.bagSlots || 20,
+      bagSlots: playerData.bagSlots || playerData.maxInventory || 20,
+      storageSlots: playerData.storageSlots || 20,
       inventory: Array.isArray(playerData.inventory)
         ? playerData.inventory
         : [],
+      storage: Array.isArray(playerData.storage) ? playerData.storage : [],
       equipment: playerData.equipment || {
         weapon: null,
         armor: null,
@@ -231,6 +256,7 @@ class SaveManager {
       },
     };
 
+    // Add helper methods
     player.addItem = function addItem(itemData) {
       if (!Array.isArray(this.inventory)) {
         this.inventory = [];
@@ -239,9 +265,61 @@ class SaveManager {
       return true;
     };
 
+    player.addToStorage = function addToStorage(itemData) {
+      if (!Array.isArray(this.storage)) {
+        this.storage = [];
+      }
+      this.storage.push(itemData);
+      return true;
+    };
+
+    player.removeItem = function removeItem(itemId) {
+      const index = this.inventory.findIndex((i) => i.id === itemId);
+      if (index !== -1) {
+        return this.inventory.splice(index, 1)[0];
+      }
+      return null;
+    };
+
+    player.removeFromStorage = function removeFromStorage(itemId) {
+      const index = this.storage.findIndex((i) => i.id === itemId);
+      if (index !== -1) {
+        return this.storage.splice(index, 1)[0];
+      }
+      return null;
+    };
+
+    player.getTotalStats = function getTotalStats() {
+      const total = {
+        atk: this.atk || 10,
+        def: this.def || 5,
+        luck: this.luck || 0,
+        maxHP: this.maxHP || 100,
+      };
+
+      if (this.equipment.weapon?.stats) {
+        total.atk += this.equipment.weapon.stats.atkBonus || 0;
+        total.luck += this.equipment.weapon.stats.luckBonus || 0;
+      }
+
+      if (this.equipment.armor?.stats) {
+        total.def += this.equipment.armor.stats.defBonus || 0;
+        total.maxHP += this.equipment.armor.stats.hpBonus || 0;
+        total.luck += this.equipment.armor.stats.luckBonus || 0;
+      }
+
+      if (this.equipment.accessory?.stats) {
+        total.luck += this.equipment.accessory.stats.luckBonus || 0;
+        total.maxHP += this.equipment.accessory.stats.hpBonus || 0;
+      }
+
+      return total;
+    };
+
     return player;
   }
 
+  // Serialize player for saving
   serializePlayerForSave(player) {
     const base = player && typeof player.toJSON === 'function'
       ? player.toJSON()
@@ -258,7 +336,11 @@ class SaveManager {
       exp: base?.exp || 0,
       expToNext: base?.expToNext || 100,
       gold: base?.gold || 0,
+      maxInventory: base?.maxInventory || base?.bagSlots || 20,
+      bagSlots: base?.bagSlots || base?.maxInventory || 20,
+      storageSlots: base?.storageSlots || 20,
       inventory: Array.isArray(base?.inventory) ? base.inventory : [],
+      storage: Array.isArray(base?.storage) ? base.storage : [],
       equipment: base?.equipment || {
         weapon: null,
         armor: null,
@@ -289,7 +371,11 @@ class SaveManager {
         exp: saveData.exp,
         expToNext: saveData.expToNext,
         gold: saveData.gold,
+        maxInventory: saveData.maxInventory || saveData.bagSlots || 20,
+        bagSlots: saveData.bagSlots || saveData.maxInventory || 20,
+        storageSlots: saveData.storageSlots || 20,
         inventory: saveData.inventory,
+        storage: saveData.storage || [],
         equipment: saveData.equipment,
       };
 

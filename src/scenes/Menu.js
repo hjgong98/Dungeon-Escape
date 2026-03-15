@@ -28,6 +28,21 @@ class Menu extends Phaser.Scene {
     }).setOrigin(0.5).setInteractive();
 
     newGameButton.on('pointerdown', () => {
+      const starterMaterial = globalThis.GameItem
+        ? GameItem.generateCraftingMaterial(Math.floor(Math.random() * 3) + 1)
+        : {
+          id: `craft_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
+          name: 'Crafting Material T1',
+          type: 'crafting_material',
+          tier: 1,
+          value: 8,
+          sellable: true,
+          stats: {},
+          use: 'crafting',
+          upgradeLevel: 0,
+          maxUpgradeLevel: 0,
+        };
+
       // Create a new player with starter items
       const starterPlayerData = {
         name: 'Adventurer',
@@ -40,6 +55,9 @@ class Menu extends Phaser.Scene {
         exp: 0,
         expToNext: 100,
         gold: 50,
+        maxInventory: 20,
+        bagSlots: 20,
+        storageSlots: 20,
         inventory: [
           {
             id: 'starter_sword',
@@ -58,12 +76,7 @@ class Menu extends Phaser.Scene {
             stats: { defBonus: 2 },
           },
           {
-            id: 'potion_1',
-            name: 'Health Potion',
-            type: 'consumable',
-            tier: 1,
-            value: 5,
-            stats: { hpRestore: 30 },
+            ...starterMaterial,
           },
         ],
         equipment: {

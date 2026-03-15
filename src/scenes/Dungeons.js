@@ -534,9 +534,11 @@ class Dungeons extends Phaser.Scene {
       );
     });
 
-    this.getWallConnectionPoints(mergedSegments).forEach(({ x, y, thickness }) => {
-      this.drawWallJunctionBlock(x, y, thickness);
-    });
+    this.getWallConnectionPoints(mergedSegments).forEach(
+      ({ x, y, thickness }) => {
+        this.drawWallJunctionBlock(x, y, thickness);
+      },
+    );
   }
 
   mergeWallSegments(segments) {
@@ -544,7 +546,9 @@ class Dungeons extends Phaser.Scene {
 
     segments.forEach((segment) => {
       const isVertical = segment.x1 === segment.x2;
-      const anchor = isVertical ? Math.round(segment.x1) : Math.round(segment.y1);
+      const anchor = isVertical
+        ? Math.round(segment.x1)
+        : Math.round(segment.y1);
       const key = [
         isVertical ? 'v' : 'h',
         anchor,

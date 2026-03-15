@@ -28,7 +28,7 @@ const config = {
 const game = new Phaser.Game(config);
 globalThis.game = game;
 
-// Game state - simple object to hold player data
+// Game state
 const gameState = {
   player: {
     name: 'Adventurer',
@@ -37,10 +37,15 @@ const gameState = {
     maxHP: 100,
     atk: 10,
     def: 5,
+    luck: 0,
     exp: 0,
     expToNext: 100,
-    gold: 0,
-    inventory: [],
+    gold: 50,
+    maxInventory: 20,
+    bagSlots: 20,
+    storageSlots: 20,
+    inventory: [], // Bag items (lost on death)
+    storage: [], // Storage items (permanent)
     equipment: {
       weapon: null,
       armor: null,
@@ -51,6 +56,8 @@ const gameState = {
     sound: true,
     music: true,
   },
+  currentSaveId: null,
+  lootTables: {},
 };
 
 gameState.player.addItem = function addItem(itemData) {
@@ -58,6 +65,14 @@ gameState.player.addItem = function addItem(itemData) {
     this.inventory = [];
   }
   this.inventory.push(itemData);
+  return true;
+};
+
+gameState.player.addToStorage = function addToStorage(itemData) {
+  if (!Array.isArray(this.storage)) {
+    this.storage = [];
+  }
+  this.storage.push(itemData);
   return true;
 };
 

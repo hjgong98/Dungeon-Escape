@@ -1,34 +1,621 @@
-// upgrades.js
 class Upgrades extends Phaser.Scene {
   constructor() {
     super('Upgrades');
+    this.currentTab = 'equip'; // 'equip', 'enhance', 'purchase'
+    this.selectedItem = null;
+    this.selectedLocation = null;
+    this.contentGroup = null;
+  }
+
+  init(data = {}) {
+    this.currentTab = data.currentTab || this.currentTab || 'equip';
+    this.selectedItem = null;
+    this.selectedLocation = null;
+    this.contentGroup = null;
   }
 
   preload() {
-    this.load.image('background', './assets/game_background_3.1.png');
+    this.load.image('upgradesBackground', '/assets/game_background_3.1.png');
   }
 
   create() {
-    // menu background
-    this.background = this.add.image(0, 0, 'background').setOrigin(0, 0);
+    // Background
+    const bgKey = this.textures.exists('upgradesBackground')
+      ? 'upgradesBackground'
+      : 'background';
+    this.background = this.add.image(0, 0, bgKey).setOrigin(0, 0);
     this.background.setDisplaySize(800, 600);
 
-    this.add.text(400, 80, 'UPGRADES', {
-      fontSize: '48px',
+    // Title and gold
+    this.add.text(400, 40, 'UPGRADES STATION', {
+      fontSize: '36px',
       fill: '#fff',
+      fontStyle: 'bold',
     }).setOrigin(0.5);
 
+    const player = globalThis.gameState.player;
+    const gold = player.gold || 0;
+    this.add.text(680, 40, `💰 ${gold}`, {
+      fontSize: '24px',
+      fill: '#ff0',
+      backgroundColor: '#333',
+      padding: { x: 10, y: 5 },
+    });
+
+    // Create tabs
+    this.createTabs();
+
+    // Create content based on current tab
+    if (this.currentTab === 'equip') {
+      this.createEquipTab();
+    } else if (this.currentTab === 'enhance') {
+      this.createEnhanceTab();
+    } else {
+      this.createPurchaseTab();
+    }
+
     // Back button
-    const backButton = this.add.text(400, 500, 'BACK TO PLAY', {
+    const backButton = this.add.text(100, 550, '← BACK TO PLAY', {
       fontSize: '24px',
       fill: '#fff',
       backgroundColor: '#333',
-      padding: { x: 20, y: 8 },
-    }).setOrigin(0.5).setInteractive();
+      padding: { x: 15, y: 8 },
+    }).setInteractive();
 
     backButton.on('pointerdown', () => {
       this.scene.start('Play');
     });
+  }
+
+  createTabs() {
+    const tabWidth = 120;
+    const tabs = ['EQUIP', 'ENHANCE', 'PURCHASE'];
+
+    tabs.forEach((tab, index) => {
+      const x = 280 + index * 140;
+      const isActive = (index === 0 && this.currentTab === 'equip') ||
+        (index === 1 && this.currentTab === 'enhance') ||
+        (index === 2 && this.currentTab === 'purchase');
+
+      const tabBg = this.add.rectangle(x, 90, tabWidth, 40, 0x333333, 0.9)
+        .setInteractive();
+
+      if (isActive) {
+        tabBg.setStrokeStyle(3, 0xff0);
+      }
+
+      this.add.text(x, 90, tab, {
+        fontSize: '22px',
+        fill: isActive ? '#ff0' : '#fff',
+        fontStyle: isActive ? 'bold' : 'normal',
+      }).setOrigin(0.5);
+
+      tabBg.on('pointerdown', () => {
+        const nextTab = index === 0
+          ? 'equip'
+          : (index === 1 ? 'enhance' : 'purchase');
+
+        // Refresh scene
+        this.scene.restart({ currentTab: nextTab });
+      });
+    });
+  }
+
+  createEquipTab() {
+    if (this.contentGroup) this.contentGroup.clear(true, true);
+    this.contentGroup = this.add.group();
+
+    const player = globalThis.gameState.player;
+    const eq = player.equipment ||
+      { weapon: null, armor: null, accessory: null };
+
+    // Current Equipment Section
+    const equipTitle = this.add.text(140, 130, 'CURRENT EQUIPMENT', {
+      fontSize: '20px',
+      fill: '#0ff',
+      fontStyle: 'bold',
+    });
+    this.contentGroup.add(equipTitle);
+
+    // Weapon slot
+    this.createEquipmentSlot(140, 170, '⚔️ WEAPON', eq.weapon, 'weapon');
+
+    // Armor slot
+    this.createEquipmentSlot(140, 230, '🛡️ ARMOR', eq.armor, 'armor');
+
+    // Accessory slot
+    this.createEquipmentSlot(
+      140,
+      290,
+      '💍 ACCESSORY',
+      eq.accessory,
+      'accessory',
+    );
+
+    // Stats Panel
+    const statsTitle = this.add.text(600, 130, 'TOTAL STATS', {
+      fontSize: '20px',
+      fill: '#ff0',
+      fontStyle: 'bold',
+    });
+    this.contentGroup.add(statsTitle);
+
+    const stats = this.calculateTotalStats(player);
+
+    const atkStat = this.add.text(600, 170, `ATK: ${stats.atk}`, {
+      fontSize: '18px',
+      fill: '#ff0',
+    });
+    const defStat = this.add.text(600, 200, `DEF: ${stats.def}`, {
+      fontSize: '18px',
+      fill: '#0ff',
+    });
+    const hpStat = this.add.text(
+      600,
+      230,
+      `HP: ${player.hp || 100}/${stats.maxHP || 100}`,
+      { fontSize: '18px', fill: '#f88' },
+    );
+    const luckStat = this.add.text(
+      600,
+      260,
+      `LUCK: ${Math.floor(stats.luck * 100)}%`,
+      { fontSize: '18px', fill: '#f0f' },
+    );
+
+    this.contentGroup.addMultiple([atkStat, defStat, hpStat, luckStat]);
+
+    // Available Items Section
+    const availTitle = this.add.text(140, 350, 'AVAILABLE TO EQUIP', {
+      fontSize: '20px',
+      fill: '#ff0',
+      fontStyle: 'bold',
+    });
+    this.contentGroup.add(availTitle);
+
+    // Show items from bag and storage
+    const bag = player.inventory || [];
+    const storage = player.storage || [];
+    const allItems = [
+      ...bag.map((i) => ({ ...i, location: 'bag' })),
+      ...storage.map((i) => ({ ...i, location: 'storage' })),
+    ];
+
+    const equippable = allItems.filter((i) =>
+      ['weapon', 'armor', 'accessory'].includes(i.type)
+    );
+
+    let y = 390;
+    equippable.slice(0, 4).forEach((item) => {
+      const tierColors = ['#888', '#8f8', '#88f', '#f8f', '#ff8', '#f88'];
+      const color = tierColors[(item.tier || 1) - 1] || '#fff';
+
+      const upgradeText = item.upgradeLevel > 0 ? ` +${item.upgradeLevel}` : '';
+      const itemName = this.add.text(
+        140,
+        y,
+        `[${item.location}] ${item.name}${upgradeText}`,
+        {
+          fontSize: '16px',
+          fill: color,
+        },
+      );
+      this.contentGroup.add(itemName);
+
+      const itemStats = this.add.text(360, y, this.getItemStatsPreview(item), {
+        fontSize: '14px',
+        fill: '#aaa',
+      });
+      this.contentGroup.add(itemStats);
+
+      const equipBtn = this.add.text(520, y - 5, 'EQUIP', {
+        fontSize: '14px',
+        fill: '#0f0',
+        backgroundColor: '#444',
+        padding: { x: 8, y: 3 },
+      }).setInteractive();
+      this.contentGroup.add(equipBtn);
+
+      equipBtn.on('pointerdown', () => {
+        this.equipItem(item);
+      });
+
+      y += 30;
+    });
+  }
+
+  createEquipmentSlot(x, y, label, item, type) {
+    const labelText = this.add.text(x - 30, y - 15, label, {
+      fontSize: '14px',
+      fill: '#aaa',
+    });
+    this.contentGroup.add(labelText);
+
+    if (item) {
+      const upgradeText = item.upgradeLevel > 0 ? ` +${item.upgradeLevel}` : '';
+      const itemName = this.add.text(x, y, `${item.name}${upgradeText}`, {
+        fontSize: '16px',
+        fill: '#fff',
+      });
+      const itemStats = this.add.text(
+        x + 200,
+        y,
+        this.getItemStatsPreview(item),
+        { fontSize: '14px', fill: '#aaa' },
+      );
+
+      const unequipBtn = this.add.text(x + 350, y - 5, 'UNEQUIP', {
+        fontSize: '14px',
+        fill: '#f88',
+        backgroundColor: '#444',
+        padding: { x: 8, y: 3 },
+      }).setInteractive();
+
+      unequipBtn.on('pointerdown', () => {
+        this.unequipItem(type);
+      });
+
+      this.contentGroup.addMultiple([itemName, itemStats, unequipBtn]);
+    } else {
+      const emptyText = this.add.text(x, y, '[EMPTY]', {
+        fontSize: '16px',
+        fill: '#666',
+        fontStyle: 'italic',
+      });
+      this.contentGroup.add(emptyText);
+    }
+  }
+
+  createEnhanceTab() {
+    if (this.contentGroup) this.contentGroup.clear(true, true);
+    this.contentGroup = this.add.group();
+
+    const player = globalThis.gameState.player;
+
+    // Show equipped items first
+    const eq = player.equipment || {};
+    const equipItems = [
+      { item: eq.weapon, slotLabel: 'weapon', location: 'equipped' },
+      { item: eq.armor, slotLabel: 'armor', location: 'equipped' },
+      { item: eq.accessory, slotLabel: 'accessory', location: 'equipped' },
+    ].filter((entry) => entry.item && entry.item.id);
+
+    let y = 150;
+
+    if (equipItems.length > 0) {
+      const equippedTitle = this.add.text(400, y - 18, 'EQUIPPED ITEMS', {
+        fontSize: '18px',
+        fill: '#0ff',
+      }).setOrigin(0.5);
+      this.contentGroup.add(equippedTitle);
+      y += 22;
+    }
+
+    equipItems.forEach((entry) => {
+      this.createEnhanceItemRow(entry.item, y, entry.location, entry.slotLabel);
+      y += 78;
+    });
+
+    // Show storage items that can be enhanced
+    const storage = player.storage || [];
+    const enhanceable = storage.filter((i) =>
+      ['weapon', 'armor', 'accessory'].includes(i.type)
+    );
+
+    if (enhanceable.length > 0) {
+      y += 8;
+      const storageTitle = this.add.text(400, y, 'STORAGE ITEMS', {
+        fontSize: '18px',
+        fill: '#0ff',
+      }).setOrigin(0.5);
+      this.contentGroup.add(storageTitle);
+
+      y += 22;
+      enhanceable.slice(0, 3).forEach((item) => {
+        this.createEnhanceItemRow(item, y, 'storage', item.type);
+        y += 78;
+      });
+    }
+  }
+
+  createEnhanceItemRow(item, y, location, slotLabel) {
+    const tierColors = ['#888', '#8f8', '#88f', '#f8f', '#ff8', '#f88'];
+    const color = tierColors[(item.tier || 1) - 1] || '#fff';
+
+    // Item background
+    const bg = this.add.rectangle(400, y, 700, 62, 0x333333, 0.8);
+    this.contentGroup.add(bg);
+
+    // Item label
+    const typeLabel = (slotLabel || item.type || 'item').toUpperCase();
+    const itemName = this.add.text(
+      150,
+      y - 14,
+      `[${typeLabel}] ${item.name}`,
+      {
+        fontSize: '16px',
+        fill: color,
+        fontStyle: 'bold',
+      },
+    );
+    this.contentGroup.add(itemName);
+
+    const currentLevel = item.upgradeLevel || 0;
+    const maxLevel = item.maxUpgradeLevel || 5;
+    const upgradeInfo = this.add.text(
+      150,
+      y + 10,
+      `Upgrade ${currentLevel}/${maxLevel}`,
+      {
+        fontSize: '14px',
+        fill: '#aaa',
+      },
+    );
+    this.contentGroup.add(upgradeInfo);
+
+    const canUpgrade = currentLevel < maxLevel;
+
+    if (canUpgrade) {
+      const cost = this.getEnhanceCost(item);
+      const costText = this.add.text(
+        420,
+        y + 10,
+        `+1 (${cost.coins}g${
+          cost.materialAmount > 0
+            ? ` + ${cost.materialAmount}x T${cost.materialTier} mats`
+            : ''
+        })`,
+        {
+          fontSize: '14px',
+          fill: '#f0f',
+        },
+      );
+      this.contentGroup.add(costText);
+
+      const upgradeBtn = this.add.text(640, y - 8, 'UPGRADE', {
+        fontSize: '14px',
+        fill: '#0f0',
+        backgroundColor: '#444',
+        padding: { x: 10, y: 6 },
+      }).setInteractive();
+      this.contentGroup.add(upgradeBtn);
+
+      upgradeBtn.on('pointerdown', () => {
+        this.upgradeItem(item, location);
+      });
+    } else {
+      const maxText = this.add.text(640, y, 'MAX LEVEL', {
+        fontSize: '14px',
+        fill: '#f88',
+        fontStyle: 'bold',
+        backgroundColor: '#444',
+        padding: { x: 10, y: 6 },
+      }).setOrigin(0.5);
+      this.contentGroup.add(maxText);
+    }
+  }
+
+  getEnhanceCost(item) {
+    const tier = Math.max(1, item.tier || 1);
+    const nextLevel = (item.upgradeLevel || 0) + 1;
+
+    return {
+      coins: Math.floor(25 * tier * nextLevel),
+      materialTier: nextLevel === 5 ? tier : Math.max(0, tier - 1),
+      materialAmount: nextLevel === 5 ? tier : Math.max(0, tier - 1),
+    };
+  }
+
+  countMaterialsByTier(player, tier) {
+    if (!tier) return 999;
+    const allItems = [...(player.inventory || []), ...(player.storage || [])];
+    return allItems.filter((item) =>
+      item.type === 'crafting_material' && item.tier === tier
+    )
+      .length;
+  }
+
+  consumeMaterialsByTier(player, tier, amount) {
+    if (!tier || amount <= 0) return;
+
+    const consumeFrom = (containerName) => {
+      const container = player[containerName] || [];
+      for (let i = container.length - 1; i >= 0 && amount > 0; i--) {
+        const item = container[i];
+        if (item.type === 'crafting_material' && item.tier === tier) {
+          container.splice(i, 1);
+          amount--;
+        }
+      }
+    };
+
+    consumeFrom('storage');
+    if (amount > 0) consumeFrom('inventory');
+  }
+
+  createPurchaseTab() {
+    if (this.contentGroup) this.contentGroup.clear(true, true);
+    this.contentGroup = this.add.group();
+
+    // Gray overlay
+    const overlay = this.add.rectangle(400, 300, 600, 300, 0x000000, 0.7);
+    this.contentGroup.add(overlay);
+
+    // Coming Soon text
+    const comingSoon = this.add.text(400, 250, '🔧 COMING SOON 🔧', {
+      fontSize: '48px',
+      fill: '#ff0',
+      fontStyle: 'bold',
+    }).setOrigin(0.5);
+    this.contentGroup.add(comingSoon);
+
+    const subText = this.add.text(400, 320, 'Purchase items with gold', {
+      fontSize: '24px',
+      fill: '#fff',
+    }).setOrigin(0.5);
+    this.contentGroup.add(subText);
+
+    const descText = this.add.text(
+      400,
+      360,
+      'Future shop for buying gear and materials',
+      {
+        fontSize: '18px',
+        fill: '#aaa',
+      },
+    ).setOrigin(0.5);
+    this.contentGroup.add(descText);
+
+    const futureText = this.add.text(
+      400,
+      400,
+      'Check back in future updates!',
+      {
+        fontSize: '20px',
+        fill: '#f0f',
+        fontStyle: 'italic',
+      },
+    ).setOrigin(0.5);
+    this.contentGroup.add(futureText);
+  }
+
+  calculateTotalStats(player) {
+    const base = {
+      atk: player.atk || 10,
+      def: player.def || 5,
+      luck: player.luck || 0,
+      maxHP: player.maxHP || 100,
+    };
+
+    const eq = player.equipment || {};
+
+    if (eq.weapon?.stats) {
+      base.atk += eq.weapon.stats.atkBonus || 0;
+      base.luck += eq.weapon.stats.luckBonus || 0;
+    }
+
+    if (eq.armor?.stats) {
+      base.def += eq.armor.stats.defBonus || 0;
+      base.maxHP += eq.armor.stats.hpBonus || 0;
+      base.luck += eq.armor.stats.luckBonus || 0;
+    }
+
+    if (eq.accessory?.stats) {
+      base.luck += eq.accessory.stats.luckBonus || 0;
+      base.maxHP += eq.accessory.stats.hpBonus || 0;
+    }
+
+    return base;
+  }
+
+  getItemStatsPreview(item) {
+    if (!item || !item.stats) return 'No stats';
+
+    const parts = [];
+    if (item.stats.atkBonus) parts.push(`ATK+${item.stats.atkBonus}`);
+    if (item.stats.defBonus) parts.push(`DEF+${item.stats.defBonus}`);
+    if (item.stats.hpBonus) parts.push(`HP+${item.stats.hpBonus}`);
+    if (item.stats.luckBonus) {
+      parts.push(`LCK+${Math.floor(item.stats.luckBonus * 100)}%`);
+    }
+    if (item.stats.expBonus) {
+      parts.push(`EXP+${Math.floor(item.stats.expBonus * 100)}%`);
+    }
+    if (item.stats.goldBonus) {
+      parts.push(`GLD+${Math.floor(item.stats.goldBonus * 100)}%`);
+    }
+    return parts.join(' ') || 'No stats';
+  }
+
+  equipItem(item) {
+    const player = globalThis.gameState.player;
+    const type = item.type;
+
+    // Auto-unequip current item of same type
+    if (player.equipment[type]) {
+      // Move current equipped item to bag
+      if (!player.inventory) player.inventory = [];
+      player.inventory.push(player.equipment[type]);
+    }
+
+    // Equip new item
+    player.equipment[type] = item;
+
+    // Remove from original location
+    if (item.location === 'bag') {
+      player.inventory = player.inventory.filter((i) => i.id !== item.id);
+    } else if (item.location === 'storage') {
+      player.storage = player.storage.filter((i) => i.id !== item.id);
+    }
+
+    // Refresh scene
+    this.scene.restart();
+  }
+
+  unequipItem(slot) {
+    const player = globalThis.gameState.player;
+
+    if (player.equipment[slot]) {
+      if (!player.inventory) player.inventory = [];
+      player.inventory.push(player.equipment[slot]);
+      player.equipment[slot] = null;
+    }
+
+    this.scene.restart();
+  }
+
+  upgradeItem(item, location) {
+    // Check if can upgrade
+    if (item.upgradeLevel >= (item.maxUpgradeLevel || 5)) {
+      console.log('Item already at max level');
+      return;
+    }
+
+    const player = globalThis.gameState.player;
+    const cost = this.getEnhanceCost(item);
+
+    if ((player.gold || 0) < cost.coins) {
+      console.log('Not enough gold for upgrade');
+      return;
+    }
+
+    if (cost.materialAmount > 0) {
+      const available = this.countMaterialsByTier(player, cost.materialTier);
+      if (available < cost.materialAmount) {
+        console.log('Not enough materials for upgrade');
+        return;
+      }
+    }
+
+    player.gold -= cost.coins;
+    this.consumeMaterialsByTier(player, cost.materialTier, cost.materialAmount);
+
+    // Increment upgrade level
+    item.upgradeLevel = (item.upgradeLevel || 0) + 1;
+
+    // Update stats based on new upgrade level
+    // This would need proper stat recalculation based on your formula
+    // For now, just a simple boost
+    if (item.stats.atkBonus) {
+      item.stats.atkBonus = Math.floor(item.stats.atkBonus * 1.1);
+    }
+    if (item.stats.defBonus) {
+      item.stats.defBonus = Math.floor(item.stats.defBonus * 1.1);
+    }
+    if (item.stats.hpBonus) {
+      item.stats.hpBonus = Math.floor(item.stats.hpBonus * 1.1);
+    }
+    if (item.stats.luckBonus) {
+      item.stats.luckBonus = item.stats.luckBonus * 1.1;
+    }
+
+    // Update item value
+    item.value = Math.floor(item.value * 1.2);
+
+    console.log('Item upgraded:', item);
+
+    // Refresh scene
+    this.scene.restart();
   }
 }
 
