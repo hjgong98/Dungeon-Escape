@@ -8,8 +8,15 @@ class Instructions extends Phaser.Scene {
   }
 
   create() {
-    this.background = this.add.image(0, 0, 'background').setOrigin(0, 0);
-    this.background.setDisplaySize(800, 600);
+    const { width, height } = this.scale;
+    const bgImage = this.textures.get('background').getSourceImage();
+    const bgScale = height / bgImage.height;
+
+    this.background = this.add.image(width / 2, 0, 'background').setOrigin(
+      0.5,
+      0,
+    );
+    this.background.setScale(bgScale);
 
     this.add.text(400, 80, 'INSTRUCTIONS', {
       fontSize: '48px',

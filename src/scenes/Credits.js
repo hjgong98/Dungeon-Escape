@@ -9,8 +9,15 @@ class Credits extends Phaser.Scene {
 
   create() {
     // menu background
-    this.background = this.add.image(0, 0, 'background').setOrigin(0, 0);
-    this.background.setDisplaySize(800, 600);
+    const { width, height } = this.scale;
+    const bgImage = this.textures.get('background').getSourceImage();
+    const bgScale = height / bgImage.height;
+
+    this.background = this.add.image(width / 2, 0, 'background').setOrigin(
+      0.5,
+      0,
+    );
+    this.background.setScale(bgScale);
 
     // Scene title
     this.add.text(400, 80, 'CREDITS', {

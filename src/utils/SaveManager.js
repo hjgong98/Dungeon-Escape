@@ -250,7 +250,7 @@ class SaveManager {
       selectedSpriteId: playerData.selectedSpriteId || defaultSpriteId,
       maxInventory: playerData.maxInventory || playerData.bagSlots || 20,
       bagSlots: playerData.bagSlots || playerData.maxInventory || 20,
-      storageSlots: playerData.storageSlots || 20,
+      storageSlots: Math.max(40, Number(playerData.storageSlots) || 0),
       inventory: Array.isArray(playerData.inventory)
         ? playerData.inventory
         : [],
@@ -404,7 +404,7 @@ class SaveManager {
         globalThis.getPlayerSpriteOption?.().id || 'owlet',
       maxInventory: base?.maxInventory || base?.bagSlots || 20,
       bagSlots: base?.bagSlots || base?.maxInventory || 20,
-      storageSlots: base?.storageSlots || 20,
+      storageSlots: Math.max(40, Number(base?.storageSlots) || 0),
       inventory: Array.isArray(base?.inventory) ? base.inventory : [],
       storage: Array.isArray(base?.storage) ? base.storage : [],
       equipment: base?.equipment || {

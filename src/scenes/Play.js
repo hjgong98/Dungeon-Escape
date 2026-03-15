@@ -10,7 +10,7 @@ class Play extends Phaser.Scene {
   }
 
   preload() {
-    this.load.image('playBackground', './assets/character.png');
+    this.load.image('playBackground', './assets/forest2.png');
 
     this.getPlayerSpriteOptions().forEach((option) => {
       const textureKey = this.getIdleTextureKey(option.id);
@@ -29,10 +29,6 @@ class Play extends Phaser.Scene {
     // Background
     this.background = this.add.image(0, 0, 'playBackground').setOrigin(0, 0);
     this.background.setDisplaySize(800, 600);
-
-    // vertical divider line
-    const divider = this.add.line(400, 0, 0, 0, 0, 600, 0xffffff, 0.5);
-    divider.setLineWidth(2);
 
     // left half 0 - 400px
     this.createLeftHalf();
@@ -57,26 +53,6 @@ class Play extends Phaser.Scene {
     this.playerNameText.on('pointerdown', () => {
       this.startNameEditing();
     });
-
-    const selectedOption = this.getSelectedPlayerSpriteOption();
-    const playerPreview = this.add.sprite(
-      200,
-      220,
-      this.getIdleTextureKey(selectedOption.id),
-      0,
-    );
-    playerPreview.setDisplaySize(96, 96);
-    playerPreview.setInteractive({ useHandCursor: true });
-    playerPreview.on('pointerdown', () => {
-      this.openSpritePicker();
-    });
-    this.playerPreview = playerPreview;
-    this.refreshPlayerPreview();
-
-    this.add.text(200, 275, 'Click sprite to change', {
-      fontSize: '11px',
-      fill: '#bbb',
-    }).setOrigin(0.5);
 
     // back to menu
     const backButton = this.add.text(100, 550, '← BACK TO MENU', {
@@ -113,41 +89,61 @@ class Play extends Phaser.Scene {
     });
 
     // Player stats display
-    this.add.text(100, 320, 'STATS:', {
+    this.add.text(100, 150, 'STATS:', {
       fontSize: '18px',
       fill: '#fff',
       fontStyle: 'bold',
     });
 
-    this.add.text(100, 350, `Level: ${player.level}`, {
+    this.add.text(100, 180, `Level: ${player.level}`, {
       fontSize: '16px',
       fill: '#fff',
     });
 
-    this.add.text(100, 375, `HP: ${player.hp}/${player.maxHP}`, {
+    this.add.text(100, 205, `HP: ${player.hp}/${player.maxHP}`, {
       fontSize: '16px',
       fill: '#f00',
     });
 
-    this.add.text(100, 400, `ATK: ${player.atk}`, {
+    this.add.text(100, 230, `ATK: ${player.atk}`, {
       fontSize: '16px',
       fill: '#ff0',
     });
 
-    this.add.text(100, 425, `DEF: ${player.def}`, {
+    this.add.text(100, 255, `DEF: ${player.def}`, {
       fontSize: '16px',
       fill: '#0ff',
     });
 
     // EXP bar
     const expPercent = Phaser.Math.Clamp(player.exp / player.expToNext, 0, 1);
-    this.add.rectangle(100, 480, expPercent * 200, 15, 0x00ff00).setOrigin(
+    this.add.rectangle(100, 290, expPercent * 200, 15, 0x00ff00).setOrigin(
       0,
       0.5,
     );
-    this.add.text(200, 505, `${player.exp}/${player.expToNext} EXP`, {
+    this.add.text(200, 315, `${player.exp}/${player.expToNext} EXP`, {
       fontSize: '12px',
       fill: '#aaa',
+    }).setOrigin(0.5);
+
+    const selectedOption = this.getSelectedPlayerSpriteOption();
+    const playerPreview = this.add.sprite(
+      200,
+      410,
+      this.getIdleTextureKey(selectedOption.id),
+      0,
+    );
+    playerPreview.setDisplaySize(96, 96);
+    playerPreview.setInteractive({ useHandCursor: true });
+    playerPreview.on('pointerdown', () => {
+      this.openSpritePicker();
+    });
+    this.playerPreview = playerPreview;
+    this.refreshPlayerPreview();
+
+    this.add.text(200, 468, 'Click sprite to change', {
+      fontSize: '11px',
+      fill: '#bbb',
     }).setOrigin(0.5);
   }
 

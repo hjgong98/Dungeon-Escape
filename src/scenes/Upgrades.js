@@ -15,16 +15,20 @@ class Upgrades extends Phaser.Scene {
   }
 
   preload() {
-    this.load.image('upgradesBackground', '/assets/game_background_3.1.png');
+    this.load.image('upgradesBackground', '/assets/forest2.png');
   }
 
   create() {
     // Background
+    const { width, height } = this.scale;
     const bgKey = this.textures.exists('upgradesBackground')
       ? 'upgradesBackground'
       : 'background';
-    this.background = this.add.image(0, 0, bgKey).setOrigin(0, 0);
-    this.background.setDisplaySize(800, 600);
+    const bgImage = this.textures.get(bgKey).getSourceImage();
+    const bgScale = height / bgImage.height;
+
+    this.background = this.add.image(width / 2, 0, bgKey).setOrigin(0.5, 0);
+    this.background.setScale(bgScale);
 
     // Title and gold
     this.add.text(400, 40, 'UPGRADES STATION', {

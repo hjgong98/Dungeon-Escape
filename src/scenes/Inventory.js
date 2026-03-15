@@ -26,13 +26,21 @@ class Inventory extends Phaser.Scene {
   }
 
   preload() {
-    this.load.image('background', './assets/game_background_3.1.png');
+    this.load.image('inventoryBackground', './assets/forest2.png');
   }
 
   create() {
     // Background
-    this.background = this.add.image(0, 0, 'background').setOrigin(0, 0);
-    this.background.setDisplaySize(800, 600);
+    const { width, height } = this.scale;
+    const bgImage = this.textures.get('inventoryBackground').getSourceImage();
+    const bgScale = height / bgImage.height;
+
+    this.background = this.add.image(width / 2, 0, 'inventoryBackground')
+      .setOrigin(
+        0.5,
+        0,
+      );
+    this.background.setScale(bgScale);
 
     // Title and gold
     this.add.text(400, 40, 'INVENTORY', {
@@ -468,7 +476,9 @@ class Inventory extends Phaser.Scene {
         : 20;
     }
     if (typeof player.storageSlots !== 'number') {
-      player.storageSlots = 20;
+      player.storageSlots = 40;
+    } else {
+      player.storageSlots = Math.max(40, player.storageSlots);
     }
     player.maxInventory = player.bagSlots;
   }
@@ -480,7 +490,7 @@ class Inventory extends Phaser.Scene {
 
   getStorageCapacity() {
     const player = globalThis.gameState.player;
-    return typeof player.storageSlots === 'number' ? player.storageSlots : 20;
+    return typeof player.storageSlots === 'number' ? player.storageSlots : 40;
   }
 
   getItemStacks(items) {

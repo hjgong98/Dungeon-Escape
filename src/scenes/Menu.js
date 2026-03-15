@@ -4,13 +4,20 @@ class Menu extends Phaser.Scene {
   }
 
   preload() {
-    this.load.image('background', './assets/game_background_3.1.png');
+    this.load.image('background', './assets/Clouds 3.png');
   }
 
   create() {
     // Menu background
-    this.background = this.add.image(0, 0, 'background').setOrigin(0, 0);
-    this.background.setDisplaySize(800, 600);
+    const { width, height } = this.scale;
+    const bgImage = this.textures.get('background').getSourceImage();
+    const bgScale = height / bgImage.height;
+
+    this.background = this.add.image(width / 2, 0, 'background').setOrigin(
+      0.5,
+      0,
+    );
+    this.background.setScale(bgScale);
 
     // Title
     this.add.text(400, 80, 'DUNGEON ESCAPE', {
@@ -58,7 +65,7 @@ class Menu extends Phaser.Scene {
         selectedSpriteId: globalThis.getPlayerSpriteOption?.().id || 'owlet',
         maxInventory: 20,
         bagSlots: 20,
-        storageSlots: 20,
+        storageSlots: 40,
         inventory: [
           {
             id: 'starter_sword',
