@@ -12,7 +12,8 @@ class Inventory extends Phaser.Scene {
     this.detailGroup = null;
   }
 
-  init() {
+  init(data = {}) {
+    this.returnScene = data.returnScene || null;
     this.selectedItem = null;
     this.selectedLocation = null;
     this.selectedIndex = null;
@@ -69,7 +70,12 @@ class Inventory extends Phaser.Scene {
     }).setInteractive();
 
     backButton.on('pointerdown', () => {
-      this.scene.start('Play');
+      if (this.returnScene) {
+        this.scene.wake(this.returnScene);
+        this.scene.stop();
+      } else {
+        this.scene.start('Play');
+      }
     });
   }
 

@@ -61,6 +61,10 @@ class Dungeons extends Phaser.Scene {
     this.openEdgeLineColor = this.floorTileColor;
     this.playerCollisionRadius = 8;
     this.monsterCollisionRadius = 7;
+    this.monsterHitPushback = 12;
+    this.discardUIActive = false;
+    this.discardUIPending = [];
+    this.discardUIElements = [];
   }
 
   create() {
@@ -458,10 +462,10 @@ class Dungeons extends Phaser.Scene {
         this.worldToWorldY(startRoom.startPos.y) + size / 2,
         'ENTRANCE',
         {
-          fontSize: '12px',
+          fontSize: '10px',
           fill: '#0f0',
           backgroundColor: '#000',
-          padding: { x: 3, y: 2 },
+          padding: { x: 2, y: 2 },
         },
       );
       entranceText.setOrigin(0.5);
@@ -1024,6 +1028,9 @@ class Dungeons extends Phaser.Scene {
             this.alertAllMonstersFromTrap();
           }
         });
+        lootbox.on('lootboxOverflow', (overflowItems) => {
+          this.showDiscardUI(overflowItems);
+        });
       }
 
       this.lootboxes.push(lootbox);
@@ -1080,6 +1087,11 @@ class Dungeons extends Phaser.Scene {
       return;
     }
 
+    if (this.discardUIActive) {
+      this.syncLantern();
+      return;
+    }
+
     let dx = 0;
     let dy = 0;
 
@@ -1133,9 +1145,9 @@ class Dungeons extends Phaser.Scene {
       this.scene.start('Play');
     }
 
-    // Testing purposes only, comment out for live game
     if (Phaser.Input.Keyboard.JustDown(this.keys.r)) {
-      this.scene.start('Play');
+      this.scene.launch('Inventory', { returnScene: 'Dungeons' });
+      this.scene.sleep();
     }
 
     this.syncLantern();
@@ -1190,6 +1202,342 @@ class Dungeons extends Phaser.Scene {
       this.floorBounds.minY + radius,
       this.floorBounds.minY + this.floorBounds.height - radius,
     );
+  }
+
+  getPlayerCombatProfile() {
+    const playerData = globalThis.gameState?.player || {};
+    const baseLevel = Math.max(1, Number(playerData.level) || 1);
+    const baseHp = Math.max(0, Number(playerData.hp) || 0);
+    const baseMaxHp = Math.max(
+      1,
+      Number(playerData.maxHP ?? playerData.maxHp) || 100,
+    );
+    const equipment = playerData.equipment || {};
+    const profile = {
+      level: baseLevel,
+      hp: baseHp,
+      maxHp: baseMaxHp,
+      atk: Math.max(1, Number(playerData.atk) || 10),
+      def: Math.max(0, Number(playerData.def) || 5),
+      luck: Math.max(0, Number(playerData.luck) || 0),
+    };
+
+    if (equipment.weapon?.stats) {
+      profile.atk += equipment.weapon.stats.atkBonus || 0;
+      profile.luck += equipment.weapon.stats.luckBonus || 0;
+    }
+
+    if (equipment.armor?.stats) {
+      profile.def += equipment.armor.stats.defBonus || 0;
+      profile.maxHp += equipment.armor.stats.hpBonus || 0;
+      profile.luck += equipment.armor.stats.luckBonus || 0;
+    }
+
+    if (equipment.accessory?.stats) {
+      profile.atk += equipment.accessory.stats.atkBonus || 0;
+      profile.def += equipment.accessory.stats.defBonus || 0;
+      profile.maxHp += equipment.accessory.stats.hpBonus || 0;
+      profile.luck += equipment.accessory.stats.luckBonus || 0;
+    }
+
+    profile.hp = Math.min(profile.maxHp, profile.hp);
+    profile.dodgeChance = Math.min(0.25, 0.02 + profile.luck * 0.005);
+
+    return profile;
+  }
+
+  syncPlayerCombatProfile(profile) {
+    const playerData = globalThis.gameState?.player;
+    if (!playerData || !profile) {
+      return;
+    }
+
+    playerData.hp = profile.hp;
+    playerData.maxHP = profile.maxHp;
+    if ('maxHp' in playerData) {
+      playerData.maxHp = profile.maxHp;
+    }
+  }
+
+  resolveCombatDamage(incomingDamage, defense) {
+    return Math.max(1, Math.floor(incomingDamage) - Math.max(0, defense));
+  }
+
+  rollPlayerDodge(playerProfile) {
+    return Math.random() < (playerProfile?.dodgeChance || 0);
+  }
+
+  cleanupDefeatedEnemy(enemy) {
+    if (!enemy) {
+      return;
+    }
+
+    enemy.isCollidingWithPlayer = false;
+    enemy.path = [];
+    enemy.pathTargetKey = null;
+
+    if (enemy.sprite) {
+      enemy.sprite.destroy();
+    }
+
+    this.enemies = this.enemies.filter((candidate) => candidate !== enemy);
+    if (this.monsterController) {
+      this.monsterController.enemies = this.enemies;
+    }
+  }
+
+  showFloatingDamage(x, y, amount, dodged) {
+    const label = dodged ? 'DODGE!' : `-${amount}`;
+    const color = dodged ? '#fff' : '#ff4444';
+    const text = this.add.text(x, y - 6, label, {
+      fontSize: '5px',
+      fill: color,
+      stroke: '#000',
+      strokeThickness: 1,
+    }).setOrigin(0.5).setDepth(2000);
+
+    this.tweens.add({
+      targets: text,
+      y: y - 18,
+      alpha: 0,
+      duration: 700,
+      ease: 'Quad.easeOut',
+      onComplete: () => text.destroy(),
+    });
+  }
+
+  handlePlayerMonsterContact(enemy, normalX, normalY) {
+    const playerProfile = this.getPlayerCombatProfile();
+    const playerDamage = Math.max(1, Math.floor(playerProfile.atk));
+    const didPlayerDodge = this.rollPlayerDodge(playerProfile);
+
+    enemy.hp = Math.max(0, (enemy.hp || 0) - playerDamage);
+    this.showFloatingDamage(
+      enemy.sprite.x,
+      enemy.sprite.y,
+      playerDamage,
+      false,
+    );
+
+    if (!didPlayerDodge) {
+      const monsterDamage = this.resolveCombatDamage(
+        enemy.atk || 0,
+        playerProfile.def,
+      );
+      playerProfile.hp = Math.max(0, playerProfile.hp - monsterDamage);
+      this.showFloatingDamage(
+        this.player.x,
+        this.player.y,
+        monsterDamage,
+        false,
+      );
+    } else {
+      this.showFloatingDamage(this.player.x, this.player.y, 0, true);
+    }
+
+    this.syncPlayerCombatProfile(playerProfile);
+
+    const knockbackDistance = this.monsterHitPushback;
+    this.moveEntityWithCollisions(
+      enemy.sprite,
+      enemy.sprite.x - normalX * knockbackDistance,
+      enemy.sprite.y - normalY * knockbackDistance,
+      {
+        radius: this.monsterCollisionRadius,
+        blockByPlayer: false,
+        blockByEnemies: true,
+        ignoreEnemyId: enemy.id,
+      },
+    );
+
+    if (enemy.hp <= 0) {
+      this.cleanupDefeatedEnemy(enemy);
+    }
+  }
+
+  showDiscardUI(overflowItems) {
+    if (this.discardUIActive) {
+      this.discardUIPending.push(...overflowItems);
+      this._buildDiscardUI();
+      return;
+    }
+    this.discardUIActive = true;
+    this.discardUIPending = [...overflowItems];
+    this.discardUIElements = [];
+    this._buildDiscardUI();
+  }
+
+  _buildDiscardUI() {
+    (this.discardUIElements || []).forEach((el) => el.destroy());
+    this.discardUIElements = [];
+
+    const player = globalThis.gameState.player;
+    const pending = this.discardUIPending;
+    const bag = player.inventory || [];
+    const bagCap = typeof player.bagSlots === 'number'
+      ? player.bagSlots
+      : (typeof player.maxInventory === 'number' ? player.maxInventory : 20);
+
+    const reg = (el, depth) => {
+      el.setScrollFactor(0).setDepth(depth ?? 3002);
+      this.discardUIElements.push(el);
+      return el;
+    };
+    const tierColor = (tier) =>
+      ['#888', '#8f8', '#88f', '#f8f', '#ff8', '#f88'][(tier || 1) - 1] ||
+      '#fff';
+
+    reg(this.add.rectangle(400, 300, 800, 600, 0x000000, 0.78), 3000);
+    reg(
+      this.add.rectangle(400, 305, 690, 415, 0x111111, 0.97)
+        .setStrokeStyle(2, 0x777777),
+      3001,
+    );
+    reg(this.add.rectangle(357, 305, 2, 390, 0x444444, 0.9), 3001);
+
+    reg(
+      this.add.text(400, 113, 'BAG FULL', {
+        fontSize: '20px',
+        fill: '#ff4444',
+        fontStyle: 'bold',
+      }).setOrigin(0.5),
+    );
+    const statusStr = pending.length === 0
+      ? 'All items collected!'
+      : `${pending.length} item(s) did not fit  -  drop bag items to make room, or skip to discard`;
+    reg(
+      this.add.text(400, 138, statusStr, {
+        fontSize: '10px',
+        fill: '#aaa',
+      }).setOrigin(0.5),
+    );
+
+    const rowH = 27;
+    const startY = 173;
+    const maxRows = 9;
+
+    reg(
+      this.add.text(205, 158, 'CHEST ITEMS', {
+        fontSize: '11px',
+        fill: '#ff0',
+        fontStyle: 'bold',
+      }).setOrigin(0.5),
+    );
+
+    pending.slice(0, maxRows).forEach((item, i) => {
+      const y = startY + i * rowH;
+      reg(
+        this.add.text(70, y, item.name || 'Unknown', {
+          fontSize: '10px',
+          fill: tierColor(item.tier),
+          fixedWidth: 215,
+        }).setOrigin(0, 0.5),
+      );
+      const skipBtn = reg(
+        this.add.text(320, y, 'SKIP', {
+          fontSize: '9px',
+          fill: '#ff8888',
+          backgroundColor: '#2a2a2a',
+          padding: { x: 5, y: 2 },
+        }).setOrigin(0.5).setInteractive(),
+      );
+      skipBtn.on('pointerdown', () => {
+        this.discardUIPending = this.discardUIPending.filter((x) => x !== item);
+        this._buildDiscardUI();
+      });
+    });
+    if (pending.length > maxRows) {
+      reg(
+        this.add.text(
+          205,
+          startY + maxRows * rowH,
+          `+${pending.length - maxRows} more`,
+          { fontSize: '9px', fill: '#888' },
+        ).setOrigin(0.5),
+      );
+    }
+
+    reg(
+      this.add.text(562, 155, `YOUR BAG  (${bag.length}/${bagCap})`, {
+        fontSize: '11px',
+        fill: '#ff0',
+        fontStyle: 'bold',
+      }).setOrigin(0.5),
+    );
+    reg(
+      this.add.text(562, 167, pending.length > 0 ? 'click item to drop' : '', {
+        fontSize: '9px',
+        fill: '#666',
+      }).setOrigin(0.5),
+    );
+
+    bag.slice(0, maxRows).forEach((item, i) => {
+      const y = startY + i * rowH;
+      const canDrop = pending.length > 0;
+      const row = reg(
+        this.add.rectangle(562, y, 305, 22, canDrop ? 0x2a2a2a : 0x1e1e1e, 0.9)
+          .setStrokeStyle(1, 0x3a3a3a).setInteractive(),
+      );
+      if (canDrop) {
+        row.on('pointerover', () => row.setFillStyle(0x3d3d3d, 0.9));
+        row.on('pointerout', () => row.setFillStyle(0x2a2a2a, 0.9));
+        row.on('pointerdown', () => {
+          const inv = globalThis.gameState.player.inventory || [];
+          const idx = inv.indexOf(item);
+          if (idx !== -1) inv.splice(idx, 1);
+          if (this.discardUIPending.length > 0) {
+            const next = this.discardUIPending.shift();
+            const addFn = globalThis.gameState.player.addItem;
+            if (typeof addFn === 'function') {
+              addFn.call(globalThis.gameState.player, next);
+            } else {
+              (globalThis.gameState.player.inventory || []).push(next);
+            }
+          }
+          this._buildDiscardUI();
+        });
+      }
+      reg(
+        this.add.text(416, y, item.name || 'Unknown', {
+          fontSize: '10px',
+          fill: canDrop ? tierColor(item.tier) : '#555',
+          fixedWidth: 282,
+          align: 'left',
+        }).setOrigin(0, 0.5),
+      );
+    });
+    if (bag.length > maxRows) {
+      reg(
+        this.add.text(
+          562,
+          startY + maxRows * rowH,
+          `+${bag.length - maxRows} more (open Inventory to manage)`,
+          { fontSize: '9px', fill: '#888' },
+        ).setOrigin(0.5),
+      );
+    }
+
+    const doneLabel = pending.length > 0
+      ? `DONE  (${pending.length} item${
+        pending.length !== 1 ? 's' : ''
+      } discarded)`
+      : 'DONE';
+    const doneBtn = reg(
+      this.add.text(400, 492, doneLabel, {
+        fontSize: '13px',
+        fill: pending.length > 0 ? '#ff8888' : '#88ff88',
+        backgroundColor: '#222',
+        padding: { x: 20, y: 7 },
+      }).setOrigin(0.5).setInteractive(),
+    );
+    doneBtn.on('pointerdown', () => this.closeDiscardUI());
+  }
+
+  closeDiscardUI() {
+    (this.discardUIElements || []).forEach((el) => el.destroy());
+    this.discardUIElements = [];
+    this.discardUIPending = [];
+    this.discardUIActive = false;
   }
 
   canEntityMoveTo(entity, worldX, worldY, options = {}) {
@@ -1260,8 +1608,11 @@ class Dungeons extends Phaser.Scene {
     }
 
     const minDist = this.playerCollisionRadius + this.monsterCollisionRadius;
+    // The movement system blocks overlap so the closest two entities can be is
+    // exactly minDist apart.  We treat "touching at that boundary" as contact.
+    const contactDist = minDist + 2;
 
-    this.enemies.forEach((enemy) => {
+    [...this.enemies].forEach((enemy) => {
       if (!enemy?.sprite || !enemy.sprite.visible) {
         return;
       }
@@ -1270,19 +1621,41 @@ class Dungeons extends Phaser.Scene {
       const dy = this.player.y - enemy.sprite.y;
       const dist = Math.hypot(dx, dy);
 
-      if (dist >= minDist || dist === 0) {
+      if (dist > contactDist) {
+        enemy.isCollidingWithPlayer = false;
         return;
       }
 
-      const overlap = minDist - dist;
-      const nx = dx / dist;
-      const ny = dy / dist;
+      const safeDist = dist || 0.0001;
+      const nx = dx / safeDist;
+      const ny = dy / safeDist;
+
+      if (!enemy.isCollidingWithPlayer) {
+        enemy.isCollidingWithPlayer = true;
+        this.handlePlayerMonsterContact(enemy, nx, ny);
+
+        if (!enemy?.sprite || !enemy.sprite.visible) {
+          return;
+        }
+      }
+
+      const postDx = this.player.x - enemy.sprite.x;
+      const postDy = this.player.y - enemy.sprite.y;
+      const postDist = Math.hypot(postDx, postDy) || safeDist;
+      const overlap = minDist - postDist;
+
+      if (overlap <= 0) {
+        return;
+      }
+
+      const pushNx = postDx / postDist;
+      const pushNy = postDy / postDist;
       const push = overlap * 0.5;
 
       this.moveEntityWithCollisions(
         this.player,
-        this.player.x + nx * push,
-        this.player.y + ny * push,
+        this.player.x + pushNx * push,
+        this.player.y + pushNy * push,
         {
           radius: this.playerCollisionRadius,
           blockByPlayer: false,
@@ -1292,8 +1665,8 @@ class Dungeons extends Phaser.Scene {
 
       this.moveEntityWithCollisions(
         enemy.sprite,
-        enemy.sprite.x - nx * push,
-        enemy.sprite.y - ny * push,
+        enemy.sprite.x - pushNx * push,
+        enemy.sprite.y - pushNy * push,
         {
           radius: this.monsterCollisionRadius,
           blockByPlayer: true,
@@ -1588,12 +1961,12 @@ class Dungeons extends Phaser.Scene {
           this.entrancePrompt = this.add.text(
             this.player.x,
             this.player.y - 30,
-            'ENTRANCE: \nPress Q to leave',
+            'Press Q to leave',
             {
-              fontSize: '14px',
+              fontSize: '10px',
               fill: '#0f0',
               backgroundColor: '#000',
-              padding: { x: 6, y: 3 },
+              padding: { x: 4, y: 2 },
             },
           );
           this.entrancePrompt.setOrigin(0.5);

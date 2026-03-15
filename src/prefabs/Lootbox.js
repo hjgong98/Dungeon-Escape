@@ -29,18 +29,34 @@ class Lootbox extends Phaser.GameObjects.Rectangle {
     }
 
     const items = this.generateItems();
+    const player = globalThis.gameState?.player;
+    const addItem = player?.addItem;
 
-    const addItem = globalThis.gameState?.player?.addItem;
-    if (typeof addItem === 'function') {
-      items.forEach((item) => {
-        addItem.call(globalThis.gameState.player, item);
-      });
-    } else {
+    if (typeof addItem !== 'function') {
       console.warn('Lootbox opened without a valid player.addItem handler.');
+      this.showLootResults(items);
+      this.emit('lootboxOpened', items);
+      return;
     }
 
-    this.showLootResults(items);
-    this.emit('lootboxOpened', items);
+    const bagCap = typeof player.bagSlots === 'number'
+      ? player.bagSlots
+      : (typeof player.maxInventory === 'number' ? player.maxInventory : 20);
+    const currentCount = Array.isArray(player.inventory)
+      ? player.inventory.length
+      : 0;
+    const freeSlots = Math.max(0, bagCap - currentCount);
+
+    const fittingItems = items.slice(0, freeSlots);
+    const overflowItems = items.slice(freeSlots);
+
+    fittingItems.forEach((item) => addItem.call(player, item));
+    this.showLootResults(fittingItems);
+    this.emit('lootboxOpened', fittingItems);
+
+    if (overflowItems.length > 0) {
+      this.emit('lootboxOverflow', overflowItems);
+    }
   }
 
   showTrapMessage() {

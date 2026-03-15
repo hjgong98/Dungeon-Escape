@@ -18,6 +18,17 @@ class DungeonMonsterController {
     this.globalAggro = Boolean(options.globalAggro);
   }
 
+  createEnemyCombatStats(playerLevel = 1) {
+    const safeLevel = Math.max(1, Number(playerLevel) || 1);
+
+    return {
+      level: safeLevel,
+      maxHp: 20 + (safeLevel - 1) * 12,
+      hp: 20 + (safeLevel - 1) * 12,
+      atk: 4 + (safeLevel - 1) * 3,
+    };
+  }
+
   setGlobalAggro(enabled) {
     this.globalAggro = Boolean(enabled);
     this.enemies.forEach((enemy) => {
@@ -28,6 +39,7 @@ class DungeonMonsterController {
 
   createForFloor(floor) {
     this.destroy();
+    const playerLevel = this.scene.getPlayerCombatProfile().level;
 
     floor.rooms.forEach((room) => {
       (room.enemies || []).forEach((enemyData, index) => {
@@ -38,6 +50,8 @@ class DungeonMonsterController {
         );
         sprite.setDepth(19);
 
+        const combatStats = this.createEnemyCombatStats(playerLevel);
+
         this.enemies.push({
           id: enemyData.id || `${room.id}-enemy-${index}`,
           roomId: room.id,
@@ -47,6 +61,11 @@ class DungeonMonsterController {
           wanderTargetTile: { x: enemyData.x, y: enemyData.y },
           path: [],
           pathTargetKey: null,
+          level: combatStats.level,
+          hp: combatStats.hp,
+          maxHp: combatStats.maxHp,
+          atk: combatStats.atk,
+          isCollidingWithPlayer: false,
         });
       });
     });
