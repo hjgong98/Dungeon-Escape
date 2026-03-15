@@ -437,46 +437,107 @@ class Upgrades extends Phaser.Scene {
     if (this.contentGroup) this.contentGroup.clear(true, true);
     this.contentGroup = this.add.group();
 
+    const player = globalThis.gameState.player;
+    const stats = this.calculateTotalStats(player);
+    const potionCost = 10;
+    const isFullyHealed = (player.hp || 0) >= (stats.maxHP || 100);
+    const canAffordPotion = (player.gold || 0) >= potionCost;
+
     // Gray overlay
     const overlay = this.add.rectangle(400, 300, 600, 300, 0x000000, 0.7);
     this.contentGroup.add(overlay);
 
-    // Coming Soon text
-    const comingSoon = this.add.text(400, 250, '🔧 COMING SOON 🔧', {
-      fontSize: '48px',
+    const title = this.add.text(400, 215, 'PURCHASE SUPPLIES', {
+      fontSize: '30px',
       fill: '#ff0',
       fontStyle: 'bold',
     }).setOrigin(0.5);
-    this.contentGroup.add(comingSoon);
+    this.contentGroup.add(title);
 
-    const subText = this.add.text(400, 320, 'Purchase items with gold', {
+    const potionPanel = this.add.rectangle(400, 335, 430, 150, 0x1f1f1f, 0.95)
+      .setStrokeStyle(2, 0x666666);
+    this.contentGroup.add(potionPanel);
+
+    const potionTitle = this.add.text(400, 290, 'HEALTH POTION', {
       fontSize: '24px',
-      fill: '#fff',
+      fill: '#ff6b6b',
+      fontStyle: 'bold',
     }).setOrigin(0.5);
-    this.contentGroup.add(subText);
+    this.contentGroup.add(potionTitle);
 
-    const descText = this.add.text(
+    const potionDesc = this.add.text(
       400,
-      360,
-      'Future shop for buying gear and materials',
+      325,
+      `Fully restores HP to ${stats.maxHP || 100}`,
       {
         fontSize: '18px',
+        fill: '#fff',
+      },
+    ).setOrigin(0.5);
+    this.contentGroup.add(potionDesc);
+
+    const hpStatus = this.add.text(
+      400,
+      355,
+      `Current HP: ${player.hp || 0}/${stats.maxHP || 100}`,
+      {
+        fontSize: '16px',
         fill: '#aaa',
       },
     ).setOrigin(0.5);
-    this.contentGroup.add(descText);
+    this.contentGroup.add(hpStatus);
 
-    const futureText = this.add.text(
-      400,
-      400,
-      'Check back in future updates!',
-      {
-        fontSize: '20px',
-        fill: '#f0f',
-        fontStyle: 'italic',
-      },
-    ).setOrigin(0.5);
-    this.contentGroup.add(futureText);
+    const potionCostText = this.add.text(400, 385, `Cost: ${potionCost} gold`, {
+      fontSize: '18px',
+      fill: '#ffd54a',
+    }).setOrigin(0.5);
+    this.contentGroup.add(potionCostText);
+
+    const buttonFill = canAffordPotion && !isFullyHealed ? '#0f0' : '#777';
+    const buyPotionBtn = this.add.text(400, 430, 'BUY POTION', {
+      fontSize: '18px',
+      fill: buttonFill,
+      backgroundColor: '#333',
+      padding: { x: 14, y: 6 },
+    }).setOrigin(0.5);
+    this.contentGroup.add(buyPotionBtn);
+
+    if (canAffordPotion && !isFullyHealed) {
+      buyPotionBtn.setInteractive();
+      buyPotionBtn.on('pointerdown', () => {
+        this.purchaseHealthPotion();
+      });
+    }
+
+    const statusMessage = isFullyHealed
+      ? 'You are already at full health.'
+      : (canAffordPotion
+        ? 'Restore to full before your next dungeon run.'
+        : 'Not enough gold.');
+    const statusColor = isFullyHealed
+      ? '#8f8'
+      : (canAffordPotion ? '#aaa' : '#f88');
+    const statusText = this.add.text(400, 470, statusMessage, {
+      fontSize: '15px',
+      fill: statusColor,
+    }).setOrigin(0.5);
+    this.contentGroup.add(statusText);
+  }
+
+  purchaseHealthPotion() {
+    const player = globalThis.gameState.player;
+    const potionCost = 10;
+    const stats = this.calculateTotalStats(player);
+    const maxHP = stats.maxHP || 100;
+
+    if ((player.gold || 0) < potionCost) {
+      return;
+    }
+
+    player.gold -= potionCost;
+    player.hp = maxHP;
+
+    this.scene.restart({ currentTab: 'purchase' });
   }
 
   calculateTotalStats(player) {
