@@ -91,6 +91,7 @@ class Dungeons extends Phaser.Scene {
     this.playerCollisionOffsetY = 4;
     this.monsterCollisionOffsetY = 5;
     this.monsterHitPushback = 12;
+    this.playerMonsterContactCooldown = 280;
     this.discardUIActive = false;
     this.discardUIPending = [];
     this.discardUIElements = [];
@@ -2470,8 +2471,10 @@ class Dungeons extends Phaser.Scene {
       const nx = dx / safeDist;
       const ny = dy / safeDist;
 
-      if (!enemy.isCollidingWithPlayer) {
-        enemy.isCollidingWithPlayer = true;
+      enemy.isCollidingWithPlayer = true;
+
+      if ((enemy.nextContactTime || 0) <= this.time.now) {
+        enemy.nextContactTime = this.time.now + this.playerMonsterContactCooldown;
         this.handlePlayerMonsterContact(enemy, nx, ny);
 
         if (!enemy?.sprite || !enemy.sprite.visible) {

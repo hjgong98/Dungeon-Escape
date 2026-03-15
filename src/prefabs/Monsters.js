@@ -71,6 +71,7 @@ class DungeonMonsterController {
           maxHp: combatStats.maxHp,
           atk: combatStats.atk,
           isCollidingWithPlayer: false,
+          nextContactTime: 0,
         });
       });
     });
