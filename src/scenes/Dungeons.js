@@ -62,6 +62,7 @@ class Dungeons extends Phaser.Scene {
     this.playerCollisionRadius = 8;
     this.monsterCollisionRadius = 7;
     this.monsterHitPushback = 12;
+    this.playerHitPushback = 6;
     this.discardUIActive = false;
     this.discardUIPending = [];
     this.discardUIElements = [];
@@ -1330,6 +1331,17 @@ class Dungeons extends Phaser.Scene {
         this.player.y,
         monsterDamage,
         false,
+      );
+
+      this.moveEntityWithCollisions(
+        this.player,
+        this.player.x + normalX * this.playerHitPushback,
+        this.player.y + normalY * this.playerHitPushback,
+        {
+          radius: this.playerCollisionRadius,
+          blockByPlayer: false,
+          blockByEnemies: true,
+        },
       );
     } else {
       this.showFloatingDamage(this.player.x, this.player.y, 0, true);
