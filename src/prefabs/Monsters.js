@@ -2,10 +2,11 @@
 // Provides a simple Monster prefab and a DungeonMonsterController used by
 // Dungeons scene for spawn/update/pathing behavior.
 
-class Monster extends Phaser.GameObjects.Arc {
-  constructor(scene, x, y, radius = 7, color = 0xb84dff) {
-    super(scene, x, y, radius, 0, 360, false, color);
+class Monster extends Phaser.GameObjects.Sprite {
+  constructor(scene, x, y) {
+    super(scene, x, y, scene.enemySpriteKey, 0);
     scene.add.existing(this);
+    this.setDisplaySize(scene.enemyDisplaySize, scene.enemyDisplaySize);
   }
 }
 
@@ -18,13 +19,14 @@ class DungeonMonsterController {
     this.globalAggro = Boolean(options.globalAggro);
   }
 
-  createEnemyCombatStats(playerLevel = 1) {
-    const safeLevel = Math.max(1, Number(playerLevel) || 1);
+  createEnemyCombatStats(playerProfile = {}) {
+    const safeLevel = Math.max(1, Number(playerProfile.level) || 1);
+    const baseMaxHp = 100 + (safeLevel - 1) * 18;
 
     return {
       level: safeLevel,
-      maxHp: 20 + (safeLevel - 1) * 12,
-      hp: 20 + (safeLevel - 1) * 12,
+      maxHp: baseMaxHp,
+      hp: baseMaxHp,
       atk: 4 + (safeLevel - 1) * 3,
     };
   }
@@ -39,7 +41,7 @@ class DungeonMonsterController {
 
   createForFloor(floor) {
     this.destroy();
-    const playerLevel = this.scene.getPlayerCombatProfile().level;
+    const playerProfile = this.scene.getPlayerCombatProfile();
 
     floor.rooms.forEach((room) => {
       (room.enemies || []).forEach((enemyData, index) => {
@@ -50,12 +52,14 @@ class DungeonMonsterController {
         );
         sprite.setDepth(19);
 
-        const combatStats = this.createEnemyCombatStats(playerLevel);
+        const combatStats = this.createEnemyCombatStats(playerProfile);
 
         this.enemies.push({
           id: enemyData.id || `${room.id}-enemy-${index}`,
           roomId: room.id,
           sprite,
+          facing: 'down',
+          hurtLockUntil: 0,
           homeTileX: enemyData.x,
           homeTileY: enemyData.y,
           wanderTargetTile: { x: enemyData.x, y: enemyData.y },
@@ -172,6 +176,7 @@ class DungeonMonsterController {
     }
 
     if (enemy.path.length === 0) {
+      this.updateEnemyVisual(enemy, 0, 0);
       return;
     }
 
@@ -182,6 +187,7 @@ class DungeonMonsterController {
       this.scene.tileSize / 2;
     const dx = targetX - enemy.sprite.x;
     const dy = targetY - enemy.sprite.y;
+    this.updateEnemyVisual(enemy, dx, dy);
     const distance = Math.hypot(dx, dy);
 
     if (distance <= speed) {
@@ -223,6 +229,7 @@ class DungeonMonsterController {
     }
 
     if (enemy.path.length === 0) {
+      this.updateEnemyVisual(enemy, 0, 0);
       return;
     }
 
@@ -233,6 +240,7 @@ class DungeonMonsterController {
       this.scene.tileSize / 2;
     const dx = targetX - enemy.sprite.x;
     const dy = targetY - enemy.sprite.y;
+    this.updateEnemyVisual(enemy, dx, dy);
     const distance = Math.hypot(dx, dy);
 
     if (distance <= speed) {
@@ -449,6 +457,65 @@ class DungeonMonsterController {
     });
 
     return neighbors;
+  }
+
+  updateEnemyVisual(enemy, dx, dy) {
+    if (!enemy?.sprite?.anims) {
+      return;
+    }
+
+    if (Math.abs(dy) > Math.abs(dx)) {
+      enemy.facing = dy < 0 ? 'up' : 'down';
+    } else if (Math.abs(dx) > 0) {
+      enemy.facing = dx < 0 ? 'left' : 'right';
+    }
+
+    if ((this.scene.time?.now || 0) < (enemy.hurtLockUntil || 0)) {
+      if (enemy.sprite.texture.key !== this.scene.enemyHurtSpriteKey) {
+        enemy.sprite.setTexture(this.scene.enemyHurtSpriteKey, 0);
+      }
+      const hurtAnimKey = this.scene.enemyHurtAnimKeys[enemy.facing] ||
+        this.scene.enemyHurtAnimKeys.down;
+      if (
+        enemy.sprite.anims.currentAnim?.key !== hurtAnimKey ||
+        !enemy.sprite.anims.isPlaying
+      ) {
+        enemy.sprite.play(hurtAnimKey);
+      }
+      return;
+    }
+
+    if (dx === 0 && dy === 0) {
+      enemy.sprite.anims.stop();
+      if (enemy.sprite.texture.key !== this.scene.enemySpriteKey) {
+        enemy.sprite.setTexture(this.scene.enemySpriteKey, 0);
+      }
+      enemy.sprite.setFrame(this.getEnemyIdleFrame(enemy.facing));
+      return;
+    }
+
+    if (enemy.sprite.texture.key !== this.scene.enemySpriteKey) {
+      enemy.sprite.setTexture(this.scene.enemySpriteKey, 0);
+    }
+    const animKey = this.scene.enemyWalkAnimKeys[enemy.facing] ||
+      this.scene.enemyWalkAnimKeys.down;
+    if (
+      enemy.sprite.anims.currentAnim?.key !== animKey ||
+      !enemy.sprite.anims.isPlaying
+    ) {
+      enemy.sprite.play(animKey);
+    }
+  }
+
+  getEnemyIdleFrame(direction) {
+    const idleFrames = {
+      down: 0,
+      up: 8,
+      left: 16,
+      right: 24,
+    };
+
+    return idleFrames[direction] ?? 0;
   }
 
   destroy() {

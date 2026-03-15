@@ -4,6 +4,30 @@ class Dungeons extends Phaser.Scene {
 
     this.player = null;
     this.playerSpeed = 0.75;
+    this.playerSpriteKey = 'player';
+    this.playerIdleSpriteKey = 'player-idle';
+    this.playerAttackSpriteKey = 'player-attack';
+    this.playerWalkAnimKey = 'player-walk';
+    this.playerIdleAnimKey = 'player-idle';
+    this.playerAttackAnimKey = 'player-attack';
+    this.playerFacing = 'right';
+    this.playerIdleCropTop = 2;
+    this.playerAttackLockUntil = 0;
+    this.enemySpriteKey = 'enemy';
+    this.enemyHurtSpriteKey = 'enemy-hurt';
+    this.enemyWalkAnimKeys = {
+      down: 'enemy-walk-down',
+      up: 'enemy-walk-up',
+      left: 'enemy-walk-left',
+      right: 'enemy-walk-right',
+    };
+    this.enemyHurtAnimKeys = {
+      down: 'enemy-hurt-down',
+      up: 'enemy-hurt-up',
+      left: 'enemy-hurt-left',
+      right: 'enemy-hurt-right',
+    };
+    this.enemyDisplaySize = 24;
     this.keys = {};
 
     this.dungeon = null;
@@ -54,22 +78,81 @@ class Dungeons extends Phaser.Scene {
     this.interactionRadius = 10;
     this.monstersAlerted = false;
     this.wallLineThickness = 2;
-    this.corridorWallLineThickness = 1;
+    this.corridorWallLineThickness = 2;
     this.floorTileColor = 0x444444;
     this.solidTileColor = 0x222222;
     this.wallLineColor = 0x111111;
     this.openEdgeLineColor = this.floorTileColor;
     this.playerCollisionRadius = 8;
-    this.monsterCollisionRadius = 7;
+    this.monsterCollisionRadius = 8;
     this.monsterHitPushback = 12;
     this.discardUIActive = false;
     this.discardUIPending = [];
     this.discardUIElements = [];
   }
 
+  preload() {
+    if (!this.textures.exists(this.playerSpriteKey)) {
+      this.load.spritesheet(
+        this.playerSpriteKey,
+        './assets/player/Owlet_Monster_Walk_6.png',
+        {
+          frameWidth: 32,
+          frameHeight: 32,
+        },
+      );
+    }
+
+    if (!this.textures.exists(this.playerIdleSpriteKey)) {
+      this.load.spritesheet(
+        this.playerIdleSpriteKey,
+        './assets/player/Owlet_Monster_Idle_4.png',
+        {
+          frameWidth: 32,
+          frameHeight: 32,
+        },
+      );
+    }
+
+    if (!this.textures.exists(this.playerAttackSpriteKey)) {
+      this.load.spritesheet(
+        this.playerAttackSpriteKey,
+        './assets/player/Owlet_Monster_Attack1_4.png',
+        {
+          frameWidth: 32,
+          frameHeight: 32,
+        },
+      );
+    }
+
+    if (!this.textures.exists(this.enemySpriteKey)) {
+      this.load.spritesheet(
+        this.enemySpriteKey,
+        './assets/player/Slime1_Walk_with_shadow.png',
+        {
+          frameWidth: 64,
+          frameHeight: 64,
+        },
+      );
+    }
+
+    if (!this.textures.exists(this.enemyHurtSpriteKey)) {
+      this.load.spritesheet(
+        this.enemyHurtSpriteKey,
+        './assets/player/Slime1_Hurt_with_shadow.png',
+        {
+          frameWidth: 64,
+          frameHeight: 64,
+        },
+      );
+    }
+  }
+
   create() {
     this.resetForFreshDungeonRun();
     this.ensureLanternMaskTexture();
+    this.ensurePlayerAnimation();
+    this.ensureEnemyAnimation();
 
     this.monsterController = new DungeonMonsterController(this, {
       wanderSpeed: this.enemyWanderSpeed,
@@ -93,6 +176,87 @@ class Dungeons extends Phaser.Scene {
 
     this.cameras.main.startFollow(this.player);
     this.cameras.main.setZoom(4);
+  }
+
+  ensurePlayerAnimation() {
+    if (!this.anims.exists(this.playerWalkAnimKey)) {
+      this.anims.create({
+        key: this.playerWalkAnimKey,
+        frames: this.anims.generateFrameNumbers(this.playerSpriteKey, {
+          start: 0,
+          end: 5,
+        }),
+        frameRate: 10,
+        repeat: -1,
+      });
+    }
+
+    if (!this.anims.exists(this.playerIdleAnimKey)) {
+      this.anims.create({
+        key: this.playerIdleAnimKey,
+        frames: this.anims.generateFrameNumbers(this.playerIdleSpriteKey, {
+          start: 0,
+          end: 3,
+        }),
+        frameRate: 6,
+        repeat: -1,
+      });
+    }
+
+    if (!this.anims.exists(this.playerAttackAnimKey)) {
+      this.anims.create({
+        key: this.playerAttackAnimKey,
+        frames: this.anims.generateFrameNumbers(this.playerAttackSpriteKey, {
+          start: 0,
+          end: 3,
+        }),
+        frameRate: 14,
+        repeat: 0,
+      });
+    }
+  }
+
+  ensureEnemyAnimation() {
+    const rows = {
+      down: 0,
+      up: 1,
+      left: 2,
+      right: 3,
+    };
+
+    Object.entries(this.enemyWalkAnimKeys).forEach(([direction, key]) => {
+      if (this.anims.exists(key)) {
+        return;
+      }
+
+      const row = rows[direction];
+      this.anims.create({
+        key,
+        frames: this.anims.generateFrameNumbers(this.enemySpriteKey, {
+          start: row * 8,
+          end: row * 8 + 7,
+        }),
+        frameRate: 12,
+        repeat: -1,
+      });
+    });
+
+    Object.entries(this.enemyHurtAnimKeys).forEach(([direction, key]) => {
+      if (this.anims.exists(key)) {
+        return;
+      }
+
+      const row = rows[direction];
+      this.anims.create({
+        key,
+        frames: this.anims.generateFrameNumbers(this.enemyHurtSpriteKey, {
+          start: row * 5,
+          end: row * 5 + 4,
+        }),
+        frameRate: 14,
+        repeat: 0,
+      });
+    });
   }
 
   loadFloor(floorNum) {
@@ -228,15 +392,16 @@ class Dungeons extends Phaser.Scene {
     this.cameras.main.setBackgroundColor('#050505');
     const wallSegments = [];
     const openSegments = [];
+    const corridorTileSet = new Set(
+      floor.corridorTiles.map((tile) => `${tile.x},${tile.y}`),
+    );
 
     floor.rooms.forEach((room) => {
       this.queueRoomOutline(
         wallSegments,
-        this.worldToWorldX(room.x),
-        this.worldToWorldY(room.y),
-        room.w * size,
-        room.h * size,
-        this.wallLineColor,
+        room,
+        size,
+        corridorTileSet,
       );
 
       for (let y = 0; y < room.h; y++) {
@@ -308,9 +473,6 @@ class Dungeons extends Phaser.Scene {
       this.graphics.fillRect(wx, wy, size, size);
     });
 
-    const corridorTileSet = new Set(
-      floor.corridorTiles.map((tile) => `${tile.x},${tile.y}`),
-    );
     const corridorDrawnEdges = new Set();
 
     floor.corridorTiles.forEach((tile) => {
@@ -473,40 +635,185 @@ class Dungeons extends Phaser.Scene {
     }
   }
 
-  queueRoomOutline(segments, x, y, width, height, color) {
-    this.queueEdgeSegment(
+  queueRoomOutline(segments, room, size, corridorTileSet) {
+    const color = this.wallLineColor;
+    const slots = this.getRoomBoundaryOpenSlots(room, corridorTileSet);
+
+    this.queueBoundarySegments(
       segments,
-      x,
-      y,
-      x + width,
-      y,
+      room,
+      size,
+      'top',
+      slots.top || [],
       color,
-      this.wallLineThickness,
     );
-    this.queueEdgeSegment(
+    this.queueBoundarySegments(
       segments,
-      x + width,
-      y,
-      x + width,
-      y + height,
+      room,
+      size,
+      'right',
+      slots.right || [],
       color,
-      this.wallLineThickness,
     );
-    this.queueEdgeSegment(
+    this.queueBoundarySegments(
       segments,
-      x,
-      y + height,
-      x + width,
-      y + height,
+      room,
+      size,
+      'bottom',
+      slots.bottom || [],
       color,
-      this.wallLineThickness,
     );
+    this.queueBoundarySegments(
+      segments,
+      room,
+      size,
+      'left',
+      slots.left || [],
+      color,
+    );
+  }
+
+  getRoomBoundaryOpenSlots(room, corridorTileSet) {
+    const slots = {
+      top: [],
+      right: [],
+      bottom: [],
+      left: [],
+    };
+
+    for (let x = 0; x < room.w; x++) {
+      const topTileX = room.x + x;
+      const topTileY = room.y;
+      if (
+        room.maze[0]?.[x]?.type === 'floor' &&
+        corridorTileSet.has(`${topTileX},${topTileY - 1}`) &&
+        this.isRoomDoorTransition(room, topTileX, topTileY, topTileX, topTileY - 1)
+      ) {
+        slots.top.push(x);
+      }
+
+      const bottomTileX = room.x + x;
+      const bottomTileY = room.y + room.h - 1;
+      if (
+        room.maze[room.h - 1]?.[x]?.type === 'floor' &&
+        corridorTileSet.has(`${bottomTileX},${bottomTileY + 1}`) &&
+        this.isRoomDoorTransition(
+          room,
+          bottomTileX,
+          bottomTileY,
+          bottomTileX,
+          bottomTileY + 1,
+        )
+      ) {
+        slots.bottom.push(x);
+      }
+    }
+
+    for (let y = 0; y < room.h; y++) {
+      const leftTileX = room.x;
+      const leftTileY = room.y + y;
+      if (
+        room.maze[y]?.[0]?.type === 'floor' &&
+        corridorTileSet.has(`${leftTileX - 1},${leftTileY}`) &&
+        this.isRoomDoorTransition(room, leftTileX, leftTileY, leftTileX - 1, leftTileY)
+      ) {
+        slots.left.push(y);
+      }
+
+      const rightTileX = room.x + room.w - 1;
+      const rightTileY = room.y + y;
+      if (
+        room.maze[y]?.[room.w - 1]?.type === 'floor' &&
+        corridorTileSet.has(`${rightTileX + 1},${rightTileY}`) &&
+        this.isRoomDoorTransition(
+          room,
+          rightTileX,
+          rightTileY,
+          rightTileX + 1,
+          rightTileY,
+        )
+      ) {
+        slots.right.push(y);
+      }
+    }
+
+    return slots;
+  }
+
+  queueBoundarySegments(segments, room, size, side, openSlots, color) {
+    const limit = side === 'top' || side === 'bottom' ? room.w : room.h;
+    const slotSet = new Set(openSlots);
+    let runStart = null;
+
+    for (let i = 0; i <= limit; i++) {
+      const isOpen = i < limit && slotSet.has(i);
+      if (!isOpen && runStart === null) {
+        runStart = i;
+      }
+
+      if ((isOpen || i === limit) && runStart !== null) {
+        if (runStart !== i) {
+          this.queueRoomBoundaryRun(
+            segments,
+            room,
+            size,
+            side,
+            runStart,
+            i,
+            color,
+          );
+        }
+        runStart = null;
+      }
+    }
+  }
+
+  queueRoomBoundaryRun(segments, room, size, side, start, end, color) {
+    if (side === 'top') {
+      this.queueEdgeSegment(
+        segments,
+        this.worldToWorldX(room.x + start),
+        this.worldToWorldY(room.y),
+        this.worldToWorldX(room.x + end),
+        this.worldToWorldY(room.y),
+        color,
+        this.wallLineThickness,
+      );
+      return;
+    }
+
+    if (side === 'bottom') {
+      this.queueEdgeSegment(
+        segments,
+        this.worldToWorldX(room.x + start),
+        this.worldToWorldY(room.y + room.h),
+        this.worldToWorldX(room.x + end),
+        this.worldToWorldY(room.y + room.h),
+        color,
+        this.wallLineThickness,
+      );
+      return;
+    }
+
+    if (side === 'left') {
+      this.queueEdgeSegment(
+        segments,
+        this.worldToWorldX(room.x),
+        this.worldToWorldY(room.y + start),
+        this.worldToWorldX(room.x),
+        this.worldToWorldY(room.y + end),
+        color,
+        this.wallLineThickness,
+      );
+      return;
+    }
+
     this.queueEdgeSegment(
       segments,
-      x,
-      y,
-      x,
-      y + height,
+      this.worldToWorldX(room.x + room.w),
+      this.worldToWorldY(room.y + start),
+      this.worldToWorldX(room.x + room.w),
+      this.worldToWorldY(room.y + end),
       color,
       this.wallLineThickness,
     );
@@ -665,6 +972,11 @@ class Dungeons extends Phaser.Scene {
           segments[i].thickness || 1,
           segments[j].thickness || 1,
         );
+        const directions = new Set([
+          ...(existing?.directions || []),
+          ...this.getSegmentDirectionsAtPoint(segments[i], point),
+          ...this.getSegmentDirectionsAtPoint(segments[j], point),
+        ]);
         connectionPoints.set(
           key,
           existing
@@ -672,13 +984,43 @@ class Dungeons extends Phaser.Scene {
               x: point.x,
               y: point.y,
               thickness: Math.max(existing.thickness, thickness),
+              directions,
             }
-            : { x: point.x, y: point.y, thickness },
+            : { x: point.x, y: point.y, thickness, directions },
         );
       }
     }
 
-    return [...connectionPoints.values()];
+    return [...connectionPoints.values()].filter(
+      (point) => point.directions?.size >= 3,
+    );
+  }
+
+  getSegmentDirectionsAtPoint(segment, point) {
+    const directions = [];
+
+    if (segment.x1 === segment.x2) {
+      const minY = Math.min(segment.y1, segment.y2);
+      const maxY = Math.max(segment.y1, segment.y2);
+      if (point.y > minY) {
+        directions.push('up');
+      }
+      if (point.y < maxY) {
+        directions.push('down');
+      }
+      return directions;
+    }
+
+    const minX = Math.min(segment.x1, segment.x2);
+    const maxX = Math.max(segment.x1, segment.x2);
+    if (point.x > minX) {
+      directions.push('left');
+    }
+    if (point.x < maxX) {
+      directions.push('right');
+    }
+
+    return directions;
   }
 
   getWallSegmentConnectionPoint(segmentA, segmentB) {
@@ -939,12 +1281,13 @@ class Dungeons extends Phaser.Scene {
       const startRoom = floor.rooms.find((room) => room.isStart);
       const spawnTile = startRoom?.startPos || this.findAnyFloorTile(floor);
 
-      this.player = this.add.circle(
+      this.player = this.add.sprite(
         this.worldToWorldX(spawnTile.x) + this.tileSize / 2,
         this.worldToWorldY(spawnTile.y) + this.tileSize / 2,
-        8,
-        0x00ff00,
+        this.playerSpriteKey,
+        0,
       );
+      this.player.setDisplaySize(17, 17);
     } else {
       const targetDir = this.lastStairDir === 'down' ? 'up' : 'down';
       const stair = floor.stairs.find((candidate) =>
@@ -958,7 +1301,89 @@ class Dungeons extends Phaser.Scene {
       );
     }
 
+    this.applyPlayerFacing(this.playerFacing);
+    this.player.setCrop();
     this.player.setDepth(1002);
+  }
+
+  updatePlayerVisual(dx, dy) {
+    if (!this.player?.anims) {
+      return;
+    }
+
+    if (dx < 0 || (dx === 0 && dy < 0)) {
+      this.playerFacing = 'left';
+    } else if (dx > 0 || (dx === 0 && dy > 0)) {
+      this.playerFacing = 'right';
+    }
+
+    this.applyPlayerFacing(this.playerFacing);
+
+    if (this.time.now < this.playerAttackLockUntil) {
+      if (this.player.texture.key !== this.playerAttackSpriteKey) {
+        this.player.setTexture(this.playerAttackSpriteKey, 0);
+      }
+      this.player.setCrop();
+      if (
+        this.player.anims.currentAnim?.key !== this.playerAttackAnimKey ||
+        !this.player.anims.isPlaying
+      ) {
+        this.player.play(this.playerAttackAnimKey);
+      }
+      return;
+    }
+
+    if (dx === 0 && dy === 0) {
+      if (this.player.texture.key !== this.playerIdleSpriteKey) {
+        this.player.setTexture(this.playerIdleSpriteKey, 0);
+      }
+      this.player.setCrop(
+        0,
+        this.playerIdleCropTop,
+        32,
+        32 - this.playerIdleCropTop,
+      );
+      if (
+        this.player.anims.currentAnim?.key !== this.playerIdleAnimKey ||
+        !this.player.anims.isPlaying
+      ) {
+        this.player.play(this.playerIdleAnimKey);
+      }
+      return;
+    }
+
+    if (this.player.texture.key !== this.playerSpriteKey) {
+      this.player.setTexture(this.playerSpriteKey, 0);
+    }
+    this.player.setCrop();
+    if (
+      this.player.anims.currentAnim?.key !== this.playerWalkAnimKey ||
+      !this.player.anims.isPlaying
+    ) {
+      this.player.play(this.playerWalkAnimKey);
+    }
+  }
+
+  applyPlayerFacing(direction) {
+    if (!this.player) {
+      return;
+    }
+
+    this.player.setFlipX(direction === 'left');
+  }
+
+  playPlayerAttackAnimation() {
+    if (!this.player) {
+      return;
+    }
+
+    this.playerAttackLockUntil = this.time.now + 280;
+    if (this.player.texture.key !== this.playerAttackSpriteKey) {
+      this.player.setTexture(this.playerAttackSpriteKey, 0);
+    }
+    this.player.setCrop();
+    this.applyPlayerFacing(this.playerFacing);
+    this.player.play(this.playerAttackAnimKey, true);
   }
 
   findAnyFloorTile(floor) {
@@ -1111,6 +1536,8 @@ class Dungeons extends Phaser.Scene {
 
       this.movePlayerWithCollisions(newX, newY);
     }
+
+    this.updatePlayerVisual(dx, dy);
 
     this.player.x = Phaser.Math.Clamp(
       this.player.x,
@@ -1311,6 +1738,9 @@ class Dungeons extends Phaser.Scene {
     const playerDamage = Math.max(1, Math.floor(playerProfile.atk));
     const didPlayerDodge = this.rollPlayerDodge(playerProfile);
 
+    this.playPlayerAttackAnimation();
+    this.playEnemyHurtAnimation(enemy);
+
     enemy.hp = Math.max(0, (enemy.hp || 0) - playerDamage);
     this.showFloatingDamage(
       enemy.sprite.x,
@@ -1353,6 +1783,18 @@ class Dungeons extends Phaser.Scene {
     if (enemy.hp <= 0) {
       this.cleanupDefeatedEnemy(enemy);
     }
+  }
+
+  playEnemyHurtAnimation(enemy) {
+    if (!enemy?.sprite) {
+      return;
+    }
+
+    enemy.hurtLockUntil = this.time.now + 260;
+    enemy.sprite.setTexture(this.enemyHurtSpriteKey, 0);
+    const animKey = this.enemyHurtAnimKeys[enemy.facing] ||
+      this.enemyHurtAnimKeys.down;
+    enemy.sprite.play(animKey, true);
   }
 
   showDiscardUI(overflowItems) {
@@ -1559,6 +2001,10 @@ class Dungeons extends Phaser.Scene {
 
     const radius = options.radius || this.playerCollisionRadius;
 
+    if (!this.isCircleWithinWalkableArea(worldX, worldY, radius)) {
+      return false;
+    }
+
     if (options.blockByPlayer && this.player && entity !== this.player) {
       const minDist = radius + this.playerCollisionRadius;
       if (
@@ -1600,6 +2046,79 @@ class Dungeons extends Phaser.Scene {
     }
 
     return true;
+  }
+
+  isCircleWithinWalkableArea(worldX, worldY, radius) {
+    const centerTileX = this.worldToTileX(worldX);
+    const centerTileY = this.worldToTileY(worldY);
+    const diagonal = radius * 0.7071;
+    const samplePoints = [
+      { x: worldX, y: worldY },
+      { x: worldX - radius, y: worldY },
+      { x: worldX + radius, y: worldY },
+      { x: worldX, y: worldY - radius },
+      { x: worldX, y: worldY + radius },
+      { x: worldX - diagonal, y: worldY - diagonal },
+      { x: worldX + diagonal, y: worldY - diagonal },
+      { x: worldX - diagonal, y: worldY + diagonal },
+      { x: worldX + diagonal, y: worldY + diagonal },
+    ];
+
+    return samplePoints.every((point) =>
+      this.isPointWalkableFromTile(point.x, point.y, centerTileX, centerTileY)
+    );
+  }
+
+  isPointWalkableFromTile(worldX, worldY, originTileX, originTileY) {
+    const tileX = this.worldToTileX(worldX);
+    const tileY = this.worldToTileY(worldY);
+
+    if (!this.walkableTiles.has(`${tileX},${tileY}`)) {
+      return false;
+    }
+
+    const dx = tileX - originTileX;
+    const dy = tileY - originTileY;
+
+    if (dx === 0 && dy === 0) {
+      return true;
+    }
+
+    if (Math.abs(dx) + Math.abs(dy) === 1) {
+      return this.canTraverseTileEdge(originTileX, originTileY, tileX, tileY);
+    }
+
+    if (Math.abs(dx) === 1 && Math.abs(dy) === 1) {
+      return (
+        this.canTraverseTileEdge(
+          originTileX,
+          originTileY,
+          originTileX + dx,
+          originTileY,
+        ) &&
+        this.canTraverseTileEdge(
+          originTileX + dx,
+          originTileY,
+          tileX,
+          tileY,
+        )
+      ) || (
+        this.canTraverseTileEdge(
+          originTileX,
+          originTileY,
+          originTileX,
+          originTileY + dy,
+        ) &&
+        this.canTraverseTileEdge(
+          originTileX,
+          originTileY + dy,
+          tileX,
+          tileY,
+        )
+      );
+    }
+
+    return false;
   }
 
   resolvePlayerMonsterCollisions() {
