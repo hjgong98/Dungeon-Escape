@@ -1,7 +1,11 @@
 // Lootbox.js - Lootbox prefab
 class Lootbox extends Phaser.GameObjects.Sprite {
   constructor(scene, x, y, boxData) {
-    super(scene, x, y, scene.lootboxSpriteKey, 2);
+    const chestCol = Phaser.Math.Between(0, 8);
+    super(scene, x, y, scene.lootboxSpriteKey, chestCol);
+    this.chestCol = chestCol;
+    this.openAnimKey = `lootbox-open-${chestCol}`;
+    this.openedFrame = chestCol + 27;
     this.setDisplaySize(20, 20);
 
     this.boxData = boxData || {
@@ -38,11 +42,11 @@ class Lootbox extends Phaser.GameObjects.Sprite {
     }
 
     this.isOpening = true;
-    this.play(this.scene.lootboxOpenAnimKey);
+    this.play(this.openAnimKey);
     this.once(Phaser.Animations.Events.ANIMATION_COMPLETE, () => {
       this.isOpening = false;
       this.opened = true;
-      this.setFrame(29);
+      this.setFrame(this.openedFrame);
       this.finishOpening();
     });
   }
@@ -208,7 +212,12 @@ class Lootbox extends Phaser.GameObjects.Sprite {
   showLootResults(items) {
     const hudScene = this.scene.scene.get('DungeonHud');
     if (hudScene?.scene?.isActive()) {
-      hudScene.showLootResults(items, this.x, this.y, this.chestId || this.name || 'lootbox');
+      hudScene.showLootResults(
+        items,
+        this.x,
+        this.y,
+        this.chestId || this.name || 'lootbox',
+      );
       return;
     }
   }

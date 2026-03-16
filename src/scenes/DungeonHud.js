@@ -1,4 +1,14 @@
 class DungeonHud extends Phaser.Scene {
+  shutdown() {
+    // Hide or destroy all persistent UI elements
+    if (this.hpBarBg) this.hpBarBg.destroy();
+    if (this.hpBarFill) this.hpBarFill.destroy();
+    if (this.hpText) this.hpText.destroy();
+    if (this.interactionPrompt) this.interactionPrompt.destroy();
+    (this.activeLootMessages || []).forEach((msg) => msg.text?.destroy());
+    this.activeLootMessages = [];
+  }
+
   constructor() {
     super('DungeonHud');
 
@@ -35,6 +45,12 @@ class DungeonHud extends Phaser.Scene {
   }
 
   update() {
+    // HUD must only exist while the Dungeons scene is actively running.
+    if (!this.scene.isActive('Dungeons') || this.scene.isSleeping('Dungeons')) {
+      this.scene.stop();
+      return;
+    }
+
     this.refreshHp();
     this.updateLootMessages();
   }
@@ -99,7 +115,13 @@ class DungeonHud extends Phaser.Scene {
     });
   }
 
-  showFloatingGoldGain(amount, worldX, worldY, anchorKey = 'gold', stackIndex = 0) {
+  showFloatingGoldGain(
+    amount,
+    worldX,
+    worldY,
+    anchorKey = 'gold',
+    stackIndex = 0,
+  ) {
     this.showWorldMessage(
       `+${amount} gold`,
       '#ffd44d',
@@ -111,7 +133,13 @@ class DungeonHud extends Phaser.Scene {
     );
   }
 
-  showFloatingExpGain(amount, worldX, worldY, anchorKey = 'exp', stackIndex = 0) {
+  showFloatingExpGain(
+    amount,
+    worldX,
+    worldY,
+    anchorKey = 'exp',
+    stackIndex = 0,
+  ) {
     this.showWorldMessage(
       `+${amount} exp`,
       '#7dd3fc',
@@ -202,6 +230,20 @@ class DungeonHud extends Phaser.Scene {
       screenX,
       screenY - 42 - message.stackIndex * 16 + (message.driftY || 0),
     );
+  }
+
+  // Phaser lifecycle: called when scene is stopped
+  onShutdown() {
+    this.shutdown();
+  }
+  onDestroy() {
+    this.shutdown();
+  }
+
+  // Phaser v3 event hooks
+  init() {
+    this.events.on('shutdown', this.onShutdown, this);
+    this.events.on('destroy', this.onDestroy, this);
   }
 }
 

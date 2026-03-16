@@ -532,11 +532,16 @@ class Upgrades extends Phaser.Scene {
     }).setOrigin(0, 0.5);
     this.contentGroup.add(statusText);
 
-    const materialsTitle = this.add.text(400, 294, 'ALL EQUIPMENT UPGRADE MATERIALS', {
-      fontSize: '18px',
-      fill: '#0ff',
-      fontStyle: 'bold',
-    }).setOrigin(0.5);
+    const materialsTitle = this.add.text(
+      400,
+      294,
+      'ALL EQUIPMENT UPGRADE MATERIALS',
+      {
+        fontSize: '18px',
+        fill: '#0ff',
+        fontStyle: 'bold',
+      },
+    ).setOrigin(0.5);
     this.contentGroup.add(materialsTitle);
 
     const materialsHint = this.add.text(
@@ -560,7 +565,14 @@ class Upgrades extends Phaser.Scene {
       const tierColors = ['#888', '#8f8', '#88f', '#f8f', '#ff8', '#f88'];
       const tierColor = tierColors[tier - 1] || '#fff';
 
-      const materialPanel = this.add.rectangle(panelX, panelY, 180, 72, 0x1f1f1f, 0.95)
+      const materialPanel = this.add.rectangle(
+        panelX,
+        panelY,
+        180,
+        72,
+        0x1f1f1f,
+        0.95,
+      )
         .setStrokeStyle(2, 0x555555);
       this.contentGroup.add(materialPanel);
 

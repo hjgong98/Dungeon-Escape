@@ -26,9 +26,16 @@ class Credits extends Phaser.Scene {
       fontStyle: 'bold',
     }).setOrigin(0.5);
 
-    // add credits - character.png and download.gif from mini-moss.tumblr.com/
-    // game background png from https://craftpix.net/freebies/free-horizontal-2d-game-backgrounds/
+    // character.png and download.gif from mini-moss.tumblr.com/
     // lootbox.py from https://github.com/TristanChenUCSC/Lootbox-Generator
+    // sounds from https://pixabay.com/
+    // chest png from https://pixelserial.itch.io/rpg-pixel-art-chests
+    // background pngs from : https://craftpix.net/freebies/free-autumn-pixel-backgrounds-for-game/
+    //                        https://craftpix.net/freebies/free-sky-with-clouds-background-pixel-art-set/
+    //                        https://craftpix.net/freebies/forest-and-trees-free-pixel-backgrounds/
+    //                        https://craftpix.net/freebies/free-horizontal-2d-game-backgrounds/
+    // hero sprites from https://craftpix.net/freebies/free-pixel-art-tiny-hero-sprites/
+    // monster sprites from https://craftpix.net/freebies/free-slime-mobs-pixel-art-top-down-sprite-pack/
 
     // Back button to menu
     const backButton = this.add.text(100, 550, '← BACK TO MENU', {

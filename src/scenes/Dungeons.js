@@ -141,43 +141,34 @@ class Dungeons extends Phaser.Scene {
       );
     }
 
-    if (!this.textures.exists(this.enemySpriteKey)) {
-      this.load.spritesheet(
-        this.enemySpriteKey,
-        './assets/player/Slime1_Walk_with_shadow.png',
-        {
+    (globalThis.MONSTER_VARIANTS || []).forEach((variant) => {
+      const walkKey = `enemy-${variant.id}-walk`;
+      const hurtKey = `enemy-${variant.id}-hurt`;
+      const deathKey = `enemy-${variant.id}-death`;
+      if (!this.textures.exists(walkKey)) {
+        this.load.spritesheet(walkKey, variant.walkPath, {
           frameWidth: 64,
           frameHeight: 64,
-        },
-      );
-    }
-
-    if (!this.textures.exists(this.enemyHurtSpriteKey)) {
-      this.load.spritesheet(
-        this.enemyHurtSpriteKey,
-        './assets/player/Slime1_Hurt_with_shadow.png',
-        {
+        });
+      }
+      if (!this.textures.exists(hurtKey)) {
+        this.load.spritesheet(hurtKey, variant.hurtPath, {
           frameWidth: 64,
           frameHeight: 64,
-        },
-      );
-    }
-
-    if (!this.textures.exists(this.enemyDeathSpriteKey)) {
-      this.load.spritesheet(
-        this.enemyDeathSpriteKey,
-        './assets/player/Slime1_Death_with_shadow.png',
-        {
+        });
+      }
+      if (!this.textures.exists(deathKey)) {
+        this.load.spritesheet(deathKey, variant.deathPath, {
           frameWidth: 64,
           frameHeight: 64,
-        },
-      );
-    }
+        });
+      }
+    });
 
     if (!this.textures.exists(this.lootboxSpriteKey)) {
       this.load.spritesheet(
         this.lootboxSpriteKey,
-        './assets/player/RPG Chests.png',
+        './assets/chest/RPG Chests.png',
         {
           frameWidth: 32,
           frameHeight: 32,
@@ -287,79 +278,74 @@ class Dungeons extends Phaser.Scene {
   }
 
   ensureEnemyAnimation() {
-    const rows = {
-      down: 0,
-      up: 1,
-      left: 2,
-      right: 3,
-    };
+    const rows = { down: 0, up: 1, left: 2, right: 3 };
+    const directions = ['down', 'up', 'left', 'right'];
 
-    Object.entries(this.enemyWalkAnimKeys).forEach(([direction, key]) => {
-      if (this.anims.exists(key)) {
-        return;
-      }
+    (globalThis.MONSTER_VARIANTS || []).forEach((variant) => {
+      const walkKey = `enemy-${variant.id}-walk`;
+      const hurtKey = `enemy-${variant.id}-hurt`;
+      const deathKey = `enemy-${variant.id}-death`;
 
-      const row = rows[direction];
-      this.anims.create({
-        key,
-        frames: this.anims.generateFrameNumbers(this.enemySpriteKey, {
-          start: row * 8,
-          end: row * 8 + 7,
-        }),
-        frameRate: 12,
-        repeat: -1,
-      });
-    });
+      directions.forEach((dir) => {
+        const row = rows[dir];
 
-    Object.entries(this.enemyHurtAnimKeys).forEach(([direction, key]) => {
-      if (this.anims.exists(key)) {
-        return;
-      }
+        const wKey = `${walkKey}-${dir}`;
+        if (!this.anims.exists(wKey)) {
+          this.anims.create({
+            key: wKey,
+            frames: this.anims.generateFrameNumbers(walkKey, {
+              start: row * 8,
+              end: row * 8 + 7,
+            }),
+            frameRate: 12,
+            repeat: -1,
+          });
+        }
 
-      const row = rows[direction];
-      this.anims.create({
-        key,
-        frames: this.anims.generateFrameNumbers(this.enemyHurtSpriteKey, {
-          start: row * 5,
-          end: row * 5 + 4,
-        }),
-        frameRate: 14,
-        repeat: 0,
-      });
-    });
+        const hKey = `${hurtKey}-${dir}`;
+        if (!this.anims.exists(hKey)) {
+          this.anims.create({
+            key: hKey,
+            frames: this.anims.generateFrameNumbers(hurtKey, {
+              start: row * 5,
+              end: row * 5 + 4,
+            }),
+            frameRate: 14,
+            repeat: 0,
+          });
+        }
 
-    Object.entries(this.enemyDeathAnimKeys).forEach(([direction, key]) => {
-      if (this.anims.exists(key)) {
-        return;
-      }
-
-      const row = rows[direction];
-      this.anims.create({
-        key,
-        frames: this.anims.generateFrameNumbers(this.enemyDeathSpriteKey, {
-          start: row * 10,
-          end: row * 10 + 9,
-        }),
-        frameRate: 12,
-        repeat: 0,
+        const dKey = `${deathKey}-${dir}`;
+        if (!this.anims.exists(dKey)) {
+          this.anims.create({
+            key: dKey,
+            frames: this.anims.generateFrameNumbers(deathKey, {
+              start: row * 10,
+              end: row * 10 + 9,
+            }),
+            frameRate: 12,
+            repeat: 0,
+          });
+        }
       });
     });
   }
 
   ensureLootboxAnimation() {
-    if (this.anims.exists(this.lootboxOpenAnimKey)) {
-      return;
+    for (let col = 0; col < 9; col++) {
+      const key = `lootbox-open-${col}`;
+      if (!this.anims.exists(key)) {
+        this.anims.create({
+          key,
+          frames: [col, col + 9, col + 18, col + 27].map((frame) => ({
+            key: this.lootboxSpriteKey,
+            frame,
+          })),
+          frameRate: 10,
+          repeat: 0,
+        });
+      }
     }
-
-    this.anims.create({
-      key: this.lootboxOpenAnimKey,
-      frames: [2, 11, 20, 29].map((frame) => ({
-        key: this.lootboxSpriteKey,
-        frame,
-      })),
-      frameRate: 10,
-      repeat: 0,
-    });
   }
 
   ensureDungeonHud() {
@@ -1723,8 +1709,20 @@ class Dungeons extends Phaser.Scene {
       player.gold = Math.max(0, Number(player.gold) || 0) + goldAward;
     }
 
-    this.showFloatingExpGain(enemy.sprite.x, enemy.sprite.y, expAward, enemy.id, 0);
-    this.showFloatingGoldGain(enemy.sprite.x, enemy.sprite.y, goldAward, enemy.id, 1);
+    this.showFloatingExpGain(
+      enemy.sprite.x,
+      enemy.sprite.y,
+      expAward,
+      enemy.id,
+      0,
+    );
+    this.showFloatingGoldGain(
+      enemy.sprite.x,
+      enemy.sprite.y,
+      goldAward,
+      enemy.id,
+      1,
+    );
 
     return { exp: expAward, gold: goldAward };
   }
@@ -1841,6 +1839,9 @@ class Dungeons extends Phaser.Scene {
       if (this.nearLootbox) {
         this.nearLootbox.open();
       } else if (this.nearExit) {
+        if (this.scene.isActive('DungeonHud')) {
+          this.scene.stop('DungeonHud');
+        }
         this.scene.start('Play');
       } else if (this.nearStair) {
         this.useStairs(this.nearStair);
@@ -1848,10 +1849,16 @@ class Dungeons extends Phaser.Scene {
     }
 
     if (Phaser.Input.Keyboard.JustDown(this.keys.q) && this.nearEntrance) {
+      if (this.scene.isActive('DungeonHud')) {
+        this.scene.stop('DungeonHud');
+      }
       this.scene.start('Play');
     }
 
     if (Phaser.Input.Keyboard.JustDown(this.keys.r)) {
+      if (this.scene.isActive('DungeonHud')) {
+        this.scene.stop('DungeonHud');
+      }
       this.scene.launch('Inventory', { returnScene: 'Dungeons' });
       this.scene.sleep();
     }
@@ -2016,6 +2023,9 @@ class Dungeons extends Phaser.Scene {
       }
     }
 
+    if (this.scene.isActive('DungeonHud')) {
+      this.scene.stop('DungeonHud');
+    }
     this.scene.start('Play');
   }
 
@@ -2138,9 +2148,10 @@ class Dungeons extends Phaser.Scene {
     }
 
     enemy.hurtLockUntil = this.time.now + 260;
-    enemy.sprite.setTexture(this.enemyHurtSpriteKey, 0);
-    const animKey = this.enemyHurtAnimKeys[enemy.facing] ||
-      this.enemyHurtAnimKeys.down;
+    const hurtSpriteKey = enemy.hurtSpriteKey || this.enemyHurtSpriteKey;
+    const hurtAnimKeys = enemy.hurtAnimKeys || this.enemyHurtAnimKeys;
+    enemy.sprite.setTexture(hurtSpriteKey, 0);
+    const animKey = hurtAnimKeys[enemy.facing] || hurtAnimKeys.down;
     enemy.sprite.play(animKey, true);
   }
 
@@ -2154,9 +2165,10 @@ class Dungeons extends Phaser.Scene {
     enemy.path = [];
     enemy.pathTargetKey = null;
     enemy.sprite.anims.stop();
-    enemy.sprite.setTexture(this.enemyDeathSpriteKey, 0);
-    const animKey = this.enemyDeathAnimKeys[enemy.facing] ||
-      this.enemyDeathAnimKeys.down;
+    const deathSpriteKey = enemy.deathSpriteKey || this.enemyDeathSpriteKey;
+    const deathAnimKeys = enemy.deathAnimKeys || this.enemyDeathAnimKeys;
+    enemy.sprite.setTexture(deathSpriteKey, 0);
+    const animKey = deathAnimKeys[enemy.facing] || deathAnimKeys.down;
     enemy.sprite.play(animKey, true);
     enemy.sprite.once(
       Phaser.Animations.Events.ANIMATION_COMPLETE,

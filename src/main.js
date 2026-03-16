@@ -42,6 +42,30 @@ const playerSpriteOptions = [
     idleFrameCount: 4,
     attackFrameCount: 4,
   },
+  {
+    id: 'dude',
+    name: 'Dude',
+    walkPath: './assets/player/Dude_Monster_Walk_6.png',
+    idlePath: './assets/player/Dude_Monster_Idle_4.png',
+    attackPath: './assets/player/Dude_Monster_Attack1_4.png',
+    frameWidth: 32,
+    frameHeight: 32,
+    walkFrameCount: 6,
+    idleFrameCount: 4,
+    attackFrameCount: 4,
+  },
+  {
+    id: 'pink',
+    name: 'Pink',
+    walkPath: './assets/player/Pink_Monster_Walk_6.png',
+    idlePath: './assets/player/Pink_Monster_Idle_4.png',
+    attackPath: './assets/player/Pink_Monster_Attack1_4.png',
+    frameWidth: 32,
+    frameHeight: 32,
+    walkFrameCount: 6,
+    idleFrameCount: 4,
+    attackFrameCount: 4,
+  },
 ];
 
 globalThis.PLAYER_SPRITE_OPTIONS = playerSpriteOptions;
@@ -49,6 +73,31 @@ globalThis.getPlayerSpriteOption = function getPlayerSpriteOption(id) {
   return playerSpriteOptions.find((option) => option.id === id) ||
     playerSpriteOptions[0];
 };
+
+const monsterVariants = [
+  {
+    id: 'slime1',
+    walkPath: './assets/slime/Slime1_Walk_with_shadow.png',
+    hurtPath: './assets/slime/Slime1_Hurt_with_shadow.png',
+    deathPath: './assets/slime/Slime1_Death_with_shadow.png',
+    displayScale: 0.8,
+  },
+  {
+    id: 'slime2',
+    walkPath: './assets/slime/Slime2_Walk_with_shadow.png',
+    hurtPath: './assets/slime/Slime2_Hurt_with_shadow.png',
+    deathPath: './assets/slime/Slime2_Death_with_shadow.png',
+    displayScale: 0.8,
+  },
+  {
+    id: 'slime3',
+    walkPath: './assets/slime/Slime3_Walk_with_shadow.png',
+    hurtPath: './assets/slime/Slime3_Hurt_with_shadow.png',
+    deathPath: './assets/slime/Slime3_Death_with_shadow.png',
+    displayScale: 0.8,
+  },
+];
+globalThis.MONSTER_VARIANTS = monsterVariants;
 
 // Game state
 const gameState = {

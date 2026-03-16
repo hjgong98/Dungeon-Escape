@@ -37,7 +37,10 @@ class DungeonMonsterController {
       level: safeLevel + floorDepth - 1,
       maxHp: baseMaxHp,
       hp: baseMaxHp,
-      atk: Math.max(1, Math.round(4 * playerLevelMultiplier * floorAtkMultiplier)),
+      atk: Math.max(
+        1,
+        Math.round(4 * playerLevelMultiplier * floorAtkMultiplier),
+      ),
     };
   }
 
@@ -55,11 +58,39 @@ class DungeonMonsterController {
 
     floor.rooms.forEach((room) => {
       (room.enemies || []).forEach((enemyData, index) => {
+        const variants = globalThis.MONSTER_VARIANTS || [];
+        const variant = variants.length > 0
+          ? variants[Math.floor(Math.random() * variants.length)]
+          : null;
+        const walkSpriteKey = variant
+          ? `enemy-${variant.id}-walk`
+          : this.scene.enemySpriteKey;
+        const hurtSpriteKey = variant
+          ? `enemy-${variant.id}-hurt`
+          : this.scene.enemyHurtSpriteKey;
+        const deathSpriteKey = variant
+          ? `enemy-${variant.id}-death`
+          : this.scene.enemyDeathSpriteKey;
+        const dirs = ['down', 'up', 'left', 'right'];
+        const walkAnimKeys = Object.fromEntries(
+          dirs.map((d) => [d, `${walkSpriteKey}-${d}`]),
+        );
+        const hurtAnimKeys = Object.fromEntries(
+          dirs.map((d) => [d, `${hurtSpriteKey}-${d}`]),
+        );
+        const deathAnimKeys = Object.fromEntries(
+          dirs.map((d) => [d, `${deathSpriteKey}-${d}`]),
+        );
+
         const sprite = new Monster(
           this.scene,
           this.scene.worldToWorldX(enemyData.x) + this.scene.tileSize / 2,
           this.scene.worldToWorldY(enemyData.y) + this.scene.tileSize / 2,
         );
+        const displayScale = variant?.displayScale ?? 1.0;
+        const displaySize = this.scene.enemyDisplaySize * displayScale;
+        sprite.setDisplaySize(displaySize, displaySize);
+        sprite.setTexture(walkSpriteKey, 0);
         sprite.setDepth(19);
 
         const combatStats = this.createEnemyCombatStats(playerProfile, floor);
@@ -69,6 +100,12 @@ class DungeonMonsterController {
           roomId: room.id,
           sprite,
           facing: 'down',
+          walkSpriteKey,
+          hurtSpriteKey,
+          deathSpriteKey,
+          walkAnimKeys,
+          hurtAnimKeys,
+          deathAnimKeys,
           hurtLockUntil: 0,
           homeTileX: enemyData.x,
           homeTileY: enemyData.y,
@@ -481,11 +518,14 @@ class DungeonMonsterController {
     }
 
     if (enemy.isDying) {
-      if (enemy.sprite.texture.key !== this.scene.enemyDeathSpriteKey) {
-        enemy.sprite.setTexture(this.scene.enemyDeathSpriteKey, 0);
+      const deathSpriteKey = enemy.deathSpriteKey ||
+        this.scene.enemyDeathSpriteKey;
+      const deathAnimKeys = enemy.deathAnimKeys ||
+        this.scene.enemyDeathAnimKeys;
+      if (enemy.sprite.texture.key !== deathSpriteKey) {
+        enemy.sprite.setTexture(deathSpriteKey, 0);
       }
-      const deathAnimKey = this.scene.enemyDeathAnimKeys[enemy.facing] ||
-        this.scene.enemyDeathAnimKeys.down;
+      const deathAnimKey = deathAnimKeys[enemy.facing] || deathAnimKeys.down;
       if (
         enemy.sprite.anims.currentAnim?.key !== deathAnimKey ||
         !enemy.sprite.anims.isPlaying
@@ -502,11 +542,13 @@ class DungeonMonsterController {
     }
 
     if ((this.scene.time?.now || 0) < (enemy.hurtLockUntil || 0)) {
-      if (enemy.sprite.texture.key !== this.scene.enemyHurtSpriteKey) {
-        enemy.sprite.setTexture(this.scene.enemyHurtSpriteKey, 0);
+      const hurtSpriteKey = enemy.hurtSpriteKey ||
+        this.scene.enemyHurtSpriteKey;
+      const hurtAnimKeys = enemy.hurtAnimKeys || this.scene.enemyHurtAnimKeys;
+      if (enemy.sprite.texture.key !== hurtSpriteKey) {
+        enemy.sprite.setTexture(hurtSpriteKey, 0);
       }
-      const hurtAnimKey = this.scene.enemyHurtAnimKeys[enemy.facing] ||
-        this.scene.enemyHurtAnimKeys.down;
+      const hurtAnimKey = hurtAnimKeys[enemy.facing] || hurtAnimKeys.down;
       if (
         enemy.sprite.anims.currentAnim?.key !== hurtAnimKey ||
         !enemy.sprite.anims.isPlaying
@@ -516,20 +558,22 @@ class DungeonMonsterController {
       return;
     }
 
+    const walkSpriteKey = enemy.walkSpriteKey || this.scene.enemySpriteKey;
+    const walkAnimKeys = enemy.walkAnimKeys || this.scene.enemyWalkAnimKeys;
+
     if (dx === 0 && dy === 0) {
       enemy.sprite.anims.stop();
-      if (enemy.sprite.texture.key !== this.scene.enemySpriteKey) {
-        enemy.sprite.setTexture(this.scene.enemySpriteKey, 0);
+      if (enemy.sprite.texture.key !== walkSpriteKey) {
+        enemy.sprite.setTexture(walkSpriteKey, 0);
       }
       enemy.sprite.setFrame(this.getEnemyIdleFrame(enemy.facing));
       return;
     }
 
-    if (enemy.sprite.texture.key !== this.scene.enemySpriteKey) {
-      enemy.sprite.setTexture(this.scene.enemySpriteKey, 0);
+    if (enemy.sprite.texture.key !== walkSpriteKey) {
+      enemy.sprite.setTexture(walkSpriteKey, 0);
     }
-    const animKey = this.scene.enemyWalkAnimKeys[enemy.facing] ||
-      this.scene.enemyWalkAnimKeys.down;
+    const animKey = walkAnimKeys[enemy.facing] || walkAnimKeys.down;
     if (
       enemy.sprite.anims.currentAnim?.key !== animKey ||
       !enemy.sprite.anims.isPlaying
