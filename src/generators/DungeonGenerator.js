@@ -682,7 +682,7 @@ function generateDungeon() {
     return ok || tiles[0];
   }
 
-  function pickEnemySpawnTile(room, blockedTiles) {
+  function pickEnemySpawnTile(room, blockedTiles, minDist = 4, hardMin = 2) {
     const blockedKeys = new Set(
       blockedTiles.map((tile) => `${tile.x},${tile.y}`),
     );
@@ -707,12 +707,19 @@ function generateDungeon() {
 
     const far = tiles.find((tile) =>
       blockedTiles.every((blockedTile) =>
-        Math.abs(tile.x - blockedTile.x) + Math.abs(tile.y - blockedTile.y) >= 4
+        Math.abs(tile.x - blockedTile.x) + Math.abs(tile.y - blockedTile.y) >=
+          minDist
       )
     );
     if (far) return far;
 
-    return tiles[0];
+    const ok = tiles.find((tile) =>
+      blockedTiles.every((blockedTile) =>
+        Math.abs(tile.x - blockedTile.x) + Math.abs(tile.y - blockedTile.y) >=
+          hardMin
+      )
+    );
+    return ok || null;
   }
 
   function pickChestSpawnTile(room, blockedTiles) {
@@ -990,18 +997,34 @@ function generateDungeon() {
       blocked.push(tile);
     }
 
+    const floorDepth = f + 1;
+
     rooms.forEach((room) => {
-      const enemyTile = pickEnemySpawnTile(room, blocked);
-      room.enemies = enemyTile
-        ? [
-          {
-            id: `${room.id}-enemy-0`,
-            x: enemyTile.x,
-            y: enemyTile.y,
-          },
-        ]
-        : [];
-      if (enemyTile) {
+      const minEnemies = Math.min(2, 1 + Math.floor(f / 2));
+      const maxEnemies = Math.min(4, 1 + floorDepth);
+      const targetEnemyCount = maxEnemies > minEnemies
+        ? rand(minEnemies, maxEnemies)
+        : minEnemies;
+
+      room.enemies = [];
+
+      for (let enemyIndex = 0; enemyIndex < targetEnemyCount; enemyIndex++) {
+        const roomEnemySpacing = enemyIndex === 0 ? 4 : 5;
+        const enemyTile = pickEnemySpawnTile(
+          room,
+          blocked,
+          roomEnemySpacing,
+          3,
+        );
+        if (!enemyTile) {
+          break;
+        }
+
+        room.enemies.push({
+          id: `${room.id}-enemy-${enemyIndex}`,
+          x: enemyTile.x,
+          y: enemyTile.y,
+        });
         blocked.push(enemyTile);
       }
     });
@@ -1064,6 +1087,7 @@ function generateDungeon() {
 
     dungeon.floors.push({
       index: f,
+      floorDepth,
       rooms: rooms,
       paths: paths,
       stairs: stairs,

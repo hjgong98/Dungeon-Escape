@@ -206,49 +206,11 @@ class Lootbox extends Phaser.GameObjects.Sprite {
   }
 
   showLootResults(items) {
-    const camera = this.scene.cameras.main;
-    const screenX = Phaser.Math.Clamp(
-      (this.x - camera.worldView.x) * camera.zoom,
-      120,
-      this.scene.scale.width - 120,
-    );
-    const startY = Phaser.Math.Clamp(
-      (this.y - camera.worldView.y) * camera.zoom - 40,
-      100,
-      this.scene.scale.height - 140,
-    );
-
-    const cleanDisplayName = (name) =>
-      String(name || 'Unknown')
-        .replace(/\s*\(\s*T\d+\s*\)$/i, '')
-        .replace(/\s+T\d+$/i, '')
-        .replace(/\s+Tier\s*\d+$/i, '')
-        .trim();
-
-    items.forEach((item, index) => {
-      const yOffset = index * 14;
-      const text = this.scene.add.text(
-        screenX,
-        startY - yOffset,
-        `+ ${cleanDisplayName(item.name)}`,
-        {
-          fontSize: '9px',
-          fill: '#0f0',
-          stroke: '#000',
-          strokeThickness: 1,
-          backgroundColor: 'rgba(0,0,0,0.55)',
-          padding: { x: 3, y: 1 },
-        },
-      ).setOrigin(0.5).setScrollFactor(0).setDepth(2000);
-
-      this.scene.tweens.add({
-        targets: text,
-        y: text.y - 20,
-        alpha: 0,
-        duration: 1500,
-        onComplete: () => text.destroy(),
-      });
-    });
+    const hudScene = this.scene.scene.get('DungeonHud');
+    if (hudScene?.scene?.isActive()) {
+      hudScene.showLootResults(items, this.x, this.y, this.chestId || this.name || 'lootbox');
+      return;
+    }
   }
 }
 

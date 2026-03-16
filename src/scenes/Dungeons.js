@@ -16,6 +16,7 @@ class Dungeons extends Phaser.Scene {
     this.playerAttackLockUntil = 0;
     this.enemySpriteKey = 'enemy';
     this.enemyHurtSpriteKey = 'enemy-hurt';
+    this.enemyDeathSpriteKey = 'enemy-death';
     this.enemyWalkAnimKeys = {
       down: 'enemy-walk-down',
       up: 'enemy-walk-up',
@@ -27,6 +28,12 @@ class Dungeons extends Phaser.Scene {
       up: 'enemy-hurt-up',
       left: 'enemy-hurt-left',
       right: 'enemy-hurt-right',
+    };
+    this.enemyDeathAnimKeys = {
+      down: 'enemy-death-down',
+      up: 'enemy-death-up',
+      left: 'enemy-death-left',
+      right: 'enemy-death-right',
     };
     this.enemyDisplaySize = 30;
     this.lootboxSpriteKey = 'lootbox';
@@ -156,6 +163,17 @@ class Dungeons extends Phaser.Scene {
       );
     }
 
+    if (!this.textures.exists(this.enemyDeathSpriteKey)) {
+      this.load.spritesheet(
+        this.enemyDeathSpriteKey,
+        './assets/player/Slime1_Death_with_shadow.png',
+        {
+          frameWidth: 64,
+          frameHeight: 64,
+        },
+      );
+    }
+
     if (!this.textures.exists(this.lootboxSpriteKey)) {
       this.load.spritesheet(
         this.lootboxSpriteKey,
@@ -199,6 +217,7 @@ class Dungeons extends Phaser.Scene {
 
     this.cameras.main.startFollow(this.player);
     this.cameras.main.setZoom(4);
+    this.ensureDungeonHud();
   }
 
   ensurePlayerAnimation() {
@@ -308,6 +327,23 @@ class Dungeons extends Phaser.Scene {
         repeat: 0,
       });
     });
+
+    Object.entries(this.enemyDeathAnimKeys).forEach(([direction, key]) => {
+      if (this.anims.exists(key)) {
+        return;
+      }
+
+      const row = rows[direction];
+      this.anims.create({
+        key,
+        frames: this.anims.generateFrameNumbers(this.enemyDeathSpriteKey, {
+          start: row * 10,
+          end: row * 10 + 9,
+        }),
+        frameRate: 12,
+        repeat: 0,
+      });
+    });
   }
 
   ensureLootboxAnimation() {
@@ -326,7 +362,16 @@ class Dungeons extends Phaser.Scene {
     });
   }
 
+  ensureDungeonHud() {
+    if (!this.scene.isActive('DungeonHud')) {
+      this.scene.launch('DungeonHud');
+    } else {
+      this.scene.bringToTop('DungeonHud');
+    }
+  }
+
   loadFloor(floorNum) {
+    this.ensureDungeonHud();
     this.currentFloor = floorNum;
     const floor = this.dungeon.floors[floorNum];
     this.currentFloorData = floor;
@@ -1390,9 +1435,9 @@ class Dungeons extends Phaser.Scene {
       return;
     }
 
-    if (dx < 0 || (dx === 0 && dy < 0)) {
+    if (dx < 0) {
       this.playerFacing = 'left';
-    } else if (dx > 0 || (dx === 0 && dy > 0)) {
+    } else if (dx > 0) {
       this.playerFacing = 'right';
     }
 
@@ -1525,7 +1570,7 @@ class Dungeons extends Phaser.Scene {
         lootbox.opened = true;
         lootbox.setVisible(false);
       } else {
-        lootbox.on('lootboxOpened', () => {
+        lootbox.on('lootboxOpened', (items = []) => {
           chest.opened = true;
 
           if (!lootbox.boxData?.isTrap) {
@@ -1534,10 +1579,22 @@ class Dungeons extends Phaser.Scene {
             );
             const awardedExp = this.awardLootboxExp(lootbox.boxData?.box_tier);
             if (awardedGold > 0) {
-              this.showFloatingGoldGain(lootbox.x, lootbox.y, awardedGold);
+              this.showFloatingGoldGain(
+                lootbox.x,
+                lootbox.y,
+                awardedGold,
+                lootbox.chestId,
+                items.length,
+              );
             }
             if (awardedExp > 0) {
-              this.showFloatingExpGain(lootbox.x, lootbox.y - 10, awardedExp);
+              this.showFloatingExpGain(
+                lootbox.x,
+                lootbox.y,
+                awardedExp,
+                lootbox.chestId,
+                items.length + (awardedGold > 0 ? 1 : 0),
+              );
             }
           }
 
@@ -1666,46 +1723,24 @@ class Dungeons extends Phaser.Scene {
       player.gold = Math.max(0, Number(player.gold) || 0) + goldAward;
     }
 
-    this.showFloatingExpGain(enemy.sprite.x, enemy.sprite.y - 8, expAward);
-    this.showFloatingGoldGain(enemy.sprite.x, enemy.sprite.y + 4, goldAward);
+    this.showFloatingExpGain(enemy.sprite.x, enemy.sprite.y, expAward, enemy.id, 0);
+    this.showFloatingGoldGain(enemy.sprite.x, enemy.sprite.y, goldAward, enemy.id, 1);
 
     return { exp: expAward, gold: goldAward };
   }
 
-  showFloatingGoldGain(x, y, amount) {
-    const text = this.add.text(x, y - 8, `+${amount} gold`, {
-      fontSize: '6px',
-      fill: '#ffd44d',
-      stroke: '#000',
-      strokeThickness: 1,
-    }).setOrigin(0.5).setDepth(2000);
-
-    this.tweens.add({
-      targets: text,
-      y: y - 20,
-      alpha: 0,
-      duration: 900,
-      ease: 'Quad.easeOut',
-      onComplete: () => text.destroy(),
-    });
+  showFloatingGoldGain(x, y, amount, anchorKey = 'gold', stackIndex = 0) {
+    const hudScene = this.scene.get('DungeonHud');
+    if (hudScene?.scene?.isActive()) {
+      hudScene.showFloatingGoldGain(amount, x, y, anchorKey, stackIndex);
+    }
   }
 
-  showFloatingExpGain(x, y, amount) {
-    const text = this.add.text(x, y - 8, `+${amount} exp`, {
-      fontSize: '6px',
-      fill: '#7dd3fc',
-      stroke: '#000',
-      strokeThickness: 1,
-    }).setOrigin(0.5).setDepth(2000);
-
-    this.tweens.add({
-      targets: text,
-      y: y - 20,
-      alpha: 0,
-      duration: 900,
-      ease: 'Quad.easeOut',
-      onComplete: () => text.destroy(),
-    });
+  showFloatingExpGain(x, y, amount, anchorKey = 'exp', stackIndex = 0) {
+    const hudScene = this.scene.get('DungeonHud');
+    if (hudScene?.scene?.isActive()) {
+      hudScene.showFloatingExpGain(amount, x, y, anchorKey, stackIndex);
+    }
   }
 
   alertAllMonstersFromTrap() {
@@ -1753,6 +1788,8 @@ class Dungeons extends Phaser.Scene {
       return;
     }
 
+    this.ensureDungeonHud();
+
     if (this.discardUIActive) {
       this.syncLantern();
       return;
@@ -1795,6 +1832,7 @@ class Dungeons extends Phaser.Scene {
     this.checkExit();
     this.checkEntrance();
     this.checkLootboxes();
+    this.updateInteractionPrompt();
     this.updateCurrentRoom();
     this.updateEnemies(this.currentFloorData);
     this.resolvePlayerMonsterCollisions();
@@ -1839,7 +1877,7 @@ class Dungeons extends Phaser.Scene {
       radius: this.monsterCollisionRadius,
       collisionOffsetY: this.monsterCollisionOffsetY,
       blockByPlayer: true,
-      blockByEnemies: true,
+      blockByEnemies: false,
       ignoreEnemyId: enemy.id,
     });
   }
@@ -2029,7 +2067,7 @@ class Dungeons extends Phaser.Scene {
   }
 
   handlePlayerMonsterContact(enemy, normalX, normalY) {
-    if (this.isPlayerDefeated) {
+    if (this.isPlayerDefeated || enemy?.isDying) {
       return;
     }
 
@@ -2082,14 +2120,15 @@ class Dungeons extends Phaser.Scene {
         radius: this.monsterCollisionRadius,
         collisionOffsetY: this.monsterCollisionOffsetY,
         blockByPlayer: false,
-        blockByEnemies: true,
+        blockByEnemies: false,
         ignoreEnemyId: enemy.id,
       },
     );
 
     if (enemy.hp <= 0) {
       this.awardMonsterRewards(enemy);
-      this.cleanupDefeatedEnemy(enemy);
+      this.playEnemyDeathAnimation(enemy);
+      return;
     }
   }
 
@@ -2103,6 +2142,26 @@ class Dungeons extends Phaser.Scene {
     const animKey = this.enemyHurtAnimKeys[enemy.facing] ||
       this.enemyHurtAnimKeys.down;
     enemy.sprite.play(animKey, true);
+  }
+
+  playEnemyDeathAnimation(enemy) {
+    if (!enemy?.sprite || enemy.isDying) {
+      return;
+    }
+
+    enemy.isDying = true;
+    enemy.isCollidingWithPlayer = false;
+    enemy.path = [];
+    enemy.pathTargetKey = null;
+    enemy.sprite.anims.stop();
+    enemy.sprite.setTexture(this.enemyDeathSpriteKey, 0);
+    const animKey = this.enemyDeathAnimKeys[enemy.facing] ||
+      this.enemyDeathAnimKeys.down;
+    enemy.sprite.play(animKey, true);
+    enemy.sprite.once(
+      Phaser.Animations.Events.ANIMATION_COMPLETE,
+      () => this.cleanupDefeatedEnemy(enemy),
+    );
   }
 
   showDiscardUI(overflowItems) {
@@ -2342,7 +2401,7 @@ class Dungeons extends Phaser.Scene {
 
     if (options.blockByEnemies && Array.isArray(this.enemies)) {
       for (const enemy of this.enemies) {
-        if (!enemy?.sprite || !enemy.sprite.visible) {
+        if (!enemy?.sprite || !enemy.sprite.visible || enemy.isDying) {
           continue;
         }
         if (enemy.id && enemy.id === options.ignoreEnemyId) {
@@ -2461,7 +2520,7 @@ class Dungeons extends Phaser.Scene {
     const contactDist = minDist + 2;
 
     [...this.enemies].forEach((enemy) => {
-      if (!enemy?.sprite || !enemy.sprite.visible) {
+      if (!enemy?.sprite || !enemy.sprite.visible || enemy.isDying) {
         return;
       }
 
@@ -2545,7 +2604,7 @@ class Dungeons extends Phaser.Scene {
           radius: this.monsterCollisionRadius,
           collisionOffsetY: this.monsterCollisionOffsetY,
           blockByPlayer: true,
-          blockByEnemies: true,
+          blockByEnemies: false,
           ignoreEnemyId: enemy.id,
         },
       );
@@ -2726,44 +2785,14 @@ class Dungeons extends Phaser.Scene {
 
     if (found) {
       this.nearStair = found;
-      const stairPromptText = `Press E to go ${
-        found.dir === 'up' ? 'UP' : 'DOWN'
-      }`;
-      if (!this.stairPrompt) {
-        this.stairPrompt = this.add.text(
-          this.player.x,
-          this.player.y - 30,
-          stairPromptText,
-          {
-            fontSize: '10px',
-            fill: '#ff0',
-            backgroundColor: '#000',
-            padding: { x: 4, y: 2 },
-          },
-        );
-        this.stairPrompt.setOrigin(0.5);
-        this.stairPrompt.setDepth(1100);
-      } else {
-        this.stairPrompt.setText(stairPromptText);
-        this.stairPrompt.setPosition(this.player.x, this.player.y - 30);
-      }
     } else {
       this.nearStair = null;
-      if (this.stairPrompt) {
-        this.stairPrompt.destroy();
-        this.stairPrompt = null;
-      }
     }
   }
 
   useStairs(stair) {
     this.lastStairDir = stair.dir;
     this.loadFloor(stair.toFloor);
-
-    if (this.stairPrompt) {
-      this.stairPrompt.destroy();
-      this.stairPrompt = null;
-    }
   }
 
   checkLootboxes() {
@@ -2783,29 +2812,8 @@ class Dungeons extends Phaser.Scene {
 
     if (closest) {
       this.nearLootbox = closest;
-      if (!this.lootboxPrompt) {
-        this.lootboxPrompt = this.add.text(
-          this.player.x,
-          this.player.y - 30,
-          'Press E to open',
-          {
-            fontSize: '10px',
-            fill: '#ff0',
-            backgroundColor: '#000',
-            padding: { x: 4, y: 2 },
-          },
-        );
-        this.lootboxPrompt.setOrigin(0.5);
-        this.lootboxPrompt.setDepth(1100);
-      } else {
-        this.lootboxPrompt.setPosition(this.player.x, this.player.y - 30);
-      }
     } else {
       this.nearLootbox = null;
-      if (this.lootboxPrompt) {
-        this.lootboxPrompt.destroy();
-        this.lootboxPrompt = null;
-      }
     }
   }
 
@@ -2820,41 +2828,16 @@ class Dungeons extends Phaser.Scene {
 
       if (dist < this.interactionRadius) {
         this.nearExit = true;
-        if (!this.exitPrompt) {
-          this.exitPrompt = this.add.text(
-            this.player.x,
-            this.player.y - 30,
-            'Press E to exit',
-            {
-              fontSize: '10px',
-              fill: '#0ff',
-              backgroundColor: '#000',
-              padding: { x: 4, y: 2 },
-            },
-          );
-          this.exitPrompt.setOrigin(0.5);
-          this.exitPrompt.setDepth(1100);
-        } else {
-          this.exitPrompt.setPosition(this.player.x, this.player.y - 30);
-        }
         return;
       }
     }
 
     this.nearExit = false;
-    if (this.exitPrompt) {
-      this.exitPrompt.destroy();
-      this.exitPrompt = null;
-    }
   }
 
   checkEntrance() {
     if (this.currentFloor !== 0) {
       this.nearEntrance = false;
-      if (this.entrancePrompt) {
-        this.entrancePrompt.destroy();
-        this.entrancePrompt = null;
-      }
       return;
     }
 
@@ -2867,32 +2850,43 @@ class Dungeons extends Phaser.Scene {
 
       if (dist < this.interactionRadius) {
         this.nearEntrance = true;
-        if (!this.entrancePrompt) {
-          this.entrancePrompt = this.add.text(
-            this.player.x,
-            this.player.y - 30,
-            'Press Q to leave',
-            {
-              fontSize: '10px',
-              fill: '#0f0',
-              backgroundColor: '#000',
-              padding: { x: 4, y: 2 },
-            },
-          );
-          this.entrancePrompt.setOrigin(0.5);
-          this.entrancePrompt.setDepth(1100);
-        } else {
-          this.entrancePrompt.setPosition(this.player.x, this.player.y - 30);
-        }
         return;
       }
     }
 
     this.nearEntrance = false;
-    if (this.entrancePrompt) {
-      this.entrancePrompt.destroy();
-      this.entrancePrompt = null;
+  }
+
+  updateInteractionPrompt() {
+    const hudScene = this.scene.get('DungeonHud');
+    if (!hudScene?.scene?.isActive()) {
+      return;
     }
+
+    if (this.nearLootbox) {
+      hudScene.showInteractionPrompt('Press E to open', '#ff0');
+      return;
+    }
+
+    if (this.nearExit) {
+      hudScene.showInteractionPrompt('Press E to exit', '#0ff');
+      return;
+    }
+
+    if (this.nearStair) {
+      hudScene.showInteractionPrompt(
+        `Press E to go ${this.nearStair.dir === 'up' ? 'UP' : 'DOWN'}`,
+        '#ff0',
+      );
+      return;
+    }
+
+    if (this.nearEntrance) {
+      hudScene.showInteractionPrompt('Press Q to leave', '#0f0');
+      return;
+    }
+
+    hudScene.hideInteractionPrompt();
   }
 
   destroyDecorTexts() {
@@ -2980,6 +2974,9 @@ class Dungeons extends Phaser.Scene {
     }
 
     this.destroyDecorTexts();
+    if (this.scene.isActive('DungeonHud')) {
+      this.scene.stop('DungeonHud');
+    }
     this.destroyEnemies();
     this.destroyLootboxes();
     this.monsterController = null;

@@ -19,16 +19,25 @@ class DungeonMonsterController {
     this.globalAggro = Boolean(options.globalAggro);
   }
 
-  createEnemyCombatStats(playerProfile = {}) {
+  createEnemyCombatStats(playerProfile = {}, floor = {}) {
     const safeLevel = Math.max(1, Number(playerProfile.level) || 1);
-    const levelMultiplier = 1 + (safeLevel - 1) * 0.1;
-    const baseMaxHp = Math.max(1, Math.round(100 * levelMultiplier));
+    const floorDepth = Math.max(
+      1,
+      Number(floor.floorDepth ?? floor.index + 1) || 1,
+    );
+    const playerLevelMultiplier = 1 + (safeLevel - 1) * 0.08;
+    const floorHpMultiplier = 1 + (floorDepth - 1) * 0.35;
+    const floorAtkMultiplier = 1 + (floorDepth - 1) * 0.22;
+    const baseMaxHp = Math.max(
+      1,
+      Math.round(80 * playerLevelMultiplier * floorHpMultiplier),
+    );
 
     return {
-      level: safeLevel,
+      level: safeLevel + floorDepth - 1,
       maxHp: baseMaxHp,
       hp: baseMaxHp,
-      atk: Math.max(1, Math.round(4 * levelMultiplier)),
+      atk: Math.max(1, Math.round(4 * playerLevelMultiplier * floorAtkMultiplier)),
     };
   }
 
@@ -53,7 +62,7 @@ class DungeonMonsterController {
         );
         sprite.setDepth(19);
 
-        const combatStats = this.createEnemyCombatStats(playerProfile);
+        const combatStats = this.createEnemyCombatStats(playerProfile, floor);
 
         this.enemies.push({
           id: enemyData.id || `${room.id}-enemy-${index}`,
@@ -70,6 +79,7 @@ class DungeonMonsterController {
           hp: combatStats.hp,
           maxHp: combatStats.maxHp,
           atk: combatStats.atk,
+          isDying: false,
           isCollidingWithPlayer: false,
           nextContactTime: 0,
         });
@@ -85,6 +95,10 @@ class DungeonMonsterController {
     }
 
     this.enemies.forEach((enemy) => {
+      if (enemy.isDying || !enemy?.sprite?.visible) {
+        return;
+      }
+
       const room = floor.rooms.find((candidate) =>
         candidate.id === enemy.roomId
       );
@@ -463,6 +477,21 @@ class DungeonMonsterController {
 
   updateEnemyVisual(enemy, dx, dy) {
     if (!enemy?.sprite?.anims) {
+      return;
+    }
+
+    if (enemy.isDying) {
+      if (enemy.sprite.texture.key !== this.scene.enemyDeathSpriteKey) {
+        enemy.sprite.setTexture(this.scene.enemyDeathSpriteKey, 0);
+      }
+      const deathAnimKey = this.scene.enemyDeathAnimKeys[enemy.facing] ||
+        this.scene.enemyDeathAnimKeys.down;
+      if (
+        enemy.sprite.anims.currentAnim?.key !== deathAnimKey ||
+        !enemy.sprite.anims.isPlaying
+      ) {
+        enemy.sprite.play(deathAnimKey);
+      }
       return;
     }
 

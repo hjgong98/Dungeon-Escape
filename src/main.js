@@ -20,6 +20,7 @@ const config = {
     Inventory,
     Upgrades,
     Dungeons,
+    DungeonHud,
     Credits,
     Saves,
   ],
