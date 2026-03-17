@@ -4,6 +4,7 @@ class Inventory extends Phaser.Scene {
     this.selectedItem = null;
     this.selectedLocation = null; // 'bag' or 'storage'
     this.selectedIndex = null;
+    this.selectedItems = new Set();
     this.bagPage = 0;
     this.storagePage = 0;
     this.bagGroup = null;
@@ -17,6 +18,7 @@ class Inventory extends Phaser.Scene {
     this.selectedItem = null;
     this.selectedLocation = null;
     this.selectedIndex = null;
+    this.selectedItems = new Set();
     this.bagPage = 0;
     this.storagePage = 0;
     this.bagGroup = null;
@@ -119,6 +121,39 @@ class Inventory extends Phaser.Scene {
     bagPanel.setStrokeStyle(2, 0x666666);
     this.bagGroup.add(bagPanel);
 
+    const bagSelectedCount =
+      bag.filter((item) => this.selectedItems.has(item)).length;
+    const showBagSelectAll = bag.length > 0 && bagSelectedCount < bag.length;
+    const showBagDeselectAll = bagSelectedCount > 0;
+
+    if (showBagSelectAll) {
+      const bagSelectAllBtn = this.add.text(62, 128, 'SELECT ALL', {
+        fontSize: '12px',
+        fill: '#fff',
+        backgroundColor: '#2f5f2f',
+        padding: { x: 7, y: 3 },
+      }).setOrigin(0, 0.5).setInteractive();
+      this.bagGroup.add(bagSelectAllBtn);
+
+      bagSelectAllBtn.on('pointerdown', () => {
+        this.selectAllInLocation('bag');
+      });
+    }
+
+    if (showBagDeselectAll) {
+      const bagDeselectAllBtn = this.add.text(338, 128, 'DESELECT ALL', {
+        fontSize: '12px',
+        fill: '#fff',
+        backgroundColor: '#5f2f2f',
+        padding: { x: 7, y: 3 },
+      }).setOrigin(1, 0.5).setInteractive();
+      this.bagGroup.add(bagDeselectAllBtn);
+
+      bagDeselectAllBtn.on('pointerdown', () => {
+        this.clearSelectionInLocation('bag');
+      });
+    }
+
     // Show bag items
     const startY = 160;
 
@@ -156,12 +191,12 @@ class Inventory extends Phaser.Scene {
           if (stack.count > 1 || this.isEquipmentType(item)) {
             this.openStackDetails(stack, 'bag');
           } else {
-            this.selectItem(item, 'bag', i);
+            this.toggleItemSelection(item, 'bag', i);
           }
         });
 
         // Highlight if selected
-        if (this.selectedItem === item && this.selectedLocation === 'bag') {
+        if (this.selectedItems.has(item)) {
           itemBg.setStrokeStyle(2, 0xff0);
         }
       } else {
@@ -244,6 +279,40 @@ class Inventory extends Phaser.Scene {
     storagePanel.setStrokeStyle(2, 0x666666);
     this.storageGroup.add(storagePanel);
 
+    const storageSelectedCount =
+      storage.filter((item) => this.selectedItems.has(item)).length;
+    const showStorageSelectAll = storage.length > 0 &&
+      storageSelectedCount < storage.length;
+    const showStorageDeselectAll = storageSelectedCount > 0;
+
+    if (showStorageSelectAll) {
+      const storageSelectAllBtn = this.add.text(462, 128, 'SELECT ALL', {
+        fontSize: '12px',
+        fill: '#fff',
+        backgroundColor: '#2f5f2f',
+        padding: { x: 7, y: 3 },
+      }).setOrigin(0, 0.5).setInteractive();
+      this.storageGroup.add(storageSelectAllBtn);
+
+      storageSelectAllBtn.on('pointerdown', () => {
+        this.selectAllInLocation('storage');
+      });
+    }
+
+    if (showStorageDeselectAll) {
+      const storageDeselectAllBtn = this.add.text(738, 128, 'DESELECT ALL', {
+        fontSize: '12px',
+        fill: '#fff',
+        backgroundColor: '#5f2f2f',
+        padding: { x: 7, y: 3 },
+      }).setOrigin(1, 0.5).setInteractive();
+      this.storageGroup.add(storageDeselectAllBtn);
+
+      storageDeselectAllBtn.on('pointerdown', () => {
+        this.clearSelectionInLocation('storage');
+      });
+    }
+
     // Show storage items
     const startY = 160;
 
@@ -278,11 +347,11 @@ class Inventory extends Phaser.Scene {
           if (stack.count > 1 || this.isEquipmentType(item)) {
             this.openStackDetails(stack, 'storage');
           } else {
-            this.selectItem(item, 'storage', i);
+            this.toggleItemSelection(item, 'storage', i);
           }
         });
 
-        if (this.selectedItem === item && this.selectedLocation === 'storage') {
+        if (this.selectedItems.has(item)) {
           itemBg.setStrokeStyle(2, 0xff0);
         }
       } else {
@@ -344,18 +413,30 @@ class Inventory extends Phaser.Scene {
     const sellButtonWidth = 120;
     const actionLeft = 500;
 
-    if (this.selectedItem) {
-      // Show selected item info
-      const tierColors = ['#888', '#8f8', '#88f', '#f8f', '#ff8', '#f88'];
-      const color = tierColors[(this.selectedItem.tier || 1) - 1] || '#fff';
+    const selectedItems = this.getSelectedItems();
 
-      const upgradeText = this.selectedItem.upgradeLevel > 0
-        ? ` +${this.selectedItem.upgradeLevel}`
-        : '';
+    if (selectedItems.length > 0) {
+      this.updateSelectionAnchor();
+
+      // Show selected item info
+      const firstSelected = selectedItems[0];
+      const tierColors = ['#888', '#8f8', '#88f', '#f8f', '#ff8', '#f88'];
+      const color = tierColors[(firstSelected.tier || 1) - 1] || '#fff';
+
+      let selectedLabel = `Selected: ${selectedItems.length} item${
+        selectedItems.length === 1 ? '' : 's'
+      }`;
+      if (selectedItems.length === 1) {
+        const upgradeText = firstSelected.upgradeLevel > 0
+          ? ` +${firstSelected.upgradeLevel}`
+          : '';
+        selectedLabel = `Selected: ${firstSelected.name}${upgradeText}`;
+      }
+
       const selectedText = this.add.text(
         actionLeft,
         actionInfoY,
-        `Selected: ${this.selectedItem.name}${upgradeText}`,
+        selectedLabel,
         {
           fontSize: '14px',
           fill: color,
@@ -366,9 +447,12 @@ class Inventory extends Phaser.Scene {
       this.actionGroup.add(selectedText);
 
       // Move button
-      const moveText = this.selectedLocation === 'bag'
-        ? 'MOVE TO STORAGE'
-        : 'MOVE TO BAG';
+      const moveText =
+        selectedItems.length === 1 && this.selectedLocation === 'bag'
+          ? 'MOVE TO STORAGE'
+          : selectedItems.length === 1 && this.selectedLocation === 'storage'
+          ? 'MOVE TO BAG'
+          : 'MOVE SELECTED';
       const moveBtn = this.add.text(actionLeft, actionButtonY, moveText, {
         fontSize: '13px',
         fill: '#0ff',
@@ -380,11 +464,14 @@ class Inventory extends Phaser.Scene {
       this.actionGroup.add(moveBtn);
 
       moveBtn.on('pointerdown', () => {
-        this.moveSelectedItem();
+        this.moveSelectedItems();
       });
 
       // Sell button
-      const sellValue = this.getSellValue(this.selectedItem);
+      const sellValue = selectedItems.reduce(
+        (sum, item) => sum + this.getSellValue(item),
+        0,
+      );
       const sellBtn = this.add.text(
         660,
         actionButtonY,
@@ -401,7 +488,7 @@ class Inventory extends Phaser.Scene {
       this.actionGroup.add(sellBtn);
 
       sellBtn.on('pointerdown', () => {
-        this.sellSelectedItem();
+        this.sellSelectedItems();
       });
 
       // Cancel selection
@@ -415,11 +502,7 @@ class Inventory extends Phaser.Scene {
 
       cancelBtn.on('pointerdown', () => {
         this.closeStackDetails();
-        this.selectedItem = null;
-        this.selectedLocation = null;
-        this.createBagSection();
-        this.createStorageSection();
-        this.createActionButtons();
+        this.clearSelection();
       });
     } else {
       // No item selected
@@ -539,11 +622,46 @@ class Inventory extends Phaser.Scene {
     ).setOrigin(0.5);
     this.detailGroup.add(title);
 
-    const subtitle = this.add.text(400, 156, 'Pick one item from the stack', {
+    const subtitle = this.add.text(400, 156, 'Toggle any items in this stack', {
       fontSize: '14px',
       fill: '#aaa',
     }).setOrigin(0.5);
     this.detailGroup.add(subtitle);
+
+    const stackSelectedCount =
+      stack.items.filter((i) => this.selectedItems.has(i)).length;
+    const showStackSelectAll = stackSelectedCount < stack.items.length;
+    const showStackDeselectAll = stackSelectedCount > 0;
+
+    if (showStackSelectAll) {
+      const selectAllBtn = this.add.text(140, 176, 'SELECT ALL', {
+        fontSize: '13px',
+        fill: '#fff',
+        backgroundColor: '#2f5f2f',
+        padding: { x: 8, y: 4 },
+      }).setOrigin(0, 0.5).setInteractive();
+      this.detailGroup.add(selectAllBtn);
+
+      selectAllBtn.on('pointerdown', () => {
+        this.selectItemsInStack(stack.items);
+        this.openStackDetails(stack, location);
+      });
+    }
+
+    if (showStackDeselectAll) {
+      const deselectAllBtn = this.add.text(660, 176, 'DESELECT ALL', {
+        fontSize: '13px',
+        fill: '#fff',
+        backgroundColor: '#5f2f2f',
+        padding: { x: 8, y: 4 },
+      }).setOrigin(1, 0.5).setInteractive();
+      this.detailGroup.add(deselectAllBtn);
+
+      deselectAllBtn.on('pointerdown', () => {
+        this.deselectItemsInStack(stack.items);
+        this.openStackDetails(stack, location);
+      });
+    }
 
     const closeBtn = this.add.text(660, 130, 'CLOSE', {
       fontSize: '14px',
@@ -560,10 +678,14 @@ class Inventory extends Phaser.Scene {
     const itemsToShow = stack.items.slice(0, maxLines);
 
     itemsToShow.forEach((entry, idx) => {
-      const y = 190 + idx * 34;
+      const y = 210 + idx * 34;
       const rowBg = this.add.rectangle(400, y, 520, 28, 0x333333, 0.9)
         .setInteractive();
       this.detailGroup.add(rowBg);
+
+      if (this.selectedItems.has(entry)) {
+        rowBg.setStrokeStyle(2, 0xff0);
+      }
 
       const line = this.add.text(
         148,
@@ -579,15 +701,15 @@ class Inventory extends Phaser.Scene {
       this.detailGroup.add(line);
 
       rowBg.on('pointerdown', () => {
-        this.closeStackDetails();
-        this.selectItem(entry, location, null);
+        this.toggleItemSelection(entry, location, null);
+        this.openStackDetails(stack, location);
       });
     });
 
     if (stack.items.length > maxLines) {
       const moreText = this.add.text(
         400,
-        190 + maxLines * 34,
+        210 + maxLines * 34,
         `+${stack.items.length - maxLines} more items in stack`,
         {
           fontSize: '12px',
@@ -701,7 +823,7 @@ class Inventory extends Phaser.Scene {
   }
 
   selectItem(item, location, index) {
-    this.closeStackDetails();
+    this.selectedItems = new Set([item]);
     this.selectedItem = item;
     this.selectedLocation = location;
     this.selectedIndex = index;
@@ -710,75 +832,174 @@ class Inventory extends Phaser.Scene {
     this.createActionButtons();
   }
 
-  moveSelectedItem() {
-    if (!this.selectedItem) return;
-    this.closeStackDetails();
+  toggleItemSelection(item, location, index) {
+    this.selectedIndex = index;
 
-    const player = globalThis.gameState.player;
-
-    if (this.selectedLocation === 'bag') {
-      // Move from bag to storage
-      if (!player.storage) player.storage = [];
-      if (
-        !this.canAddToContainer(
-          player.storage,
-          this.getStorageCapacity(),
-          this.selectedItem,
-        )
-      ) {
-        return;
-      }
-      player.storage.push(this.selectedItem);
-      player.inventory = player.inventory.filter((i) =>
-        i !== this.selectedItem
-      );
+    if (this.selectedItems.has(item)) {
+      this.selectedItems.delete(item);
     } else {
-      // Move from storage to bag
-      if (!player.inventory) player.inventory = [];
-      if (
-        !this.canAddToContainer(
-          player.inventory,
-          this.getBagCapacity(),
-          this.selectedItem,
-        )
-      ) {
-        return;
-      }
-      player.inventory.push(this.selectedItem);
-      player.storage = player.storage.filter((i) => i !== this.selectedItem);
+      this.selectedItems.add(item);
+      this.selectedItem = item;
+      this.selectedLocation = location;
     }
 
-    this.selectedItem = null;
-    this.selectedLocation = null;
+    this.updateSelectionAnchor();
     this.createBagSection();
     this.createStorageSection();
     this.createActionButtons();
   }
 
-  sellSelectedItem() {
-    if (!this.selectedItem) return;
+  getSelectedItems() {
+    const player = globalThis.gameState.player;
+    const inventory = player.inventory || [];
+    const storage = player.storage || [];
+    const valid = [];
+
+    this.selectedItems.forEach((item) => {
+      if (inventory.includes(item) || storage.includes(item)) {
+        valid.push(item);
+      }
+    });
+
+    this.selectedItems = new Set(valid);
+    return valid;
+  }
+
+  updateSelectionAnchor() {
+    const selected = this.getSelectedItems();
+    if (selected.length === 0) {
+      this.selectedItem = null;
+      this.selectedLocation = null;
+      this.selectedIndex = null;
+      return;
+    }
+
+    if (this.selectedItem && this.selectedItems.has(this.selectedItem)) {
+      this.selectedLocation = this.getItemLocation(this.selectedItem);
+      return;
+    }
+
+    this.selectedItem = selected[0];
+    this.selectedLocation = this.getItemLocation(this.selectedItem);
+  }
+
+  getItemLocation(item) {
+    const player = globalThis.gameState.player;
+    if ((player.inventory || []).includes(item)) return 'bag';
+    if ((player.storage || []).includes(item)) return 'storage';
+    return null;
+  }
+
+  selectAllInLocation(location) {
+    const player = globalThis.gameState.player;
+    const source = location === 'bag'
+      ? (player.inventory || [])
+      : (player.storage || []);
+    source.forEach((item) => this.selectedItems.add(item));
+    this.updateSelectionAnchor();
+    this.createBagSection();
+    this.createStorageSection();
+    this.createActionButtons();
+  }
+
+  clearSelectionInLocation(location) {
+    const player = globalThis.gameState.player;
+    const source = location === 'bag'
+      ? (player.inventory || [])
+      : (player.storage || []);
+    source.forEach((item) => this.selectedItems.delete(item));
+    this.updateSelectionAnchor();
+    this.createBagSection();
+    this.createStorageSection();
+    this.createActionButtons();
+  }
+
+  clearSelection() {
+    this.selectedItems.clear();
+    this.selectedItem = null;
+    this.selectedLocation = null;
+    this.selectedIndex = null;
+    this.createBagSection();
+    this.createStorageSection();
+    this.createActionButtons();
+  }
+
+  selectItemsInStack(items) {
+    items.forEach((item) => this.selectedItems.add(item));
+    this.updateSelectionAnchor();
+    this.createBagSection();
+    this.createStorageSection();
+    this.createActionButtons();
+  }
+
+  deselectItemsInStack(items) {
+    items.forEach((item) => this.selectedItems.delete(item));
+    this.updateSelectionAnchor();
+    this.createBagSection();
+    this.createStorageSection();
+    this.createActionButtons();
+  }
+
+  moveSelectedItems() {
+    const selectedItems = this.getSelectedItems();
+    if (selectedItems.length === 0) return;
     this.closeStackDetails();
 
     const player = globalThis.gameState.player;
-    const value = this.getSellValue(this.selectedItem);
+    if (!player.inventory) player.inventory = [];
+    if (!player.storage) player.storage = [];
+
+    const selectedFromBag = selectedItems.filter((item) =>
+      player.inventory.includes(item)
+    );
+    const selectedFromStorage = selectedItems.filter((item) =>
+      player.storage.includes(item)
+    );
+
+    selectedFromBag.forEach((item) => {
+      if (
+        this.canAddToContainer(player.storage, this.getStorageCapacity(), item)
+      ) {
+        player.storage.push(item);
+        player.inventory = player.inventory.filter((i) => i !== item);
+      }
+    });
+
+    selectedFromStorage.forEach((item) => {
+      if (
+        this.canAddToContainer(player.inventory, this.getBagCapacity(), item)
+      ) {
+        player.inventory.push(item);
+        player.storage = player.storage.filter((i) => i !== item);
+      }
+    });
+
+    this.clearSelection();
+  }
+
+  sellSelectedItems() {
+    const selectedItems = this.getSelectedItems();
+    if (selectedItems.length === 0) return;
+    this.closeStackDetails();
+
+    const player = globalThis.gameState.player;
+    const value = selectedItems.reduce(
+      (sum, item) => sum + this.getSellValue(item),
+      0,
+    );
 
     // Add gold
     player.gold = (player.gold || 0) + value;
 
     // Remove item
-    if (this.selectedLocation === 'bag') {
-      player.inventory = player.inventory.filter((i) =>
-        i !== this.selectedItem
-      );
-    } else {
-      player.storage = player.storage.filter((i) => i !== this.selectedItem);
-    }
+    player.inventory = (player.inventory || []).filter((i) =>
+      !this.selectedItems.has(i)
+    );
+    player.storage = (player.storage || []).filter((i) =>
+      !this.selectedItems.has(i)
+    );
 
-    this.selectedItem = null;
-    this.selectedLocation = null;
-    this.createBagSection();
-    this.createStorageSection();
-    this.createActionButtons();
+    this.clearSelection();
   }
 
   upgradeBagSlots() {

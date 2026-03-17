@@ -102,6 +102,7 @@ class Dungeons extends Phaser.Scene {
     this.discardUIActive = false;
     this.discardUIPending = [];
     this.discardUIElements = [];
+    this.bagPopupActive = false;
     this.isPlayerDefeated = false;
   }
 
@@ -1788,6 +1789,15 @@ class Dungeons extends Phaser.Scene {
 
     this.ensureDungeonHud();
 
+    if (this.bagPopupActive) {
+      if (Phaser.Input.Keyboard.JustDown(this.keys.r)) {
+        const hud = this.scene.get('DungeonHud');
+        if (hud?.closeBagPopup) hud.closeBagPopup();
+      }
+      this.syncLantern();
+      return;
+    }
+
     if (this.discardUIActive) {
       this.syncLantern();
       return;
@@ -1856,11 +1866,8 @@ class Dungeons extends Phaser.Scene {
     }
 
     if (Phaser.Input.Keyboard.JustDown(this.keys.r)) {
-      if (this.scene.isActive('DungeonHud')) {
-        this.scene.stop('DungeonHud');
-      }
-      this.scene.launch('Inventory', { returnScene: 'Dungeons' });
-      this.scene.sleep();
+      const hud = this.scene.get('DungeonHud');
+      if (hud?.openBagPopup) hud.openBagPopup();
     }
 
     this.syncLantern();
