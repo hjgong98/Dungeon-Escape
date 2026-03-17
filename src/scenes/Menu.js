@@ -40,7 +40,7 @@ class Menu extends Phaser.Scene {
       const starterMaterial = globalThis.GameItem
         ? GameItem.generateCraftingMaterial(Math.floor(Math.random() * 3) + 1)
         : {
-          id: `craft_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
+          id: `craft_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
           name: 'Crafting Material T1',
           type: 'crafting_material',
           tier: 1,
@@ -64,7 +64,7 @@ class Menu extends Phaser.Scene {
         exp: 0,
         expToNext: 10,
         gold: 50,
-        selectedSpriteId: globalThis.getPlayerSpriteOption?.().id || 'owlet',
+        selectedSpriteId: globalThis.getPlayerSpriteOption?.()?.id || 'owlet',
         maxInventory: 20,
         bagSlots: 20,
         storageSlots: 40,

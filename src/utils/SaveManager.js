@@ -108,7 +108,7 @@ class SaveManager {
       const starterMaterial = globalThis.GameItem
         ? GameItem.generateCraftingMaterial(Math.floor(Math.random() * 3) + 1)
         : {
-          id: `craft_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
+          id: `craft_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
           name: 'Crafting Material T1',
           type: 'crafting_material',
           tier: 1,
@@ -151,7 +151,7 @@ class SaveManager {
           exp: 0,
           expToNext: 10,
           gold: 50,
-          selectedSpriteId: globalThis.getPlayerSpriteOption?.().id || 'owlet',
+          selectedSpriteId: globalThis.getPlayerSpriteOption?.()?.id || 'owlet',
           inventory: inventory,
           storage: storage,
           equipment: {
@@ -238,20 +238,28 @@ class SaveManager {
     const getMaxHpForLevel = (level) =>
       baseMaxHp + (Math.max(1, Number(level) || 1) - 1) * hpPerLevel;
     const getRequiredExpForLevel = (level) =>
-      Math.max(10, Math.round(10 * (1 + (Math.max(1, level) - 1) * 0.1)));
-    const defaultSpriteId = globalThis.getPlayerSpriteOption?.().id || 'owlet';
+      10 * Math.pow(2, Math.max(1, Number(level) || 1) - 1);
+    const defaultSpriteId = globalThis.getPlayerSpriteOption?.()?.id ||
+      'owlet';
+    const resolvedMaxHp = Math.max(
+      1,
+      Number(playerData.maxHP ?? playerData.maxHp) ||
+        getMaxHpForLevel(safeLevel),
+    );
+    const resolvedHp = Number(playerData.hp ?? resolvedMaxHp);
     const player = {
       name: playerData.name || 'Adventurer',
       level: safeLevel,
-      hp: playerData.hp || baseMaxHp,
-      maxHP: playerData.maxHP || playerData.maxHp ||
-        getMaxHpForLevel(safeLevel),
+      hp: Math.max(0, Math.min(resolvedMaxHp, Number.isFinite(resolvedHp)
+        ? resolvedHp
+        : resolvedMaxHp)),
+      maxHP: resolvedMaxHp,
       atk: playerData.atk || 10,
       def: playerData.def || 5,
       luck: playerData.luck || 0,
-      exp: playerData.exp || 0,
+      exp: Number(playerData.exp ?? 0) || 0,
       expToNext: getRequiredExpForLevel(safeLevel),
-      gold: playerData.gold || 0,
+      gold: Number(playerData.gold ?? 0) || 0,
       selectedSpriteId: playerData.selectedSpriteId || defaultSpriteId,
       maxInventory: playerData.maxInventory || playerData.bagSlots || 20,
       bagSlots: playerData.bagSlots || playerData.maxInventory || 20,
@@ -322,18 +330,17 @@ class SaveManager {
     };
 
     player.levelUp = function levelUp() {
-      const previousMaxHp = Math.max(
-        1,
-        Number(this.maxHP) || getMaxHpForLevel(this.level),
+      const previousMaxHp = getMaxHpForLevel(this.level);
+      const previousHp = Phaser.Math.Clamp(
+        Number(this.hp) || 0,
+        0,
+        previousMaxHp,
       );
       this.level = Math.max(1, Number(this.level) || 1) + 1;
       this.maxHP = getMaxHpForLevel(this.level);
       this.maxHp = this.maxHP;
-      const hpGain = Math.max(0, this.maxHP - previousMaxHp);
-      this.hp = Math.min(
-        this.maxHP,
-        Math.max(0, Number(this.hp) || 0) + hpGain,
-      );
+      const hpGainFromMaxIncrease = Math.max(0, this.maxHP - previousMaxHp);
+      this.hp = Math.min(this.maxHP, previousHp + hpGainFromMaxIncrease);
       this.atk = Math.max(1, Number(this.atk) || 10) + 1;
       this.def = Math.max(0, Number(this.def) || 5) + 1;
       this.expToNext = this.getRequiredExpForLevel(this.level);
@@ -428,23 +435,28 @@ class SaveManager {
     const base = player && typeof player.toJSON === 'function'
       ? player.toJSON()
       : (player || {});
+    const serializedMaxHp = Math.max(
+      1,
+      Number(base?.maxHP ?? base?.maxHp) || 50,
+    );
+    const serializedHp = Number(base?.hp ?? serializedMaxHp);
 
     return {
       name: base?.name || 'Adventurer',
       level: base?.level || 1,
-      hp: base?.hp || 50,
-      maxHP: base?.maxHP || base?.maxHp || 50,
+      hp: Math.max(0, Math.min(serializedMaxHp, Number.isFinite(serializedHp)
+        ? serializedHp
+        : serializedMaxHp)),
+      maxHP: serializedMaxHp,
       atk: base?.atk || 10,
       def: base?.def || 5,
       luck: base?.luck || 0,
-      exp: base?.exp || 0,
-      expToNext: base?.expToNext || Math.max(
-        10,
-        Math.round(10 * (1 + ((base?.level || 1) - 1) * 0.1)),
-      ),
-      gold: base?.gold || 0,
+      exp: Number(base?.exp ?? 0) || 0,
+      expToNext: base?.expToNext ||
+        (10 * Math.pow(2, Math.max(1, Number(base?.level) || 1) - 1)),
+      gold: Number(base?.gold ?? 0) || 0,
       selectedSpriteId: base?.selectedSpriteId ||
-        globalThis.getPlayerSpriteOption?.().id || 'owlet',
+        globalThis.getPlayerSpriteOption?.()?.id || 'owlet',
       maxInventory: base?.maxInventory || base?.bagSlots || 20,
       bagSlots: base?.bagSlots || base?.maxInventory || 20,
       storageSlots: Math.max(40, Number(base?.storageSlots) || 0),

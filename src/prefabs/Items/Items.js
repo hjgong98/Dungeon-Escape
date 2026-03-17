@@ -39,7 +39,7 @@ class GameItem extends Phaser.GameObjects.Sprite {
 
   static generateCraftingMaterial(tier = 1) {
     return {
-      id: `craft_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
+      id: `craft_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
       name: `Crafting Material T${tier}`,
       type: 'crafting_material',
       tier: tier,
@@ -54,7 +54,7 @@ class GameItem extends Phaser.GameObjects.Sprite {
 
   static generateSellingMaterial(tier = 1) {
     return {
-      id: `selling_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
+      id: `selling_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
       name: `Valuable T${tier}`,
       type: 'selling_material',
       tier: tier,

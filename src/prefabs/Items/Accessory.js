@@ -32,7 +32,7 @@ class Accessory extends GameItem {
       : Math.max(1, Math.floor((10 * tier) / 2));
 
     return {
-      id: `accessory_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
+      id: `accessory_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
       name: name,
       type: 'accessory',
       tier: tier,

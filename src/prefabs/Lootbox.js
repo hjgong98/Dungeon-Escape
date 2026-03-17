@@ -185,11 +185,13 @@ class Lootbox extends Phaser.GameObjects.Sprite {
       }
     };
 
-    for (const [tierStr, count] of Object.entries(this.boxData.loot)) {
+    const lootEntries = Object.entries(this.boxData?.loot || {});
+    for (const [tierStr, count] of lootEntries) {
       const tier = parseInt(tierStr.split(' ')[1]);
-      if (isNaN(tier)) continue;
+      const safeCount = Math.max(0, Math.floor(Number(count) || 0));
+      if (isNaN(tier) || tier < 1 || tier > 6 || safeCount === 0) continue;
 
-      for (let i = 0; i < count; i++) {
+      for (let i = 0; i < safeCount; i++) {
         const rand = Math.random();
         let itemData;
 

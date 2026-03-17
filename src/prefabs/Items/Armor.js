@@ -32,7 +32,7 @@ class Armor extends GameItem {
       : Math.max(1, Math.floor((10 * tier) / 2));
 
     return {
-      id: `armor_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
+      id: `armor_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
       name: name,
       type: 'armor',
       tier: tier,

@@ -25,12 +25,16 @@ class DungeonMonsterController {
       1,
       Number(floor.floorDepth ?? floor.index + 1) || 1,
     );
-    const playerLevelMultiplier = 1 + (safeLevel - 1) * 0.08;
+
+    // Keep floor scaling multipliers while adding explicit per-level base growth
+    // so both HP and ATK increase noticeably as player level rises.
+    const levelHpBaseBonus = (safeLevel - 1) * 8;
+    const levelAtkBaseBonus = (safeLevel - 1) * 0.6;
     const floorHpMultiplier = 1 + (floorDepth - 1) * 0.35;
     const floorAtkMultiplier = 1 + (floorDepth - 1) * 0.22;
     const baseMaxHp = Math.max(
       1,
-      Math.round(80 * playerLevelMultiplier * floorHpMultiplier),
+      Math.round((80 + levelHpBaseBonus) * floorHpMultiplier),
     );
 
     return {
@@ -39,7 +43,7 @@ class DungeonMonsterController {
       hp: baseMaxHp,
       atk: Math.max(
         1,
-        Math.round(4 * playerLevelMultiplier * floorAtkMultiplier),
+        Math.round((4 + levelAtkBaseBonus) * floorAtkMultiplier),
       ),
     };
   }

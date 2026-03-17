@@ -746,7 +746,7 @@ class Upgrades extends Phaser.Scene {
     const material = globalThis.GameItem?.generateCraftingMaterial
       ? globalThis.GameItem.generateCraftingMaterial(tier)
       : {
-        id: `craft_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
+        id: `craft_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
         name: `Crafting Material T${tier}`,
         type: 'crafting_material',
         tier,
@@ -899,7 +899,7 @@ class Upgrades extends Phaser.Scene {
     this.scene.restart();
   }
 
-  upgradeItem(item, location) {
+  upgradeItem(item, _location) {
     // Check if can upgrade
     if (item.upgradeLevel >= (item.maxUpgradeLevel || 5)) {
       console.log('Item already at max level');

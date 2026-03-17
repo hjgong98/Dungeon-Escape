@@ -722,31 +722,6 @@ function generateDungeon() {
     return ok || null;
   }
 
-  function pickChestSpawnTile(room, blockedTiles) {
-    const blockedKeys = new Set(
-      blockedTiles.map((tile) => `${tile.x},${tile.y}`),
-    );
-    const tiles = [];
-
-    for (let y = 0; y < room.h; y++) {
-      for (let x = 0; x < room.w; x++) {
-        if (room.maze?.[y]?.[x]?.type === 'floor') {
-          const tile = { x: room.x + x, y: room.y + y };
-          if (!blockedKeys.has(`${tile.x},${tile.y}`)) {
-            tiles.push(tile);
-          }
-        }
-      }
-    }
-
-    if (tiles.length === 0) {
-      return null;
-    }
-
-    shuffle(tiles);
-    return tiles[0];
-  }
-
   const lootboxNoise = typeof FastNoiseLite === 'function'
     ? new FastNoiseLite(rand(1, 999999))
     : null;
@@ -911,7 +886,7 @@ function generateDungeon() {
     });
 
     // Count connections for each corridor tile
-    corridorMap.forEach((tile, key) => {
+    corridorMap.forEach((tile) => {
       const [x, y] = [tile.x, tile.y];
       let connections = 0;
       [[1, 0], [-1, 0], [0, 1], [0, -1]].forEach(([dx, dy]) => {
@@ -926,7 +901,7 @@ function generateDungeon() {
     const finalCorridors = [];
     const corridorWalls = [];
 
-    corridorMap.forEach((tile, key) => {
+    corridorMap.forEach((tile) => {
       finalCorridors.push({ x: tile.x, y: tile.y });
 
       const [x, y] = [tile.x, tile.y];
@@ -1031,14 +1006,14 @@ function generateDungeon() {
 
     const chestTierWeights = [50, 25, 13, 6, 3, 1];
     const chestTierTotal = chestTierWeights.reduce((a, b) => a + b, 0);
-    function rollChestTier() {
+    const rollChestTier = () => {
       let r = Math.random() * chestTierTotal;
       for (let t = 0; t < chestTierWeights.length; t++) {
         if (r < chestTierWeights[t]) return t + 1;
         r -= chestTierWeights[t];
       }
       return 1;
-    }
+    };
 
     // Build pool of all walkable tiles: room floors + corridor tiles
     const blockedKeys = new Set(blocked.map((t) => `${t.x},${t.y}`));

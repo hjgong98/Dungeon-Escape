@@ -882,7 +882,7 @@ class Dungeons extends Phaser.Scene {
     }
   }
 
-  queueRoomBoundaryRun(segments, room, size, side, start, end, color) {
+  queueRoomBoundaryRun(segments, room, _size, side, start, end, color) {
     if (side === 'top') {
       this.queueEdgeSegment(
         segments,
@@ -1746,6 +1746,52 @@ class Dungeons extends Phaser.Scene {
     }
   }
 
+  awardExitRewards() {
+    const player = globalThis.gameState?.player;
+    if (!player) {
+      return { exp: 0, gold: 0 };
+    }
+
+    const currentLevel = Math.max(1, Number(player.level) || 1);
+    const levelRequiredExp = Number(
+      player.getRequiredExpForLevel?.(currentLevel),
+    );
+    const requiredExp = Math.max(
+      1,
+      levelRequiredExp || Number(player.expToNext) || 1,
+    );
+    const rewardAmount = Math.max(1, Math.floor(requiredExp / 2));
+
+    if (typeof player.addExp === 'function') {
+      player.addExp(rewardAmount);
+    } else {
+      player.exp = Math.max(0, Number(player.exp) || 0) + rewardAmount;
+    }
+
+    if (typeof player.addGold === 'function') {
+      player.addGold(rewardAmount);
+    } else {
+      player.gold = Math.max(0, Number(player.gold) || 0) + rewardAmount;
+    }
+
+    this.showFloatingExpGain(
+      this.player.x,
+      this.player.y,
+      rewardAmount,
+      'exit',
+      0,
+    );
+    this.showFloatingGoldGain(
+      this.player.x,
+      this.player.y,
+      rewardAmount,
+      'exit',
+      1,
+    );
+
+    return { exp: rewardAmount, gold: rewardAmount };
+  }
+
   alertAllMonstersFromTrap() {
     this.monstersAlerted = true;
     this.monsterController?.setGlobalAggro(true);
@@ -1853,6 +1899,7 @@ class Dungeons extends Phaser.Scene {
       if (this.nearLootbox) {
         this.nearLootbox.open();
       } else if (this.nearExit) {
+        this.awardExitRewards();
         if (this.scene.isActive('DungeonHud')) {
           this.scene.stop('DungeonHud');
         }
@@ -2007,10 +2054,8 @@ class Dungeons extends Phaser.Scene {
     }
 
     playerData.hp = profile.hp;
-    playerData.maxHP = profile.maxHp;
-    if ('maxHp' in playerData) {
-      playerData.maxHp = profile.maxHp;
-    }
+    // Keep canonical max HP in save data; profile.maxHp includes temporary
+    // equipment-derived combat bonuses and should not be written back directly.
   }
 
   handlePlayerDefeat() {
