@@ -102,6 +102,8 @@ class Dungeons extends Phaser.Scene {
     this.discardUIActive = false;
     this.discardUIPending = [];
     this.discardUIElements = [];
+    this.discardPendingPage = 0;
+    this.discardBagPage = 0;
     this.bagPopupActive = false;
     this.isPlayerDefeated = false;
   }
@@ -2195,6 +2197,8 @@ class Dungeons extends Phaser.Scene {
     this.discardUIActive = true;
     this.discardUIPending = [...overflowItems];
     this.discardUIElements = [];
+    this.discardPendingPage = 0;
+    this.discardBagPage = 0;
     this._buildDiscardUI();
   }
 
@@ -2246,6 +2250,25 @@ class Dungeons extends Phaser.Scene {
     const rowH = 27;
     const startY = 173;
     const maxRows = 9;
+    const pendingTotalPages = Math.max(1, Math.ceil(pending.length / maxRows));
+    const bagTotalPages = Math.max(1, Math.ceil(bag.length / maxRows));
+    this.discardPendingPage = Phaser.Math.Clamp(
+      this.discardPendingPage,
+      0,
+      pendingTotalPages - 1,
+    );
+    this.discardBagPage = Phaser.Math.Clamp(
+      this.discardBagPage,
+      0,
+      bagTotalPages - 1,
+    );
+    const pendingStart = this.discardPendingPage * maxRows;
+    const bagStart = this.discardBagPage * maxRows;
+    const pendingPageItems = pending.slice(
+      pendingStart,
+      pendingStart + maxRows,
+    );
+    const bagPageItems = bag.slice(bagStart, bagStart + maxRows);
 
     reg(
       this.add.text(205, 158, 'CHEST ITEMS', {
@@ -2255,7 +2278,7 @@ class Dungeons extends Phaser.Scene {
       }).setOrigin(0.5),
     );
 
-    pending.slice(0, maxRows).forEach((item, i) => {
+    pendingPageItems.forEach((item, i) => {
       const y = startY + i * rowH;
       reg(
         this.add.text(70, y, item.name || 'Unknown', {
@@ -2277,15 +2300,51 @@ class Dungeons extends Phaser.Scene {
         this._buildDiscardUI();
       });
     });
-    if (pending.length > maxRows) {
+    if (pendingTotalPages > 1) {
+      const pageY = startY + maxRows * rowH;
+      const prevPending = reg(
+        this.add.text(145, pageY, '← PREV', {
+          fontSize: '9px',
+          fill: this.discardPendingPage > 0 ? '#ddd' : '#666',
+          backgroundColor: '#222',
+          padding: { x: 5, y: 2 },
+        }).setOrigin(0.5).setInteractive(),
+      );
+      if (this.discardPendingPage > 0) {
+        prevPending.on('pointerdown', () => {
+          this.discardPendingPage--;
+          this._buildDiscardUI();
+        });
+      }
+
       reg(
         this.add.text(
           205,
-          startY + maxRows * rowH,
-          `+${pending.length - maxRows} more`,
-          { fontSize: '9px', fill: '#888' },
+          pageY,
+          `${this.discardPendingPage + 1}/${pendingTotalPages}`,
+          {
+            fontSize: '9px',
+            fill: '#aaa',
+          },
         ).setOrigin(0.5),
       );
+
+      const nextPending = reg(
+        this.add.text(265, pageY, 'NEXT →', {
+          fontSize: '9px',
+          fill: this.discardPendingPage < pendingTotalPages - 1
+            ? '#ddd'
+            : '#666',
+          backgroundColor: '#222',
+          padding: { x: 5, y: 2 },
+        }).setOrigin(0.5).setInteractive(),
+      );
+      if (this.discardPendingPage < pendingTotalPages - 1) {
+        nextPending.on('pointerdown', () => {
+          this.discardPendingPage++;
+          this._buildDiscardUI();
+        });
+      }
     }
 
     reg(
@@ -2302,7 +2361,7 @@ class Dungeons extends Phaser.Scene {
       }).setOrigin(0.5),
     );
 
-    bag.slice(0, maxRows).forEach((item, i) => {
+    bagPageItems.forEach((item, i) => {
       const y = startY + i * rowH;
       const canDrop = pending.length > 0;
       const row = reg(
@@ -2337,15 +2396,49 @@ class Dungeons extends Phaser.Scene {
         }).setOrigin(0, 0.5),
       );
     });
-    if (bag.length > maxRows) {
+    if (bagTotalPages > 1) {
+      const pageY = startY + maxRows * rowH;
+      const prevBag = reg(
+        this.add.text(500, pageY, '← PREV', {
+          fontSize: '9px',
+          fill: this.discardBagPage > 0 ? '#ddd' : '#666',
+          backgroundColor: '#222',
+          padding: { x: 5, y: 2 },
+        }).setOrigin(0.5).setInteractive(),
+      );
+      if (this.discardBagPage > 0) {
+        prevBag.on('pointerdown', () => {
+          this.discardBagPage--;
+          this._buildDiscardUI();
+        });
+      }
+
       reg(
         this.add.text(
           562,
-          startY + maxRows * rowH,
-          `+${bag.length - maxRows} more (open Inventory to manage)`,
-          { fontSize: '9px', fill: '#888' },
+          pageY,
+          `${this.discardBagPage + 1}/${bagTotalPages}`,
+          {
+            fontSize: '9px',
+            fill: '#aaa',
+          },
         ).setOrigin(0.5),
       );
+
+      const nextBag = reg(
+        this.add.text(624, pageY, 'NEXT →', {
+          fontSize: '9px',
+          fill: this.discardBagPage < bagTotalPages - 1 ? '#ddd' : '#666',
+          backgroundColor: '#222',
+          padding: { x: 5, y: 2 },
+        }).setOrigin(0.5).setInteractive(),
+      );
+      if (this.discardBagPage < bagTotalPages - 1) {
+        nextBag.on('pointerdown', () => {
+          this.discardBagPage++;
+          this._buildDiscardUI();
+        });
+      }
     }
 
     const doneLabel = pending.length > 0
@@ -2369,6 +2462,8 @@ class Dungeons extends Phaser.Scene {
     this.discardUIElements = [];
     this.discardUIPending = [];
     this.discardUIActive = false;
+    this.discardPendingPage = 0;
+    this.discardBagPage = 0;
   }
 
   canEntityMoveTo(entity, worldX, worldY, options = {}) {

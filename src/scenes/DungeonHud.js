@@ -26,6 +26,7 @@ class DungeonHud extends Phaser.Scene {
     this.bagPopupGroup = null;
     this.bagPopupDetailGroup = null;
     this.bagPopupSelectedItems = new Set();
+    this.bagPopupPage = 0;
   }
 
   create() {
@@ -263,6 +264,7 @@ class DungeonHud extends Phaser.Scene {
   openBagPopup() {
     if (this.bagPopupGroup) return;
     this.bagPopupSelectedItems = new Set();
+    this.bagPopupPage = 0;
     this._buildBagPopup();
     const dungeons = this.scene.get('Dungeons');
     if (dungeons) dungeons.bagPopupActive = true;
@@ -275,6 +277,7 @@ class DungeonHud extends Phaser.Scene {
       this.bagPopupGroup = null;
     }
     this.bagPopupSelectedItems = new Set();
+    this.bagPopupPage = 0;
     const dungeons = this.scene.get('Dungeons');
     if (dungeons) dungeons.bagPopupActive = false;
   }
@@ -328,6 +331,10 @@ class DungeonHud extends Phaser.Scene {
     const listStartY = panelTop + 108;
     const listEndY = panelBottom - 52;
     const maxRows = Math.max(3, Math.floor((listEndY - listStartY) / rowH));
+    const totalPages = Math.max(1, Math.ceil(stacks.length / maxRows));
+    this.bagPopupPage = Phaser.Math.Clamp(this.bagPopupPage, 0, totalPages - 1);
+    const pageStart = this.bagPopupPage * maxRows;
+    const pageStacks = stacks.slice(pageStart, pageStart + maxRows);
     const rowWidth = panelWidth - 30;
     const textLeft = panelLeft + 18;
     const textWidth = Math.max(120, rowWidth - 20);
@@ -429,7 +436,7 @@ class DungeonHud extends Phaser.Scene {
     closeBtn.on('pointerdown', () => this.closeBagPopup());
 
     // Item rows
-    stacks.slice(0, maxRows).forEach((stack, idx) => {
+    pageStacks.forEach((stack, idx) => {
       const y = listStartY + idx * rowH;
       const color = tierColors[(stack.item.tier || 1) - 1] || '#fff';
       const anySelected = stack.items.some((i) => selected.has(i));
@@ -469,18 +476,47 @@ class DungeonHud extends Phaser.Scene {
       });
     });
 
-    if (stacks.length > maxRows) {
+    if (totalPages > 1) {
+      const pageY = panelBottom - 44;
+      const prevBtn = this.add.text(panelLeft + 86, pageY, '← PREV', {
+        fontSize: '11px',
+        fill: this.bagPopupPage > 0 ? '#ddd' : '#666',
+        backgroundColor: '#222',
+        padding: { x: 6, y: 3 },
+      }).setOrigin(0.5).setInteractive();
+      this.bagPopupGroup.add(prevBtn);
+      if (this.bagPopupPage > 0) {
+        prevBtn.on('pointerdown', () => {
+          this.bagPopupPage--;
+          this._buildBagPopup();
+        });
+      }
+
       this.bagPopupGroup.add(
         this.add.text(
           centerX,
-          Math.min(panelBottom - 40, listStartY + maxRows * rowH),
-          `+${stacks.length - maxRows} more stacks...`,
+          pageY,
+          `${this.bagPopupPage + 1}/${totalPages}`,
           {
             fontSize: '11px',
-            fill: '#888',
+            fill: '#aaa',
           },
         ).setOrigin(0.5),
       );
+
+      const nextBtn = this.add.text(panelRight - 86, pageY, 'NEXT →', {
+        fontSize: '11px',
+        fill: this.bagPopupPage < totalPages - 1 ? '#ddd' : '#666',
+        backgroundColor: '#222',
+        padding: { x: 6, y: 3 },
+      }).setOrigin(0.5).setInteractive();
+      this.bagPopupGroup.add(nextBtn);
+      if (this.bagPopupPage < totalPages - 1) {
+        nextBtn.on('pointerdown', () => {
+          this.bagPopupPage++;
+          this._buildBagPopup();
+        });
+      }
     }
 
     // Discard button (only when something is selected)
@@ -507,7 +543,7 @@ class DungeonHud extends Phaser.Scene {
     }
   }
 
-  _openBagStackDetail(stack) {
+  _openBagStackDetail(stack, page = 0) {
     this._closeBagStackDetail();
     this.bagPopupDetailGroup = this.add.group();
     const { width, height } = this.scale;
@@ -527,6 +563,10 @@ class DungeonHud extends Phaser.Scene {
     const listStartY = panelTop + 80;
     const listEndY = panelBottom - 34;
     const maxLines = Math.max(3, Math.floor((listEndY - listStartY) / rowH));
+    const totalPages = Math.max(1, Math.ceil(stack.items.length / maxLines));
+    const currentPage = Phaser.Math.Clamp(page, 0, totalPages - 1);
+    const pageStart = currentPage * maxLines;
+    const pageItems = stack.items.slice(pageStart, pageStart + maxLines);
     const rowWidth = panelWidth - 40;
     const textLeft = panelLeft + 24;
     const textWidth = Math.max(100, rowWidth - 24);
@@ -578,7 +618,7 @@ class DungeonHud extends Phaser.Scene {
       this.bagPopupDetailGroup.add(saBtn);
       saBtn.on('pointerdown', () => {
         stack.items.forEach((i) => selected.add(i));
-        this._openBagStackDetail(stack);
+        this._openBagStackDetail(stack, currentPage);
         this._buildBagPopup();
       });
     }
@@ -593,13 +633,13 @@ class DungeonHud extends Phaser.Scene {
       this.bagPopupDetailGroup.add(daBtn);
       daBtn.on('pointerdown', () => {
         stack.items.forEach((i) => selected.delete(i));
-        this._openBagStackDetail(stack);
+        this._openBagStackDetail(stack, currentPage);
         this._buildBagPopup();
       });
     }
 
     // Item rows
-    stack.items.slice(0, maxLines).forEach((entry, idx) => {
+    pageItems.forEach((entry, idx) => {
       const y = listStartY + idx * rowH;
       const isSelected = selected.has(entry);
       const rowBg = this.add.rectangle(
@@ -626,23 +666,47 @@ class DungeonHud extends Phaser.Scene {
       rowBg.on('pointerdown', () => {
         if (selected.has(entry)) selected.delete(entry);
         else selected.add(entry);
-        this._openBagStackDetail(stack);
+        this._openBagStackDetail(stack, currentPage);
         this._buildBagPopup();
       });
     });
 
-    if (stack.items.length > maxLines) {
+    if (totalPages > 1) {
+      const pageY = Math.min(panelBottom - 14, listStartY + maxLines * rowH);
+      const prevBtn = this.add.text(centerX - 90, pageY, '← PREV', {
+        fontSize: '11px',
+        fill: currentPage > 0 ? '#ddd' : '#666',
+        backgroundColor: '#222',
+        padding: { x: 6, y: 3 },
+      }).setOrigin(0.5).setInteractive();
+      this.bagPopupDetailGroup.add(prevBtn);
+      if (currentPage > 0) {
+        prevBtn.on(
+          'pointerdown',
+          () => this._openBagStackDetail(stack, currentPage - 1),
+        );
+      }
+
       this.bagPopupDetailGroup.add(
-        this.add.text(
-          centerX,
-          Math.min(panelBottom - 14, listStartY + maxLines * rowH),
-          `+${stack.items.length - maxLines} more`,
-          {
-            fontSize: '11px',
-            fill: '#888',
-          },
-        ).setOrigin(0.5),
+        this.add.text(centerX, pageY, `${currentPage + 1}/${totalPages}`, {
+          fontSize: '11px',
+          fill: '#aaa',
+        }).setOrigin(0.5),
       );
+
+      const nextBtn = this.add.text(centerX + 90, pageY, 'NEXT →', {
+        fontSize: '11px',
+        fill: currentPage < totalPages - 1 ? '#ddd' : '#666',
+        backgroundColor: '#222',
+        padding: { x: 6, y: 3 },
+      }).setOrigin(0.5).setInteractive();
+      this.bagPopupDetailGroup.add(nextBtn);
+      if (currentPage < totalPages - 1) {
+        nextBtn.on(
+          'pointerdown',
+          () => this._openBagStackDetail(stack, currentPage + 1),
+        );
+      }
     }
 
     // Back button

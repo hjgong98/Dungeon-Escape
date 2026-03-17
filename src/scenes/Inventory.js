@@ -597,7 +597,7 @@ class Inventory extends Phaser.Scene {
     return stacks;
   }
 
-  openStackDetails(stack, location) {
+  openStackDetails(stack, location, page = 0) {
     this.closeStackDetails();
 
     this.detailGroup = this.add.group();
@@ -644,7 +644,7 @@ class Inventory extends Phaser.Scene {
 
       selectAllBtn.on('pointerdown', () => {
         this.selectItemsInStack(stack.items);
-        this.openStackDetails(stack, location);
+        this.openStackDetails(stack, location, page);
       });
     }
 
@@ -659,7 +659,7 @@ class Inventory extends Phaser.Scene {
 
       deselectAllBtn.on('pointerdown', () => {
         this.deselectItemsInStack(stack.items);
-        this.openStackDetails(stack, location);
+        this.openStackDetails(stack, location, page);
       });
     }
 
@@ -675,7 +675,10 @@ class Inventory extends Phaser.Scene {
     overlay.on('pointerdown', () => this.closeStackDetails());
 
     const maxLines = 7;
-    const itemsToShow = stack.items.slice(0, maxLines);
+    const totalPages = Math.max(1, Math.ceil(stack.items.length / maxLines));
+    const currentPage = Phaser.Math.Clamp(page, 0, totalPages - 1);
+    const pageStart = currentPage * maxLines;
+    const itemsToShow = stack.items.slice(pageStart, pageStart + maxLines);
 
     itemsToShow.forEach((entry, idx) => {
       const y = 210 + idx * 34;
@@ -702,21 +705,48 @@ class Inventory extends Phaser.Scene {
 
       rowBg.on('pointerdown', () => {
         this.toggleItemSelection(entry, location, null);
-        this.openStackDetails(stack, location);
+        this.openStackDetails(stack, location, currentPage);
       });
     });
 
-    if (stack.items.length > maxLines) {
-      const moreText = this.add.text(
+    if (totalPages > 1) {
+      const pageY = 210 + maxLines * 34;
+      const prevBtn = this.add.text(320, pageY, '← PREV', {
+        fontSize: '12px',
+        fill: currentPage > 0 ? '#ddd' : '#666',
+        backgroundColor: '#222',
+        padding: { x: 6, y: 3 },
+      }).setOrigin(0.5).setInteractive();
+      this.detailGroup.add(prevBtn);
+      if (currentPage > 0) {
+        prevBtn.on('pointerdown', () => {
+          this.openStackDetails(stack, location, currentPage - 1);
+        });
+      }
+
+      const pageLabel = this.add.text(
         400,
-        210 + maxLines * 34,
-        `+${stack.items.length - maxLines} more items in stack`,
+        pageY,
+        `${currentPage + 1}/${totalPages}`,
         {
           fontSize: '12px',
           fill: '#999',
         },
       ).setOrigin(0.5);
-      this.detailGroup.add(moreText);
+      this.detailGroup.add(pageLabel);
+
+      const nextBtn = this.add.text(480, pageY, 'NEXT →', {
+        fontSize: '12px',
+        fill: currentPage < totalPages - 1 ? '#ddd' : '#666',
+        backgroundColor: '#222',
+        padding: { x: 6, y: 3 },
+      }).setOrigin(0.5).setInteractive();
+      this.detailGroup.add(nextBtn);
+      if (currentPage < totalPages - 1) {
+        nextBtn.on('pointerdown', () => {
+          this.openStackDetails(stack, location, currentPage + 1);
+        });
+      }
     }
   }
 
