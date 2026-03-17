@@ -99,6 +99,54 @@ const monsterVariants = [
 ];
 globalThis.MONSTER_VARIANTS = monsterVariants;
 
+const sharedSfxPaths = {
+  'ui-sfx': './assets/audio/UI.wav',
+  'player-attack-sfx': './assets/audio/attack.wav',
+  'enemy-death-sfx': './assets/audio/enemy_death.wav',
+  'lootbox-open-sfx': './assets/audio/openchest.mp3',
+};
+
+globalThis.registerSharedSfx = function registerSharedSfx(scene) {
+  if (!scene?.load || !scene?.cache?.audio) {
+    return;
+  }
+
+  Object.entries(sharedSfxPaths).forEach(([key, path]) => {
+    if (!scene.cache.audio.exists(key)) {
+      scene.load.audio(key, path);
+    }
+  });
+};
+
+globalThis.playSharedSfx = function playSharedSfx(scene, key, config = {}) {
+  if (!scene?.sound || !scene?.cache?.audio?.exists(key)) {
+    return;
+  }
+
+  scene.sound.play(key, config);
+};
+
+globalThis.enableSceneUiClickSfx = function enableSceneUiClickSfx(scene) {
+  if (!scene?.input) {
+    return;
+  }
+
+  if (scene._uiClickSfxHandler) {
+    scene.input.off('gameobjectdown', scene._uiClickSfxHandler, scene);
+  }
+
+  scene._uiClickSfxHandler = function handleUiClick() {
+    globalThis.playSharedSfx(scene, 'ui-sfx', { volume: 0.35 });
+  };
+
+  scene.input.on('gameobjectdown', scene._uiClickSfxHandler, scene);
+  scene.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+    if (scene._uiClickSfxHandler) {
+      scene.input.off('gameobjectdown', scene._uiClickSfxHandler, scene);
+    }
+  });
+};
+
 // Game state
 const gameState = {
   player: {

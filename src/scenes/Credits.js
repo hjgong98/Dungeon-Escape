@@ -4,10 +4,12 @@ class Credits extends Phaser.Scene {
   }
 
   preload() {
+    globalThis.registerSharedSfx?.(this);
     this.load.image('background', './assets/game_background_3.1.png');
   }
 
   create() {
+    globalThis.enableSceneUiClickSfx?.(this);
     // menu background
     const { width, height } = this.scale;
     const bgImage = this.textures.get('background').getSourceImage();

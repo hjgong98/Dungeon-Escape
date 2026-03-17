@@ -19,10 +19,12 @@ class Upgrades extends Phaser.Scene {
   }
 
   preload() {
+    globalThis.registerSharedSfx?.(this);
     this.load.image('upgradesBackground', '/assets/forest1.png');
   }
 
   create() {
+    globalThis.enableSceneUiClickSfx?.(this);
     // Background
     const { width, height } = this.scale;
     const bgKey = this.textures.exists('upgradesBackground')

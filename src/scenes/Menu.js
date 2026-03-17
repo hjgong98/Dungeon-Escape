@@ -4,10 +4,12 @@ class Menu extends Phaser.Scene {
   }
 
   preload() {
+    globalThis.registerSharedSfx?.(this);
     this.load.image('background', './assets/Clouds 3.png');
   }
 
   create() {
+    globalThis.enableSceneUiClickSfx?.(this);
     // Menu background
     const { width, height } = this.scale;
     const bgImage = this.textures.get('background').getSourceImage();

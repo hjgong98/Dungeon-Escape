@@ -10,6 +10,7 @@ class Play extends Phaser.Scene {
   }
 
   preload() {
+    globalThis.registerSharedSfx?.(this);
     this.load.image('playBackground', './assets/forest2.png');
 
     this.getPlayerSpriteOptions().forEach((option) => {
@@ -24,6 +25,7 @@ class Play extends Phaser.Scene {
   }
 
   create() {
+    globalThis.enableSceneUiClickSfx?.(this);
     this.ensurePlayerIdleAnimations();
 
     // Background

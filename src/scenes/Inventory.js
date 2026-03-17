@@ -28,10 +28,12 @@ class Inventory extends Phaser.Scene {
   }
 
   preload() {
+    globalThis.registerSharedSfx?.(this);
     this.load.image('inventoryBackground', './assets/forest2.png');
   }
 
   create() {
+    globalThis.enableSceneUiClickSfx?.(this);
     // Background
     const { width, height } = this.scale;
     const bgImage = this.textures.get('inventoryBackground').getSourceImage();
