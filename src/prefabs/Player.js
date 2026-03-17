@@ -1,5 +1,16 @@
 // Player.js - Simple player prefab with basic stats and luck
 class Player extends Phaser.Physics.Arcade.Sprite {
+  static getBaseMaxHp() {
+    return 50;
+  }
+
+  static getMaxHpForLevel(level = 1) {
+    const safeLevel = Math.max(1, Number(level) || 1);
+    const baseHp = Player.getBaseMaxHp();
+    const hpPerLevel = 10;
+    return baseHp + (safeLevel - 1) * hpPerLevel;
+  }
+
   constructor(scene, x, y) {
     super(scene, x, y, 'player');
 
@@ -12,8 +23,8 @@ class Player extends Phaser.Physics.Arcade.Sprite {
     // Basic stats
     this.name = 'Adventurer';
     this.level = 1;
-    this.hp = 100;
-    this.maxHp = 100;
+    this.hp = Player.getBaseMaxHp();
+    this.maxHp = Player.getBaseMaxHp();
     this.atk = 10;
     this.def = 5;
     this.luck = 0; // Luck affects dodge and drop rates
@@ -125,12 +136,14 @@ class Player extends Phaser.Physics.Arcade.Sprite {
 
   // Level up increases stats
   levelUp() {
+    const previousMaxHp = Math.max(1, Number(this.maxHp) || Player.getBaseMaxHp());
     this.level++;
     this.expToNext = this.getRequiredExpForLevel(this.level);
 
     // Stat increases
-    this.maxHp += 10;
-    this.hp = Math.min(this.maxHp, this.hp + 10);
+    this.maxHp = Player.getMaxHpForLevel(this.level);
+    const hpGain = Math.max(0, this.maxHp - previousMaxHp);
+    this.hp = Math.min(this.maxHp, this.hp + hpGain);
     this.atk += 1;
     this.def += 1;
 
@@ -257,8 +270,8 @@ class Player extends Phaser.Physics.Arcade.Sprite {
   fromJSON(data) {
     this.name = data.name || 'Adventurer';
     this.level = data.level || 1;
-    this.hp = data.hp || 100;
-    this.maxHp = data.maxHp || 100;
+    this.hp = data.hp || Player.getBaseMaxHp();
+    this.maxHp = data.maxHp || Player.getMaxHpForLevel(this.level);
     this.atk = data.atk || 10;
     this.def = data.def || 5;
     this.luck = data.luck || 0;

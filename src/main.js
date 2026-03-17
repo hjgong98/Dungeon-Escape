@@ -104,8 +104,8 @@ const gameState = {
   player: {
     name: 'Adventurer',
     level: 1,
-    hp: 100,
-    maxHP: 100,
+    hp: 50,
+    maxHP: 50,
     atk: 10,
     def: 5,
     luck: 0,

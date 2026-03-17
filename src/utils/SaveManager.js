@@ -232,15 +232,19 @@ class SaveManager {
 
   // Create runtime player object from saved data
   createRuntimePlayer(playerData = {}) {
+    const baseMaxHp = 50;
+    const hpPerLevel = 10;
     const safeLevel = Math.max(1, Number(playerData.level) || 1);
+    const getMaxHpForLevel = (level) =>
+      baseMaxHp + (Math.max(1, Number(level) || 1) - 1) * hpPerLevel;
     const getRequiredExpForLevel = (level) =>
       Math.max(10, Math.round(10 * (1 + (Math.max(1, level) - 1) * 0.1)));
     const defaultSpriteId = globalThis.getPlayerSpriteOption?.().id || 'owlet';
     const player = {
       name: playerData.name || 'Adventurer',
       level: safeLevel,
-      hp: playerData.hp || 50,
-      maxHP: playerData.maxHP || playerData.maxHp || 50,
+      hp: playerData.hp || baseMaxHp,
+      maxHP: playerData.maxHP || playerData.maxHp || getMaxHpForLevel(safeLevel),
       atk: playerData.atk || 10,
       def: playerData.def || 5,
       luck: playerData.luck || 0,
@@ -317,10 +321,12 @@ class SaveManager {
     };
 
     player.levelUp = function levelUp() {
+      const previousMaxHp = Math.max(1, Number(this.maxHP) || getMaxHpForLevel(this.level));
       this.level = Math.max(1, Number(this.level) || 1) + 1;
-      this.maxHP = Math.max(1, Number(this.maxHP) || 100) + 10;
+      this.maxHP = getMaxHpForLevel(this.level);
       this.maxHp = this.maxHP;
-      this.hp = Math.min(this.maxHP, Math.max(0, Number(this.hp) || 0) + 10);
+      const hpGain = Math.max(0, this.maxHP - previousMaxHp);
+      this.hp = Math.min(this.maxHP, Math.max(0, Number(this.hp) || 0) + hpGain);
       this.atk = Math.max(1, Number(this.atk) || 10) + 1;
       this.def = Math.max(0, Number(this.def) || 5) + 1;
       this.expToNext = this.getRequiredExpForLevel(this.level);
