@@ -108,6 +108,7 @@ class Dungeons extends Phaser.Scene {
 
   preload() {
     this.configurePlayerSpriteOption();
+    globalThis.registerSharedSfx?.(this);
 
     if (!this.textures.exists(this.playerSpriteKey)) {
       this.load.spritesheet(
@@ -1488,6 +1489,7 @@ class Dungeons extends Phaser.Scene {
       return;
     }
 
+    globalThis.playSharedSfx?.(this, 'player-attack-sfx', { volume: 0.3 });
     this.playerAttackLockUntil = this.time.now + 280;
     if (this.player.texture.key !== this.playerAttackSpriteKey) {
       this.player.setTexture(this.playerAttackSpriteKey, 0);
@@ -2167,6 +2169,7 @@ class Dungeons extends Phaser.Scene {
       return;
     }
 
+    globalThis.playSharedSfx?.(this, 'enemy-death-sfx', { volume: 0.35 });
     enemy.isDying = true;
     enemy.isCollidingWithPlayer = false;
     enemy.path = [];

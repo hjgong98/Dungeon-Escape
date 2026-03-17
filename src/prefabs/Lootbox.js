@@ -42,6 +42,9 @@ class Lootbox extends Phaser.GameObjects.Sprite {
     }
 
     this.isOpening = true;
+    if (this.scene.cache.audio.exists('lootbox-open-sfx')) {
+      this.scene.sound.play('lootbox-open-sfx', { volume: 0.35 });
+    }
     this.play(this.openAnimKey);
     this.once(Phaser.Animations.Events.ANIMATION_COMPLETE, () => {
       this.isOpening = false;
