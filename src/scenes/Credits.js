@@ -10,7 +10,6 @@ class Credits extends Phaser.Scene {
 
   create() {
     globalThis.enableSceneUiClickSfx?.(this);
-    // menu background
     const { width, height } = this.scale;
     const bgImage = this.textures.get('background').getSourceImage();
     const bgScale = height / bgImage.height;
@@ -21,26 +20,108 @@ class Credits extends Phaser.Scene {
     );
     this.background.setScale(bgScale);
 
-    // Scene title
     this.add.text(400, 80, 'CREDITS', {
       fontSize: '48px',
       fill: '#fff',
       fontStyle: 'bold',
     }).setOrigin(0.5);
 
-    // character.png and download.gif from mini-moss.tumblr.com/
-    // lootbox.py from https://github.com/TristanChenUCSC/Lootbox-Generator
-    // sounds from https://pixabay.com/
-    // chest png from https://pixelserial.itch.io/rpg-pixel-art-chests
-    // background pngs from : https://craftpix.net/freebies/free-autumn-pixel-backgrounds-for-game/
-    //                        https://craftpix.net/freebies/free-sky-with-clouds-background-pixel-art-set/
-    //                        https://craftpix.net/freebies/forest-and-trees-free-pixel-backgrounds/
-    //                        https://craftpix.net/freebies/free-horizontal-2d-game-backgrounds/
-    // hero sprites from https://craftpix.net/freebies/free-pixel-art-tiny-hero-sprites/
-    // monster sprites from https://craftpix.net/freebies/free-slime-mobs-pixel-art-top-down-sprite-pack/
+    this.add.text(400, 160, 'Used Assets:', {
+      fontSize: '28px',
+      fill: '#ff0',
+    }).setOrigin(0.5);
 
-    // Back button to menu
-    const backButton = this.add.text(100, 550, '← BACK TO MENU', {
+    this.add.text(
+      400,
+      205,
+      '• FREE RPG Pixel Art Chests w/Animation - Asset Pack',
+      {
+        fontSize: '18px',
+        fill: '#fff',
+      },
+    ).setOrigin(0.5);
+
+    this.add.text(
+      400,
+      240,
+      '• Free Pixel Art Tiny Hero Sprites',
+      {
+        fontSize: '18px',
+        fill: '#fff',
+      },
+    ).setOrigin(0.5);
+
+    this.add.text(
+      400,
+      268,
+      'craftpix.net/freebies/free-pixel-art-tiny-hero-sprites/',
+      {
+        fontSize: '18px',
+        fill: '#fff',
+      },
+    ).setOrigin(0.5);
+
+    this.add.text(
+      400,
+      305,
+      '• Free Slime Mobs Pixel Art Top-Down Sprite Pack',
+      {
+        fontSize: '18px',
+        fill: '#fff',
+      },
+    ).setOrigin(0.5);
+
+    this.add.text(
+      400,
+      333,
+      'craftpix.net/freebies/free-slime-mobs-pixel-art-top-down-sprite-pack/',
+      {
+        fontSize: '18px',
+        fill: '#fff',
+      },
+    ).setOrigin(0.5);
+
+    this.add.text(400, 390, 'Sound Effects:', {
+      fontSize: '28px',
+      fill: '#ff0',
+    }).setOrigin(0.5);
+
+    this.add.text(400, 430, '• 400-sounds-pack', {
+      fontSize: '18px',
+      fill: '#fff',
+    }).setOrigin(0.5);
+
+    this.add.text(
+      400,
+      458,
+      'ci.itch.io/400-sounds-pack',
+      {
+        fontSize: '18px',
+        fill: '#fff',
+      },
+    ).setOrigin(0.5);
+
+    this.add.text(
+      400,
+      490,
+      '• freesound_community-short-success-sound',
+      {
+        fontSize: '18px',
+        fill: '#fff',
+      },
+    ).setOrigin(0.5);
+
+    this.add.text(
+      400,
+      518,
+      'glockenspiel-treasure-video-game-6346',
+      {
+        fontSize: '18px',
+        fill: '#fff',
+      },
+    ).setOrigin(0.5);
+
+    const backButton = this.add.text(400, 555, '← BACK TO MENU', {
       fontSize: '24px',
       fill: '#fff',
       backgroundColor: '#333',
