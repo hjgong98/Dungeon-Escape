@@ -196,7 +196,12 @@ class Dungeons extends Phaser.Scene {
       globalAggro: this.monstersAlerted,
     });
 
-    this.dungeon = generateDungeon();
+    this.dungeon = generateDungeon({
+      chestSpacing: {
+        strictMinDistance: 4,
+        relaxedMinDistance: 2,
+      },
+    });
 
     this.keys = this.input.keyboard.addKeys({
       w: Phaser.Input.Keyboard.KeyCodes.W,
@@ -363,7 +368,11 @@ class Dungeons extends Phaser.Scene {
   loadFloor(floorNum) {
     this.ensureDungeonHud();
     this.currentFloor = floorNum;
-    const floor = this.dungeon.floors[floorNum];
+    const floor = this.dungeon?.floors?.[floorNum];
+    if (!floor) {
+      console.warn('[Dungeons] Unable to load floor:', floorNum);
+      return;
+    }
     this.currentFloorData = floor;
     this.nearStair = null;
     this.nearExit = false;
@@ -469,6 +478,21 @@ class Dungeons extends Phaser.Scene {
       maxX = Math.max(maxX, stair.x);
       maxY = Math.max(maxY, stair.y);
     });
+
+    if (
+      !Number.isFinite(minX) || !Number.isFinite(minY) ||
+      !Number.isFinite(maxX) || !Number.isFinite(maxY)
+    ) {
+      this.worldOffset.x = 0;
+      this.worldOffset.y = 0;
+      this.floorBounds = {
+        minX: 0,
+        minY: 0,
+        width: this.scale.width,
+        height: this.scale.height,
+      };
+      return;
+    }
 
     const contentWidth = (maxX - minX + 1) * this.tileSize;
     const contentHeight = (maxY - minY + 1) * this.tileSize;
@@ -1502,7 +1526,7 @@ class Dungeons extends Phaser.Scene {
   }
 
   findAnyFloorTile(floor) {
-    for (const room of floor.rooms) {
+    for (const room of floor?.rooms || []) {
       for (let y = 0; y < room.h; y++) {
         for (let x = 0; x < room.w; x++) {
           if (room.maze[y][x].type === 'floor') {
@@ -1512,7 +1536,7 @@ class Dungeons extends Phaser.Scene {
       }
     }
 
-    if (floor.corridorTiles.length > 0) {
+    if ((floor?.corridorTiles || []).length > 0) {
       return floor.corridorTiles[0];
     }
 
@@ -1834,6 +1858,10 @@ class Dungeons extends Phaser.Scene {
 
   update() {
     if (!this.player || !this.currentFloorData) {
+      return;
+    }
+
+    if (!this.keys?.w || !this.keys?.a || !this.keys?.s || !this.keys?.d) {
       return;
     }
 
@@ -2234,13 +2262,14 @@ class Dungeons extends Phaser.Scene {
   }
 
   showDiscardUI(overflowItems) {
+    const safeOverflowItems = Array.isArray(overflowItems) ? overflowItems : [];
     if (this.discardUIActive) {
-      this.discardUIPending.push(...overflowItems);
+      this.discardUIPending.push(...safeOverflowItems);
       this._buildDiscardUI();
       return;
     }
     this.discardUIActive = true;
-    this.discardUIPending = [...overflowItems];
+    this.discardUIPending = [...safeOverflowItems];
     this.discardUIElements = [];
     this.discardPendingPage = 0;
     this.discardBagPage = 0;
@@ -2251,7 +2280,11 @@ class Dungeons extends Phaser.Scene {
     (this.discardUIElements || []).forEach((el) => el.destroy());
     this.discardUIElements = [];
 
-    const player = globalThis.gameState.player;
+    const player = globalThis.gameState?.player;
+    if (!player) {
+      this.closeDiscardUI();
+      return;
+    }
     const pending = this.discardUIPending;
     const bag = player.inventory || [];
     const bagCap = typeof player.bagSlots === 'number'
@@ -2417,16 +2450,21 @@ class Dungeons extends Phaser.Scene {
         row.on('pointerover', () => row.setFillStyle(0x3d3d3d, 0.9));
         row.on('pointerout', () => row.setFillStyle(0x2a2a2a, 0.9));
         row.on('pointerdown', () => {
-          const inv = globalThis.gameState.player.inventory || [];
+          const activePlayer = globalThis.gameState?.player;
+          if (!activePlayer) {
+            this.closeDiscardUI();
+            return;
+          }
+          const inv = activePlayer.inventory || [];
           const idx = inv.indexOf(item);
           if (idx !== -1) inv.splice(idx, 1);
           if (this.discardUIPending.length > 0) {
             const next = this.discardUIPending.shift();
-            const addFn = globalThis.gameState.player.addItem;
+            const addFn = activePlayer.addItem;
             if (typeof addFn === 'function') {
-              addFn.call(globalThis.gameState.player, next);
+              addFn.call(activePlayer, next);
             } else {
-              (globalThis.gameState.player.inventory || []).push(next);
+              (activePlayer.inventory || []).push(next);
             }
           }
           this._buildDiscardUI();
@@ -2953,6 +2991,12 @@ class Dungeons extends Phaser.Scene {
   }
 
   useStairs(stair) {
+    if (!stair || !Number.isInteger(stair.toFloor)) {
+      return;
+    }
+    if (!this.dungeon?.floors?.[stair.toFloor]) {
+      return;
+    }
     this.lastStairDir = stair.dir;
     this.loadFloor(stair.toFloor);
   }
@@ -2980,7 +3024,9 @@ class Dungeons extends Phaser.Scene {
   }
 
   checkExit() {
-    const endRoom = this.currentFloorData.rooms.find((room) => room.isEnd);
+    const endRoom = (this.currentFloorData?.rooms || []).find((room) =>
+      room.isEnd
+    );
 
     if (endRoom && endRoom.endPos) {
       const dist = this.distanceToTileCenter(
@@ -3003,7 +3049,9 @@ class Dungeons extends Phaser.Scene {
       return;
     }
 
-    const startRoom = this.currentFloorData.rooms.find((room) => room.isStart);
+    const startRoom = (this.currentFloorData?.rooms || []).find((room) =>
+      room.isStart
+    );
     if (startRoom && startRoom.startPos) {
       const dist = this.distanceToTileCenter(
         startRoom.startPos.x,
@@ -3060,7 +3108,7 @@ class Dungeons extends Phaser.Scene {
     let nearestStair = null;
     let nearestDistance = Infinity;
 
-    this.currentFloorData.stairs.forEach((stair) => {
+    (this.currentFloorData?.stairs || []).forEach((stair) => {
       const dist = this.distanceToTileCenter(stair.x, stair.y);
       if (dist < this.interactionRadius && dist < nearestDistance) {
         nearestStair = stair;

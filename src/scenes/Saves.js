@@ -7,7 +7,7 @@ class Saves extends Phaser.Scene {
     this.slotGroup = null;
   }
 
-  init(data) {
+  init(data = {}) {
     // Scene instances are reused by Phaser. Reset transient display groups
     // here so create() never touches a destroyed group from a prior run.
     this.slotGroup = null;
@@ -30,14 +30,17 @@ class Saves extends Phaser.Scene {
   create() {
     globalThis.enableSceneUiClickSfx?.(this);
     const { width, height } = this.scale;
-    const bgImage = this.textures.get('background').getSourceImage();
-    const bgScale = height / bgImage.height;
-
-    this.background = this.add.image(width / 2, 0, 'background').setOrigin(
-      0.5,
-      0,
-    );
-    this.background.setScale(bgScale);
+    if (this.textures.exists('background')) {
+      const bgImage = this.textures.get('background').getSourceImage();
+      const bgScale = height / bgImage.height;
+      this.background = this.add.image(width / 2, 0, 'background').setOrigin(
+        0.5,
+        0,
+      );
+      this.background.setScale(bgScale);
+    } else {
+      this.cameras.main.setBackgroundColor('#111827');
+    }
 
     const title = this.mode === 'load' ? 'LOAD SAVE' : 'SAVE GAME';
     this.add.text(400, 80, title, {
@@ -75,7 +78,8 @@ class Saves extends Phaser.Scene {
 
   loadSaves() {
     if (globalThis.saveManager) {
-      this.saves = globalThis.saveManager.loadSaveList();
+      const loadedSaves = globalThis.saveManager.loadSaveList();
+      this.saves = Array.isArray(loadedSaves) ? loadedSaves : [];
       return;
     }
 
@@ -129,6 +133,9 @@ class Saves extends Phaser.Scene {
   }
 
   createSaveSlot(index, y) {
+    if (!Array.isArray(this.saves)) {
+      this.saves = [];
+    }
     const saveId = `save_${index + 1}`;
     const saveInfo = this.saves.find((s) => s.id === saveId);
 
@@ -279,7 +286,11 @@ class Saves extends Phaser.Scene {
     }
 
     // Get current player data
-    const player = globalThis.gameState.player;
+    const player = globalThis.gameState?.player;
+    if (!player) {
+      console.error('Missing player state; cannot save to slot:', saveId);
+      return;
+    }
 
     // Create save data
     const saveData = {
@@ -348,7 +359,13 @@ class Saves extends Phaser.Scene {
 
     const saveData = localStorage.getItem(saveId);
     if (saveData) {
-      const data = JSON.parse(saveData);
+      let data;
+      try {
+        data = JSON.parse(saveData);
+      } catch (error) {
+        console.error('Failed to parse save data for', saveId, error);
+        return;
+      }
 
       // Load into gameState
       globalThis.gameState.player = {

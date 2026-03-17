@@ -34,17 +34,27 @@ class Inventory extends Phaser.Scene {
 
   create() {
     globalThis.enableSceneUiClickSfx?.(this);
+    const player = this.getPlayerState();
+    if (!player) {
+      console.warn('[Inventory] Missing player state; returning to Play scene.');
+      this.scene.start('Play');
+      return;
+    }
+
     // Background
     const { width, height } = this.scale;
-    const bgImage = this.textures.get('inventoryBackground').getSourceImage();
-    const bgScale = height / bgImage.height;
-
-    this.background = this.add.image(width / 2, 0, 'inventoryBackground')
-      .setOrigin(
-        0.5,
-        0,
-      );
-    this.background.setScale(bgScale);
+    if (this.textures.exists('inventoryBackground')) {
+      const bgImage = this.textures.get('inventoryBackground').getSourceImage();
+      const bgScale = height / bgImage.height;
+      this.background = this.add.image(width / 2, 0, 'inventoryBackground')
+        .setOrigin(
+          0.5,
+          0,
+        );
+      this.background.setScale(bgScale);
+    } else {
+      this.cameras.main.setBackgroundColor('#101820');
+    }
 
     // Title and gold
     this.add.text(400, 40, 'INVENTORY', {
@@ -53,7 +63,6 @@ class Inventory extends Phaser.Scene {
       fontStyle: 'bold',
     }).setOrigin(0.5);
 
-    const player = globalThis.gameState.player;
     const gold = player.gold || 0;
     this.add.text(680, 40, `💰 ${gold}`, {
       fontSize: '24px',
@@ -92,7 +101,8 @@ class Inventory extends Phaser.Scene {
   }
 
   createBagSection() {
-    const player = globalThis.gameState.player;
+    const player = this.getPlayerState();
+    if (!player) return;
     const bag = player.inventory || [];
     const bagStacks = this.getItemStacks(bag);
     const maxItems = 8;
@@ -250,7 +260,8 @@ class Inventory extends Phaser.Scene {
   }
 
   createStorageSection() {
-    const player = globalThis.gameState.player;
+    const player = this.getPlayerState();
+    if (!player) return;
     const storage = player.storage || [];
     const storageStacks = this.getItemStacks(storage);
     const maxItems = 8;
@@ -555,7 +566,10 @@ class Inventory extends Phaser.Scene {
   }
 
   ensureCapacityFields() {
-    const player = globalThis.gameState.player;
+    const player = this.getPlayerState();
+    if (!player) {
+      return;
+    }
     if (typeof player.bagSlots !== 'number') {
       player.bagSlots = typeof player.maxInventory === 'number'
         ? player.maxInventory
@@ -570,12 +584,18 @@ class Inventory extends Phaser.Scene {
   }
 
   getBagCapacity() {
-    const player = globalThis.gameState.player;
+    const player = this.getPlayerState();
+    if (!player) {
+      return 20;
+    }
     return typeof player.bagSlots === 'number' ? player.bagSlots : 20;
   }
 
   getStorageCapacity() {
-    const player = globalThis.gameState.player;
+    const player = this.getPlayerState();
+    if (!player) {
+      return 40;
+    }
     return typeof player.storageSlots === 'number' ? player.storageSlots : 40;
   }
 
@@ -882,7 +902,11 @@ class Inventory extends Phaser.Scene {
   }
 
   getSelectedItems() {
-    const player = globalThis.gameState.player;
+    const player = this.getPlayerState();
+    if (!player) {
+      this.selectedItems.clear();
+      return [];
+    }
     const inventory = player.inventory || [];
     const storage = player.storage || [];
     const valid = [];
@@ -916,14 +940,18 @@ class Inventory extends Phaser.Scene {
   }
 
   getItemLocation(item) {
-    const player = globalThis.gameState.player;
+    const player = this.getPlayerState();
+    if (!player) {
+      return null;
+    }
     if ((player.inventory || []).includes(item)) return 'bag';
     if ((player.storage || []).includes(item)) return 'storage';
     return null;
   }
 
   selectAllInLocation(location) {
-    const player = globalThis.gameState.player;
+    const player = this.getPlayerState();
+    if (!player) return;
     const source = location === 'bag'
       ? (player.inventory || [])
       : (player.storage || []);
@@ -935,7 +963,8 @@ class Inventory extends Phaser.Scene {
   }
 
   clearSelectionInLocation(location) {
-    const player = globalThis.gameState.player;
+    const player = this.getPlayerState();
+    if (!player) return;
     const source = location === 'bag'
       ? (player.inventory || [])
       : (player.storage || []);
@@ -977,7 +1006,8 @@ class Inventory extends Phaser.Scene {
     if (selectedItems.length === 0) return;
     this.closeStackDetails();
 
-    const player = globalThis.gameState.player;
+    const player = this.getPlayerState();
+    if (!player) return;
     if (!player.inventory) player.inventory = [];
     if (!player.storage) player.storage = [];
 
@@ -1014,7 +1044,8 @@ class Inventory extends Phaser.Scene {
     if (selectedItems.length === 0) return;
     this.closeStackDetails();
 
-    const player = globalThis.gameState.player;
+    const player = this.getPlayerState();
+    if (!player) return;
     const value = selectedItems.reduce(
       (sum, item) => sum + this.getSellValue(item),
       0,
@@ -1035,7 +1066,8 @@ class Inventory extends Phaser.Scene {
   }
 
   upgradeBagSlots() {
-    const player = globalThis.gameState.player;
+    const player = this.getPlayerState();
+    if (!player) return;
     const cost = 50;
     if ((player.gold || 0) < cost) return;
     player.gold -= cost;
@@ -1045,12 +1077,17 @@ class Inventory extends Phaser.Scene {
   }
 
   upgradeStorageSlots() {
-    const player = globalThis.gameState.player;
+    const player = this.getPlayerState();
+    if (!player) return;
     const cost = 100;
     if ((player.gold || 0) < cost) return;
     player.gold -= cost;
     player.storageSlots = this.getStorageCapacity() + 10;
     this.scene.restart();
+  }
+
+  getPlayerState() {
+    return globalThis.gameState?.player || null;
   }
 }
 

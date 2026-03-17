@@ -263,6 +263,7 @@ class DungeonHud extends Phaser.Scene {
 
   openBagPopup() {
     if (this.bagPopupGroup) return;
+    if (!globalThis.gameState?.player) return;
     this.bagPopupSelectedItems = new Set();
     this.bagPopupPage = 0;
     this._buildBagPopup();
@@ -285,7 +286,8 @@ class DungeonHud extends Phaser.Scene {
   _getBagStacks() {
     const stacks = [];
     const byName = new Map();
-    (globalThis.gameState.player.inventory || []).forEach((item) => {
+    const inventory = globalThis.gameState?.player?.inventory || [];
+    inventory.forEach((item) => {
       const key = item?.name || 'Unknown';
       const existing = byName.get(key);
       if (existing) {
@@ -314,7 +316,11 @@ class DungeonHud extends Phaser.Scene {
     const panelTop = centerY - panelHeight / 2;
     const panelBottom = centerY + panelHeight / 2;
 
-    const player = globalThis.gameState.player;
+    const player = globalThis.gameState?.player;
+    if (!player) {
+      this.closeBagPopup();
+      return;
+    }
     const bag = player.inventory || [];
     const bagCap = typeof player.bagSlots === 'number'
       ? player.bagSlots
@@ -533,8 +539,13 @@ class DungeonHud extends Phaser.Scene {
       }).setOrigin(0.5).setInteractive();
       this.bagPopupGroup.add(discardBtn);
       discardBtn.on('pointerdown', () => {
-        const inv = globalThis.gameState.player.inventory || [];
-        globalThis.gameState.player.inventory = inv.filter((i) =>
+        const activePlayer = globalThis.gameState?.player;
+        if (!activePlayer) {
+          this.closeBagPopup();
+          return;
+        }
+        const inv = activePlayer.inventory || [];
+        activePlayer.inventory = inv.filter((i) =>
           !selected.has(i)
         );
         selected.clear();

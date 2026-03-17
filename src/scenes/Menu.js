@@ -12,14 +12,18 @@ class Menu extends Phaser.Scene {
     globalThis.enableSceneUiClickSfx?.(this);
     // Menu background
     const { width, height } = this.scale;
-    const bgImage = this.textures.get('background').getSourceImage();
-    const bgScale = height / bgImage.height;
+    if (this.textures.exists('background')) {
+      const bgImage = this.textures.get('background').getSourceImage();
+      const bgScale = height / bgImage.height;
 
-    this.background = this.add.image(width / 2, 0, 'background').setOrigin(
-      0.5,
-      0,
-    );
-    this.background.setScale(bgScale);
+      this.background = this.add.image(width / 2, 0, 'background').setOrigin(
+        0.5,
+        0,
+      );
+      this.background.setScale(bgScale);
+    } else {
+      this.cameras.main.setBackgroundColor('#1a1a2e');
+    }
 
     // Title
     this.add.text(400, 80, 'DUNGEON ESCAPE', {
@@ -37,8 +41,18 @@ class Menu extends Phaser.Scene {
     }).setOrigin(0.5).setInteractive();
 
     newGameButton.on('pointerdown', () => {
+      const gameState = globalThis.gameState || {
+        player: null,
+        settings: { sound: true, music: true },
+        currentSaveId: null,
+        lootTables: {},
+      };
+      globalThis.gameState = gameState;
+
       const starterMaterial = globalThis.GameItem
-        ? GameItem.generateCraftingMaterial(Math.floor(Math.random() * 3) + 1)
+        ? globalThis.GameItem.generateCraftingMaterial(
+          Math.floor(Math.random() * 3) + 1,
+        )
         : {
           id: `craft_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
           name: 'Crafting Material T1',
@@ -97,13 +111,13 @@ class Menu extends Phaser.Scene {
       };
 
       if (globalThis.saveManager?.createRuntimePlayer) {
-        globalThis.gameState.player = globalThis.saveManager
+        gameState.player = globalThis.saveManager
           .createRuntimePlayer(
             starterPlayerData,
           );
       } else {
-        globalThis.gameState.player = starterPlayerData;
-        globalThis.gameState.player.addItem = function addItem(itemData) {
+        gameState.player = starterPlayerData;
+        gameState.player.addItem = function addItem(itemData) {
           if (!Array.isArray(this.inventory)) {
             this.inventory = [];
           }
@@ -112,13 +126,20 @@ class Menu extends Phaser.Scene {
         };
       }
 
-      globalThis.gameState.currentSaveId = null;
+      if (!gameState.player) {
+        gameState.player = starterPlayerData;
+      }
+
+      gameState.currentSaveId = null;
       if (globalThis.saveManager) {
         globalThis.saveManager.currentSave = null;
       }
 
       // Generate loot tables for all chest types
-      globalThis.lootTables = globalThis.lootGenerator.generateAllRarities();
+      const generatedLootTables =
+        globalThis.lootGenerator?.generateAllRarities?.() || {};
+      globalThis.lootTables = generatedLootTables;
+      gameState.lootTables = generatedLootTables;
 
       console.log('Loot tables generated:', globalThis.lootTables);
 

@@ -11,14 +11,18 @@ class Instructions extends Phaser.Scene {
   create() {
     globalThis.enableSceneUiClickSfx?.(this);
     const { width, height } = this.scale;
-    const bgImage = this.textures.get('background').getSourceImage();
-    const bgScale = height / bgImage.height;
+    if (this.textures.exists('background')) {
+      const bgImage = this.textures.get('background').getSourceImage();
+      const bgScale = height / bgImage.height;
 
-    this.background = this.add.image(width / 2, 0, 'background').setOrigin(
-      0.5,
-      0,
-    );
-    this.background.setScale(bgScale);
+      this.background = this.add.image(width / 2, 0, 'background').setOrigin(
+        0.5,
+        0,
+      );
+      this.background.setScale(bgScale);
+    } else {
+      this.cameras.main.setBackgroundColor('#0f172a');
+    }
 
     this.add.text(400, 80, 'INSTRUCTIONS', {
       fontSize: '48px',

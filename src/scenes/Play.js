@@ -40,7 +40,7 @@ class Play extends Phaser.Scene {
   }
 
   createLeftHalf() {
-    const player = globalThis.gameState.player;
+    const player = globalThis.gameState?.player || {};
     const statSummary = this.getPlayerStatSummary(player);
 
     // player name - click to edit
@@ -148,12 +148,14 @@ class Play extends Phaser.Scene {
     );
 
     // EXP bar
-    const expPercent = Phaser.Math.Clamp(player.exp / player.expToNext, 0, 1);
+    const safeExp = Math.max(0, Number(player.exp) || 0);
+    const safeExpToNext = Math.max(1, Number(player.expToNext) || 1);
+    const expPercent = Phaser.Math.Clamp(safeExp / safeExpToNext, 0, 1);
     this.add.rectangle(100, 310, expPercent * 200, 15, 0x00ff00).setOrigin(
       0,
       0.5,
     );
-    this.add.text(200, 335, `${player.exp}/${player.expToNext} EXP`, {
+    this.add.text(200, 335, `${safeExp}/${safeExpToNext} EXP`, {
       fontSize: '12px',
       fill: '#aaa',
     }).setOrigin(0.5);
@@ -234,7 +236,7 @@ class Play extends Phaser.Scene {
   }
 
   getPlayerSpriteOptions() {
-    return globalThis.PLAYER_SPRITE_OPTIONS || [
+    const fallbackOptions = [
       {
         id: 'owlet',
         name: 'Owlet',
@@ -244,12 +246,27 @@ class Play extends Phaser.Scene {
         idleFrameCount: 4,
       },
     ];
+    const configuredOptions = globalThis.PLAYER_SPRITE_OPTIONS;
+    if (Array.isArray(configuredOptions) && configuredOptions.length > 0) {
+      return configuredOptions;
+    }
+    return fallbackOptions;
   }
 
   getSelectedPlayerSpriteOption() {
     const selectedId = globalThis.gameState?.player?.selectedSpriteId;
-    return globalThis.getPlayerSpriteOption?.(selectedId) ||
-      this.getPlayerSpriteOptions()[0];
+    const selected = globalThis.getPlayerSpriteOption?.(selectedId);
+    if (selected) {
+      return selected;
+    }
+    return this.getPlayerSpriteOptions()[0] || {
+      id: 'owlet',
+      name: 'Owlet',
+      idlePath: './assets/player/Owlet_Monster_Idle_4.png',
+      frameWidth: 32,
+      frameHeight: 32,
+      idleFrameCount: 4,
+    };
   }
 
   getIdleTextureKey(optionId) {
@@ -441,9 +458,16 @@ class Play extends Phaser.Scene {
   }
 
   startNameEditing() {
-    const player = globalThis.gameState.player;
+    if (this.editingName) {
+      return;
+    }
+
+    const player = globalThis.gameState?.player;
+    if (!player) {
+      return;
+    }
     this.editingName = true;
-    this.nameInput = player.name;
+    this.nameInput = player.name || '';
 
     const promptBg = this.add.rectangle(400, 300, 400, 200, 0x000000, 0.9);
     const promptText = this.add.text(400, 250, 'Enter new name:', {
@@ -510,9 +534,10 @@ class Play extends Phaser.Scene {
   }
 
   saveNewName() {
-    if (this.nameInput.trim()) {
-      globalThis.gameState.player.name = this.nameInput.trim();
-      this.playerNameText.setText(globalThis.gameState.player.name);
+    const player = globalThis.gameState?.player;
+    if (this.nameInput.trim() && player) {
+      player.name = this.nameInput.trim();
+      this.playerNameText.setText(player.name);
     }
     this.cancelNameEditing();
   }

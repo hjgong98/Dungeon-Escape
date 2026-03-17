@@ -70,8 +70,27 @@ const playerSpriteOptions = [
 
 globalThis.PLAYER_SPRITE_OPTIONS = playerSpriteOptions;
 globalThis.getPlayerSpriteOption = function getPlayerSpriteOption(id) {
-  return playerSpriteOptions.find((option) => option.id === id) ||
-    playerSpriteOptions[0];
+  const selected = playerSpriteOptions.find((option) => option.id === id);
+  if (selected) {
+    return selected;
+  }
+
+  if (playerSpriteOptions[0]) {
+    return playerSpriteOptions[0];
+  }
+
+  return {
+    id: 'owlet',
+    name: 'Owlet',
+    walkPath: './assets/player/Owlet_Monster_Walk_6.png',
+    idlePath: './assets/player/Owlet_Monster_Idle_4.png',
+    attackPath: './assets/player/Owlet_Monster_Attack1_4.png',
+    frameWidth: 32,
+    frameHeight: 32,
+    walkFrameCount: 6,
+    idleFrameCount: 4,
+    attackFrameCount: 4,
+  };
 };
 
 const monsterVariants = [

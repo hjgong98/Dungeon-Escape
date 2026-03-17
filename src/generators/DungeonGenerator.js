@@ -1,8 +1,18 @@
 // dungeonGenerator.js
 
-function generateDungeon() {
+function generateDungeon(options = {}) {
   const GRID_WIDTH = 52;
   const GRID_HEIGHT = 42;
+
+  const chestSpacingOptions = options.chestSpacing || {};
+  const chestStrictMinDistance = Math.max(
+    1,
+    Math.floor(chestSpacingOptions.strictMinDistance ?? 4),
+  );
+  const chestRelaxedMinDistance = Math.max(
+    1,
+    Math.floor(chestSpacingOptions.relaxedMinDistance ?? 2),
+  );
 
   // Random number of floors between 1-4
   const numFloors = 1 + Math.floor(Math.random() * 4);
@@ -1044,20 +1054,52 @@ function generateDungeon() {
     // Spawn chest count based on floor room count.
     const numChests = rooms.length + 2;
     const floorChests = [];
-    let chestIndex = 0;
+    const selectedChestKeys = new Set();
+    const strictMinChestDistance = chestStrictMinDistance;
+    const relaxedMinChestDistance = Math.min(
+      chestRelaxedMinDistance,
+      strictMinChestDistance,
+    );
 
-    for (let c = 0; c < numChests && chestIndex < allWalkable.length; c++) {
-      const chestTile = allWalkable[chestIndex++];
-      const boxTier = rollChestTier();
-      floorChests.push({
-        id: `floor-${f}-lootbox-${c}`,
-        x: chestTile.x,
-        y: chestTile.y,
-        boxTier,
-        isTrap: Math.random() < 0.1,
-      });
-      blockedKeys.add(`${chestTile.x},${chestTile.y}`);
-      blocked.push(chestTile);
+    const placeChestsWithMinDistance = (minDistance) => {
+      for (
+        let tileIndex = 0;
+        tileIndex < allWalkable.length && floorChests.length < numChests;
+        tileIndex++
+      ) {
+        const chestTile = allWalkable[tileIndex];
+        const chestKey = `${chestTile.x},${chestTile.y}`;
+        if (selectedChestKeys.has(chestKey)) {
+          continue;
+        }
+
+        const tooCloseToExistingChest = floorChests.some((existingChest) =>
+          Math.abs(existingChest.x - chestTile.x) +
+              Math.abs(existingChest.y - chestTile.y) < minDistance
+        );
+        if (tooCloseToExistingChest) {
+          continue;
+        }
+
+        const chestId = floorChests.length;
+        const boxTier = rollChestTier();
+        floorChests.push({
+          id: `floor-${f}-lootbox-${chestId}`,
+          x: chestTile.x,
+          y: chestTile.y,
+          boxTier,
+          isTrap: Math.random() < 0.1,
+        });
+        selectedChestKeys.add(chestKey);
+        blockedKeys.add(chestKey);
+        blocked.push(chestTile);
+      }
+    };
+
+    // Prefer spread-out chest placement, then relax if the floor is cramped.
+    placeChestsWithMinDistance(strictMinChestDistance);
+    if (floorChests.length < numChests) {
+      placeChestsWithMinDistance(relaxedMinChestDistance);
     }
 
     dungeon.floors.push({

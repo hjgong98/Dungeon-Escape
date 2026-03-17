@@ -25,16 +25,27 @@ class Upgrades extends Phaser.Scene {
 
   create() {
     globalThis.enableSceneUiClickSfx?.(this);
+    const player = this.getPlayerState();
+    if (!player) {
+      console.warn('[Upgrades] Missing player state; returning to Play scene.');
+      this.scene.start('Play');
+      return;
+    }
+
     // Background
     const { width, height } = this.scale;
     const bgKey = this.textures.exists('upgradesBackground')
       ? 'upgradesBackground'
       : 'background';
-    const bgImage = this.textures.get(bgKey).getSourceImage();
-    const bgScale = height / bgImage.height;
+    if (this.textures.exists(bgKey)) {
+      const bgImage = this.textures.get(bgKey).getSourceImage();
+      const bgScale = height / bgImage.height;
 
-    this.background = this.add.image(width / 2, 0, bgKey).setOrigin(0.5, 0);
-    this.background.setScale(bgScale);
+      this.background = this.add.image(width / 2, 0, bgKey).setOrigin(0.5, 0);
+      this.background.setScale(bgScale);
+    } else {
+      this.cameras.main.setBackgroundColor('#131722');
+    }
 
     // Title and gold
     this.add.text(400, 40, 'UPGRADES STATION', {
@@ -43,7 +54,6 @@ class Upgrades extends Phaser.Scene {
       fontStyle: 'bold',
     }).setOrigin(0.5);
 
-    const player = globalThis.gameState.player;
     const gold = player.gold || 0;
     this.add.text(680, 40, `💰 ${gold}`, {
       fontSize: '24px',
@@ -126,7 +136,10 @@ class Upgrades extends Phaser.Scene {
     const itemStatsX = 410;
     const itemButtonX = 590;
 
-    const player = globalThis.gameState.player;
+    const player = this.getPlayerState();
+    if (!player) {
+      return;
+    }
     const eq = player.equipment ||
       { weapon: null, armor: null, accessory: null };
 
@@ -420,7 +433,10 @@ class Upgrades extends Phaser.Scene {
     const overlay = this.add.rectangle(400, 315, 700, 380, 0x000000, 0.72);
     this.contentGroup.add(overlay);
 
-    const player = globalThis.gameState.player;
+    const player = this.getPlayerState();
+    if (!player) {
+      return;
+    }
 
     // Show equipped items first
     const eq = player.equipment || {};
@@ -593,7 +609,10 @@ class Upgrades extends Phaser.Scene {
     if (this.contentGroup) this.contentGroup.clear(true, true);
     this.contentGroup = this.add.group();
 
-    const player = globalThis.gameState.player;
+    const player = this.getPlayerState();
+    if (!player) {
+      return;
+    }
     const stats = this.calculateTotalStats(player);
     const potionCost = 10;
     const isFullyHealed = (player.hp || 0) >= (stats.maxHP || 100);
@@ -768,7 +787,10 @@ class Upgrades extends Phaser.Scene {
   }
 
   purchaseUpgradeMaterial(tier) {
-    const player = globalThis.gameState.player;
+    const player = this.getPlayerState();
+    if (!player) {
+      return;
+    }
     const cost = 10 * tier;
 
     if ((player.gold || 0) < cost) {
@@ -798,7 +820,10 @@ class Upgrades extends Phaser.Scene {
   }
 
   purchaseHealthPotion() {
-    const player = globalThis.gameState.player;
+    const player = this.getPlayerState();
+    if (!player) {
+      return;
+    }
     const potionCost = 10;
     const stats = this.calculateTotalStats(player);
     const maxHP = stats.maxHP || 100;
@@ -895,7 +920,10 @@ class Upgrades extends Phaser.Scene {
   }
 
   equipItem(item) {
-    const player = globalThis.gameState.player;
+    const player = this.getPlayerState();
+    if (!player) {
+      return;
+    }
     const type = item.type;
 
     // Auto-unequip current item of same type
@@ -920,7 +948,10 @@ class Upgrades extends Phaser.Scene {
   }
 
   unequipItem(slot) {
-    const player = globalThis.gameState.player;
+    const player = this.getPlayerState();
+    if (!player) {
+      return;
+    }
 
     if (player.equipment[slot]) {
       if (!player.inventory) player.inventory = [];
@@ -938,7 +969,10 @@ class Upgrades extends Phaser.Scene {
       return;
     }
 
-    const player = globalThis.gameState.player;
+    const player = this.getPlayerState();
+    if (!player) {
+      return;
+    }
     const cost = this.getEnhanceCost(item);
 
     if ((player.gold || 0) < cost.coins) {
@@ -1046,6 +1080,10 @@ class Upgrades extends Phaser.Scene {
 
     // Refresh scene
     this.scene.restart();
+  }
+
+  getPlayerState() {
+    return globalThis.gameState?.player || null;
   }
 }
 

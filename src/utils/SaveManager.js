@@ -92,21 +92,23 @@ class SaveManager {
       let starterArmor = null;
 
       if (globalThis.Weapon) {
-        starterWeapon = Weapon.generate(1, 0); // Tier 1, upgrade level 0
+        starterWeapon = globalThis.Weapon.generate(1, 0); // Tier 1, upgrade level 0
         console.log('Created starter weapon:', starterWeapon);
       } else {
         console.error('Weapon class not found');
       }
 
       if (globalThis.Armor) {
-        starterArmor = Armor.generate(1, 0); // Tier 1, upgrade level 0
+        starterArmor = globalThis.Armor.generate(1, 0); // Tier 1, upgrade level 0
         console.log('Created starter armor:', starterArmor);
       } else {
         console.error('Armor class not found');
       }
 
       const starterMaterial = globalThis.GameItem
-        ? GameItem.generateCraftingMaterial(Math.floor(Math.random() * 3) + 1)
+        ? globalThis.GameItem.generateCraftingMaterial(
+          Math.floor(Math.random() * 3) + 1,
+        )
         : {
           id: `craft_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
           name: 'Crafting Material T1',
@@ -518,7 +520,16 @@ class SaveManager {
         globalThis.lootTables = saveData.lootTables;
       } else {
         const lootData = localStorage.getItem(`loot_${saveId}`);
-        globalThis.lootTables = lootData ? JSON.parse(lootData) : {};
+        if (!lootData) {
+          globalThis.lootTables = {};
+        } else {
+          try {
+            globalThis.lootTables = JSON.parse(lootData);
+          } catch (error) {
+            console.error('Error parsing loot data for save:', saveId, error);
+            globalThis.lootTables = {};
+          }
+        }
       }
 
       // Update last played
