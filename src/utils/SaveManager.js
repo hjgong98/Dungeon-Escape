@@ -244,7 +244,8 @@ class SaveManager {
       name: playerData.name || 'Adventurer',
       level: safeLevel,
       hp: playerData.hp || baseMaxHp,
-      maxHP: playerData.maxHP || playerData.maxHp || getMaxHpForLevel(safeLevel),
+      maxHP: playerData.maxHP || playerData.maxHp ||
+        getMaxHpForLevel(safeLevel),
       atk: playerData.atk || 10,
       def: playerData.def || 5,
       luck: playerData.luck || 0,
@@ -321,12 +322,18 @@ class SaveManager {
     };
 
     player.levelUp = function levelUp() {
-      const previousMaxHp = Math.max(1, Number(this.maxHP) || getMaxHpForLevel(this.level));
+      const previousMaxHp = Math.max(
+        1,
+        Number(this.maxHP) || getMaxHpForLevel(this.level),
+      );
       this.level = Math.max(1, Number(this.level) || 1) + 1;
       this.maxHP = getMaxHpForLevel(this.level);
       this.maxHp = this.maxHP;
       const hpGain = Math.max(0, this.maxHP - previousMaxHp);
-      this.hp = Math.min(this.maxHP, Math.max(0, Number(this.hp) || 0) + hpGain);
+      this.hp = Math.min(
+        this.maxHP,
+        Math.max(0, Number(this.hp) || 0) + hpGain,
+      );
       this.atk = Math.max(1, Number(this.atk) || 10) + 1;
       this.def = Math.max(0, Number(this.def) || 5) + 1;
       this.expToNext = this.getRequiredExpForLevel(this.level);

@@ -136,7 +136,10 @@ class Player extends Phaser.Physics.Arcade.Sprite {
 
   // Level up increases stats
   levelUp() {
-    const previousMaxHp = Math.max(1, Number(this.maxHp) || Player.getBaseMaxHp());
+    const previousMaxHp = Math.max(
+      1,
+      Number(this.maxHp) || Player.getBaseMaxHp(),
+    );
     this.level++;
     this.expToNext = this.getRequiredExpForLevel(this.level);
 
