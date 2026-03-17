@@ -130,18 +130,30 @@ class Upgrades extends Phaser.Scene {
     const eq = player.equipment ||
       { weapon: null, armor: null, accessory: null };
 
-    // Current Equipment Section
-    const equipTitle = this.add.text(equipColumnX, 130, 'CURRENT EQUIPMENT', {
-      fontSize: '20px',
+    const equipTitleStyle = {
+      fontSize: '22px',
       fill: '#0ff',
       fontStyle: 'bold',
-    });
+    };
+    const statsTitleStyle = {
+      fontSize: '22px',
+      fill: '#ff0',
+      fontStyle: 'bold',
+    };
+
+    // Current Equipment Section
+    const equipTitle = this.add.text(
+      equipColumnX,
+      156,
+      'CURRENT EQUIPMENT',
+      equipTitleStyle,
+    ).setOrigin(0, 0.5);
     this.contentGroup.add(equipTitle);
 
     // Weapon slot
     this.createEquipmentSlot(
       equipColumnX,
-      168,
+      214,
       '⚔️ WEAPON',
       eq.weapon,
       'weapon',
@@ -151,7 +163,7 @@ class Upgrades extends Phaser.Scene {
     // Armor slot
     this.createEquipmentSlot(
       equipColumnX,
-      244,
+      286,
       '🛡️ ARMOR',
       eq.armor,
       'armor',
@@ -161,7 +173,7 @@ class Upgrades extends Phaser.Scene {
     // Accessory slot
     this.createEquipmentSlot(
       equipColumnX,
-      320,
+      358,
       '💍 ACCESSORY',
       eq.accessory,
       'accessory',
@@ -169,32 +181,33 @@ class Upgrades extends Phaser.Scene {
     );
 
     // Stats Panel
-    const statsTitle = this.add.text(statsColumnX, 130, 'TOTAL STATS', {
-      fontSize: '20px',
-      fill: '#ff0',
-      fontStyle: 'bold',
-    });
+    const statsTitle = this.add.text(
+      statsColumnX,
+      156,
+      'TOTAL STATS',
+      statsTitleStyle,
+    ).setOrigin(0, 0.5);
     this.contentGroup.add(statsTitle);
 
     const stats = this.calculateTotalStats(player);
 
-    const atkStat = this.add.text(statsColumnX, 176, `ATK: ${stats.atk}`, {
+    const atkStat = this.add.text(statsColumnX, 206, `ATK: ${stats.atk}`, {
       fontSize: '18px',
       fill: '#ff0',
     });
-    const defStat = this.add.text(statsColumnX, 210, `DEF: ${stats.def}`, {
+    const defStat = this.add.text(statsColumnX, 240, `DEF: ${stats.def}`, {
       fontSize: '18px',
       fill: '#0ff',
     });
     const hpStat = this.add.text(
       statsColumnX,
-      244,
+      274,
       `HP: ${player.hp || 100}/${stats.maxHP || 100}`,
       { fontSize: '18px', fill: '#f88' },
     );
     const luckStat = this.add.text(
       statsColumnX,
-      278,
+      308,
       `LUCK: ${Math.floor(stats.luck * 100)}%`,
       { fontSize: '18px', fill: '#f0f' },
     );
@@ -202,7 +215,7 @@ class Upgrades extends Phaser.Scene {
     this.contentGroup.addMultiple([atkStat, defStat, hpStat, luckStat]);
 
     // Available Items Section
-    const availTitle = this.add.text(400, 350, 'AVAILABLE TO EQUIP', {
+    const availTitle = this.add.text(400, 414, 'AVAILABLE TO EQUIP', {
       fontSize: '20px',
       fill: '#ff0',
       fontStyle: 'bold',
@@ -226,7 +239,7 @@ class Upgrades extends Phaser.Scene {
     const pageStart = this.equipPage * itemsPerPage;
     const pageItems = equippable.slice(pageStart, pageStart + itemsPerPage);
 
-    let y = 390;
+    let y = 438;
     pageItems.forEach((item) => {
       const tierColors = ['#888', '#8f8', '#88f', '#f8f', '#ff8', '#f88'];
       const color = tierColors[(item.tier || 1) - 1] || '#fff';
@@ -335,36 +348,55 @@ class Upgrades extends Phaser.Scene {
   }
 
   createEquipmentSlot(x, y, label, item, type, rightEdgeX = x + 330) {
-    const labelText = this.add.text(x, y - 17, label, {
-      fontSize: '14px',
+    const panelWidth = rightEdgeX - x;
+    const panel = this.add.rectangle(
+      x + (panelWidth / 2),
+      y,
+      panelWidth,
+      62,
+      0x333333,
+      0.8,
+    ).setStrokeStyle(2, 0x555555);
+    this.contentGroup.add(panel);
+
+    const labelText = this.add.text(x + 10, y - 15, label, {
+      fontSize: '13px',
       fill: '#aaa',
-    });
+    }).setOrigin(0, 0.5);
     this.contentGroup.add(labelText);
 
     if (item) {
       const upgradeText = item.upgradeLevel > 0 ? ` +${item.upgradeLevel}` : '';
-      const itemName = this.add.text(x, y + 2, `${item.name}${upgradeText}`, {
-        fontSize: '16px',
-        fill: '#fff',
-      });
+      const rowY = y + 10;
+      const itemName = this.add.text(
+        x + 10,
+        rowY,
+        `${item.name}${upgradeText}`,
+        {
+          fontSize: '16px',
+          fill: '#fff',
+          fixedWidth: Math.max(110, panelWidth - 230),
+        },
+      ).setOrigin(0, 0.5);
+
       const itemStats = this.add.text(
-        x,
-        y + 22,
+        x + (panelWidth * 0.56),
+        rowY,
         this.getItemStatsPreview(item),
         {
           fontSize: '12px',
           fill: '#aaa',
-          fixedWidth: Math.max(120, rightEdgeX - x - 120),
-          wordWrap: { width: Math.max(120, rightEdgeX - x - 120) },
+          align: 'center',
+          fixedWidth: 125,
         },
-      );
+      ).setOrigin(0.5, 0.5);
 
-      const unequipBtn = this.add.text(rightEdgeX, y + 8, 'UNEQUIP', {
+      const unequipBtn = this.add.text(rightEdgeX - 10, rowY, 'UNEQUIP', {
         fontSize: '14px',
         fill: '#f88',
         backgroundColor: '#444',
         padding: { x: 8, y: 3 },
-      }).setOrigin(1, 0).setInteractive();
+      }).setOrigin(1, 0.5).setInteractive();
 
       unequipBtn.on('pointerdown', () => {
         this.unequipItem(type);
@@ -372,11 +404,11 @@ class Upgrades extends Phaser.Scene {
 
       this.contentGroup.addMultiple([itemName, itemStats, unequipBtn]);
     } else {
-      const emptyText = this.add.text(x, y, '[EMPTY]', {
+      const emptyText = this.add.text(x + 10, y + 10, '[EMPTY]', {
         fontSize: '16px',
         fill: '#666',
         fontStyle: 'italic',
-      });
+      }).setOrigin(0, 0.5);
       this.contentGroup.add(emptyText);
     }
   }
@@ -398,18 +430,17 @@ class Upgrades extends Phaser.Scene {
       { item: eq.accessory, slotLabel: 'accessory', location: 'equipped' },
     ].filter((entry) => entry.item && entry.item.id);
 
-    const overlayTop = 315 - (380 / 2);
-    const panelContentTop = overlayTop + 16;
-    let y = 208;
+    let y = 214;
 
     if (equipItems.length > 0) {
-      const firstRowTop = y - (62 / 2);
-      const titleY = panelContentTop + ((firstRowTop - panelContentTop) / 2);
-      const equippedTitle = this.add.text(400, titleY, 'EQUIPPED ITEMS', {
-        fontSize: '18px',
+      const equippedTitle = this.add.text(400, 156, 'EQUIPPED ITEMS', {
+        fontSize: '22px',
         fill: '#0ff',
+        fontStyle: 'bold',
       }).setOrigin(0.5);
       this.contentGroup.add(equippedTitle);
+    } else {
+      y = 186;
     }
 
     equipItems.forEach((entry) => {
@@ -417,7 +448,7 @@ class Upgrades extends Phaser.Scene {
       y += 82;
     });
 
-    if (equipItems.length > 0) y += 18;
+    if (equipItems.length > 0) y += 20;
 
     // Show storage items that can be enhanced
     const storage = player.storage || [];
@@ -426,14 +457,15 @@ class Upgrades extends Phaser.Scene {
     );
 
     if (enhanceable.length > 0) {
-      y += 12;
+      y += 8;
       const storageTitle = this.add.text(400, y, 'STORAGE ITEMS', {
-        fontSize: '18px',
-        fill: '#0ff',
+        fontSize: '20px',
+        fill: '#ff0',
+        fontStyle: 'bold',
       }).setOrigin(0.5);
       this.contentGroup.add(storageTitle);
 
-      y += 36;
+      y += 40;
       enhanceable.slice(0, 3).forEach((item) => {
         this.createEnhanceItemRow(item, y, 'storage', item.type);
         y += 82;
@@ -571,7 +603,7 @@ class Upgrades extends Phaser.Scene {
     this.contentGroup.add(overlay);
 
     const title = this.add.text(400, 156, 'PURCHASE SUPPLIES', {
-      fontSize: '28px',
+      fontSize: '22px',
       fill: '#ff0',
       fontStyle: 'bold',
     }).setOrigin(0.5);

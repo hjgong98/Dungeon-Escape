@@ -250,9 +250,13 @@ class SaveManager {
     const player = {
       name: playerData.name || 'Adventurer',
       level: safeLevel,
-      hp: Math.max(0, Math.min(resolvedMaxHp, Number.isFinite(resolvedHp)
-        ? resolvedHp
-        : resolvedMaxHp)),
+      hp: Math.max(
+        0,
+        Math.min(
+          resolvedMaxHp,
+          Number.isFinite(resolvedHp) ? resolvedHp : resolvedMaxHp,
+        ),
+      ),
       maxHP: resolvedMaxHp,
       atk: playerData.atk || 10,
       def: playerData.def || 5,
@@ -444,9 +448,13 @@ class SaveManager {
     return {
       name: base?.name || 'Adventurer',
       level: base?.level || 1,
-      hp: Math.max(0, Math.min(serializedMaxHp, Number.isFinite(serializedHp)
-        ? serializedHp
-        : serializedMaxHp)),
+      hp: Math.max(
+        0,
+        Math.min(
+          serializedMaxHp,
+          Number.isFinite(serializedHp) ? serializedHp : serializedMaxHp,
+        ),
+      ),
       maxHP: serializedMaxHp,
       atk: base?.atk || 10,
       def: base?.def || 5,
