@@ -17,4 +17,4 @@ risks:
 
 - since this is a dungeon, we'll need to figure out a way to limit how much of the generated dungeon maze that the player can see
 - need to figure out the combat ai
-- leveling up ai and how that affects the dungeon difficulty levels (which should just affect the monster strengths and the chances of more rare things being generated)
+- leveling up ai and how that affects the dungeon difficulty levels (which should just affect the m
