@@ -26,7 +26,7 @@ class Menu extends Phaser.Scene {
     }
 
     // Title
-    this.add.text(400, 80, 'DUNGEON ESCAPE', {
+    this.add.text(400, 80, 'DUNGEON EXPLORER: LITE', {
       fontSize: '48px',
       fill: '#fff',
       fontStyle: 'bold',
