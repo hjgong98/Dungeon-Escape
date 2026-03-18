@@ -28,14 +28,23 @@ There are one monster assigned to each room plus an extra one placed randomly on
 
 Explanation of the Midterm tool(s) used and how they contributed to development
 -  used tristen chen's lootbox generator (https://github.com/TristanChenUCSC/Lotbox-Generator) for the lootbox json files. we had to convert his file to js. Basically, whenever the new game button is clicked, it generates a new set of json files for each rarity tier of lootboxes.
--  inho yoo item placement for chests (perlin noise)
+-  inho yoo's item placement logic for chests
 -  hannah gong's maze generation logic for making paths in the rooms - modified because i wanted to add the chambers to make the maze more interesting but the general idea is still the same.
+-  used FastNoiseLite (https://github.com/Auburn/FastNoiseLite) for perlin noise based lootbox placement.
 
 Team member contribution summary (if a team)
-hannah - made the base structural code and the dungeon generating logic
-inho - added sprites, sfx, dungeon hud
+hannah - made the base structural code and the dungeon generating logic.
+inho - added sprites, sfx, dungeon hud, collision logic refactoring, and lootbox generating logic.
 
 Credits including external content and midterm tools. This can be as a doc or a credits menu in game.
 -  theres a credits page in the game about where all the sprites and background pngs came from. 
--  used ai to help with the ui designs (centering text and buttons and stuff) as well as checking the code for places that could crash during a playthrough
--  also used ai to fix the math for hp gain per level as well calculations for the player base stats combined with the gear stats
+
+# AI Usage
+
+AI was used for version control related questions, including git rebase and general version control advice.
+
+AI was used for questions about how to apply FastNoise to a C# based project.
+
+AI was used for commit message recommendations.
+
+AI was used for centering the stuff in the UI.
