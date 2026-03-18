@@ -20,7 +20,7 @@ class Upgrades extends Phaser.Scene {
 
   preload() {
     globalThis.registerSharedSfx?.(this);
-    this.load.image('upgradesBackground', '/assets/forest1.png');
+    this.load.image('upgradesBackground', './assets/forest1.png');
   }
 
   create() {
@@ -34,9 +34,7 @@ class Upgrades extends Phaser.Scene {
 
     // Background
     const { width, height } = this.scale;
-    const bgKey = this.textures.exists('upgradesBackground')
-      ? 'upgradesBackground'
-      : 'background';
+    const bgKey = 'upgradesBackground';
     if (this.textures.exists(bgKey)) {
       const bgImage = this.textures.get(bgKey).getSourceImage();
       const bgScale = height / bgImage.height;

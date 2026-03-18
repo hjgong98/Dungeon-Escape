@@ -1049,7 +1049,27 @@ function generateDungeon(options = {}) {
       }
     });
 
-    shuffle(allWalkable);
+    const floorNoiseOffsetX = (f + 1) * 131;
+    const floorNoiseOffsetY = (f + 1) * 197;
+    const scoredWalkable = allWalkable.map((tile) => {
+      const perlinScore = lootboxNoise
+        ? lootboxNoise.GetNoise(tile.x + floorNoiseOffsetX, tile.y + floorNoiseOffsetY)
+        : Number.NEGATIVE_INFINITY;
+      return {
+        ...tile,
+        perlinScore,
+      };
+    });
+
+    scoredWalkable.sort((a, b) => {
+      if (b.perlinScore !== a.perlinScore) {
+        return b.perlinScore - a.perlinScore;
+      }
+      if (a.y !== b.y) {
+        return a.y - b.y;
+      }
+      return a.x - b.x;
+    });
 
     // Spawn chest count based on floor room count.
     const numChests = rooms.length + 2;
@@ -1064,10 +1084,10 @@ function generateDungeon(options = {}) {
     const placeChestsWithMinDistance = (minDistance) => {
       for (
         let tileIndex = 0;
-        tileIndex < allWalkable.length && floorChests.length < numChests;
+        tileIndex < scoredWalkable.length && floorChests.length < numChests;
         tileIndex++
       ) {
-        const chestTile = allWalkable[tileIndex];
+        const chestTile = scoredWalkable[tileIndex];
         const chestKey = `${chestTile.x},${chestTile.y}`;
         if (selectedChestKeys.has(chestKey)) {
           continue;
