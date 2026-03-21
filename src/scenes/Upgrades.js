@@ -455,30 +455,6 @@ class Upgrades extends Phaser.Scene {
       this.createEnhanceItemRow(entry.item, y, entry.location, entry.slotLabel);
       y += 82;
     });
-
-    if (equipItems.length > 0) y += 20;
-
-    // Show storage items that can be enhanced
-    const storage = player.storage || [];
-    const enhanceable = storage.filter((i) =>
-      ['weapon', 'armor', 'accessory'].includes(i.type)
-    );
-
-    if (enhanceable.length > 0) {
-      y += 8;
-      const storageTitle = this.add.text(400, y, 'STORAGE ITEMS', {
-        fontSize: '20px',
-        fill: '#ff0',
-        fontStyle: 'bold',
-      }).setOrigin(0.5);
-      this.contentGroup.add(storageTitle);
-
-      y += 40;
-      enhanceable.slice(0, 3).forEach((item) => {
-        this.createEnhanceItemRow(item, y, 'storage', item.type);
-        y += 82;
-      });
-    }
   }
 
   createEnhanceItemRow(item, y, location, slotLabel) {
