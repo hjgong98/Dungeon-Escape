@@ -640,12 +640,21 @@ class Inventory extends Phaser.Scene {
 
     this.detailGroup = this.add.group();
 
+    const consumePointer = (_pointer, _localX, _localY, event) => {
+      event?.stopPropagation?.();
+    };
+
     const overlay = this.add.rectangle(400, 300, 800, 600, 0x000000, 0.6)
       .setInteractive();
+    overlay.on('pointerdown', consumePointer);
+    overlay.on('pointerup', consumePointer);
     this.detailGroup.add(overlay);
 
-    const panel = this.add.rectangle(400, 285, 560, 360, 0x1f1f1f, 0.95);
+    const panel = this.add.rectangle(400, 285, 560, 360, 0x1f1f1f, 0.95)
+      .setInteractive();
     panel.setStrokeStyle(2, 0x666666);
+    panel.on('pointerdown', consumePointer);
+    panel.on('pointerup', consumePointer);
     this.detailGroup.add(panel);
 
     const title = this.add.text(
