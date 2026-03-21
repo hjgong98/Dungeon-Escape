@@ -11,6 +11,7 @@ class Inventory extends Phaser.Scene {
     this.storageGroup = null;
     this.actionGroup = null;
     this.detailGroup = null;
+    this.goldText = null;
   }
 
   init(data = {}) {
@@ -25,6 +26,7 @@ class Inventory extends Phaser.Scene {
     this.storageGroup = null;
     this.actionGroup = null;
     this.detailGroup = null;
+    this.goldText = null;
   }
 
   preload() {
@@ -36,22 +38,20 @@ class Inventory extends Phaser.Scene {
     globalThis.enableSceneUiClickSfx?.(this);
     const player = this.getPlayerState();
     if (!player) {
-      console.warn('[Inventory] Missing player state; returning to Play scene.');
+      console.warn(
+        '[Inventory] Missing player state; returning to Play scene.',
+      );
       this.scene.start('Play');
       return;
     }
 
     // Background
-    const { width, height } = this.scale;
     if (this.textures.exists('inventoryBackground')) {
-      const bgImage = this.textures.get('inventoryBackground').getSourceImage();
-      const bgScale = height / bgImage.height;
-      this.background = this.add.image(width / 2, 0, 'inventoryBackground')
-        .setOrigin(
-          0.5,
-          0,
-        );
-      this.background.setScale(bgScale);
+      this.background = this.add.image(0, 0, 'inventoryBackground').setOrigin(
+        0,
+        0,
+      );
+      this.background.setDisplaySize(800, 600);
     } else {
       this.cameras.main.setBackgroundColor('#101820');
     }
@@ -63,13 +63,13 @@ class Inventory extends Phaser.Scene {
       fontStyle: 'bold',
     }).setOrigin(0.5);
 
-    const gold = player.gold || 0;
-    this.add.text(680, 40, `💰 ${gold}`, {
+    this.goldText = this.add.text(680, 40, '', {
       fontSize: '24px',
       fill: '#ff0',
       backgroundColor: '#333',
       padding: { x: 10, y: 5 },
     });
+    this.refreshGoldDisplay();
 
     this.ensureCapacityFields();
 
@@ -184,19 +184,27 @@ class Inventory extends Phaser.Scene {
         const tierColors = ['#888', '#8f8', '#88f', '#f8f', '#ff8', '#f88'];
         const color = tierColors[(item.tier || 1) - 1] || '#fff';
 
-        const stackText = stack.count > 1 ? ` (${stack.count})` : '';
         const itemText = this.add.text(
           80,
           y,
-          `${item.name}${stackText}`,
+          this.getDisplayItemName(item),
           {
             fontSize: '16px',
             fill: color,
-            fixedWidth: 200,
+            fixedWidth: 220,
             align: 'left',
           },
         ).setOrigin(0, 0.5);
         this.bagGroup.add(itemText);
+
+        if (stack.count > 1) {
+          const countText = this.add.text(332, y, `${stack.count}`, {
+            fontSize: '16px',
+            fill: '#ddd',
+            align: 'right',
+          }).setOrigin(1, 0.5);
+          this.bagGroup.add(countText);
+        }
 
         // Click handler
         itemBg.on('pointerdown', () => {
@@ -342,19 +350,27 @@ class Inventory extends Phaser.Scene {
         const tierColors = ['#888', '#8f8', '#88f', '#f8f', '#ff8', '#f88'];
         const color = tierColors[(item.tier || 1) - 1] || '#fff';
 
-        const stackText = stack.count > 1 ? ` (${stack.count})` : '';
         const itemText = this.add.text(
           480,
           y,
-          `${item.name}${stackText}`,
+          this.getDisplayItemName(item),
           {
             fontSize: '16px',
             fill: color,
-            fixedWidth: 200,
+            fixedWidth: 220,
             align: 'left',
           },
         ).setOrigin(0, 0.5);
         this.storageGroup.add(itemText);
+
+        if (stack.count > 1) {
+          const countText = this.add.text(732, y, `${stack.count}`, {
+            fontSize: '16px',
+            fill: '#ddd',
+            align: 'right',
+          }).setOrigin(1, 0.5);
+          this.storageGroup.add(countText);
+        }
 
         itemBg.on('pointerdown', () => {
           if (stack.count > 1 || this.isEquipmentType(item)) {
@@ -433,8 +449,6 @@ class Inventory extends Phaser.Scene {
 
       // Show selected item info
       const firstSelected = selectedItems[0];
-      const tierColors = ['#888', '#8f8', '#88f', '#f8f', '#ff8', '#f88'];
-      const color = tierColors[(firstSelected.tier || 1) - 1] || '#fff';
 
       let selectedLabel = `Selected: ${selectedItems.length} item${
         selectedItems.length === 1 ? '' : 's'
@@ -443,7 +457,9 @@ class Inventory extends Phaser.Scene {
         const upgradeText = firstSelected.upgradeLevel > 0
           ? ` +${firstSelected.upgradeLevel}`
           : '';
-        selectedLabel = `Selected: ${firstSelected.name}${upgradeText}`;
+        selectedLabel = `Selected: ${
+          this.getDisplayItemName(firstSelected)
+        }${upgradeText}`;
       }
 
       const selectedText = this.add.text(
@@ -452,7 +468,7 @@ class Inventory extends Phaser.Scene {
         selectedLabel,
         {
           fontSize: '14px',
-          fill: color,
+          fill: '#000',
           fixedWidth: 220,
           align: 'left',
         },
@@ -525,7 +541,7 @@ class Inventory extends Phaser.Scene {
         'Click an item to select',
         {
           fontSize: '14px',
-          fill: '#aaa',
+          fill: '#000',
           fontStyle: 'italic',
           fixedWidth: 280,
           align: 'right',
@@ -635,7 +651,7 @@ class Inventory extends Phaser.Scene {
     const title = this.add.text(
       400,
       130,
-      `${stack.item.name} (${stack.count})`,
+      `${this.getDisplayItemName(stack.item)} (${stack.count})`,
       {
         fontSize: '24px',
         fill: '#fff',
@@ -715,7 +731,7 @@ class Inventory extends Phaser.Scene {
       const line = this.add.text(
         148,
         y,
-        entry.name,
+        this.getDisplayItemName(entry),
         {
           fontSize: '14px',
           fill: '#ddd',
@@ -872,6 +888,18 @@ class Inventory extends Phaser.Scene {
     }
 
     return '';
+  }
+
+  getDisplayItemName(itemOrName) {
+    const rawName = typeof itemOrName === 'string'
+      ? itemOrName
+      : (itemOrName?.name || 'Unknown');
+
+    return String(rawName)
+      .replace(/\s*\(\s*T\d+\s*\)$/i, '')
+      .replace(/\s+T\d+$/i, '')
+      .replace(/\s+Tier\s*\d+$/i, '')
+      .trim();
   }
 
   selectItem(item, location, index) {
@@ -1052,7 +1080,11 @@ class Inventory extends Phaser.Scene {
     );
 
     // Add gold
-    player.gold = (player.gold || 0) + value;
+    if (typeof player.addGold === 'function') {
+      player.addGold(value);
+    } else {
+      player.gold = (player.gold || 0) + value;
+    }
 
     // Remove item
     player.inventory = (player.inventory || []).filter((i) =>
@@ -1062,7 +1094,15 @@ class Inventory extends Phaser.Scene {
       !this.selectedItems.has(i)
     );
 
+    this.refreshGoldDisplay();
     this.clearSelection();
+  }
+
+  refreshGoldDisplay() {
+    if (!this.goldText) return;
+    const player = this.getPlayerState();
+    const gold = Math.max(0, Number(player?.gold) || 0);
+    this.goldText.setText(`💰 ${gold}`);
   }
 
   upgradeBagSlots() {

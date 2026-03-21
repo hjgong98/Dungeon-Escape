@@ -2144,11 +2144,13 @@ class Dungeons extends Phaser.Scene {
     const label = dodged ? 'DODGE!' : `-${amount}`;
     const color = dodged ? '#fff' : '#ff4444';
     const text = this.add.text(x, y - 6, label, {
-      fontSize: '5px',
+      fontSize: '10px',
       fill: color,
       stroke: '#000',
-      strokeThickness: 1,
+      strokeThickness: 2,
     }).setOrigin(0.5).setDepth(2000);
+    text.setResolution(2);
+    text.setScale(0.5);
 
     this.tweens.add({
       targets: text,

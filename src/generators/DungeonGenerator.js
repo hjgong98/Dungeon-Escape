@@ -1053,7 +1053,10 @@ function generateDungeon(options = {}) {
     const floorNoiseOffsetY = (f + 1) * 197;
     const scoredWalkable = allWalkable.map((tile) => {
       const perlinScore = lootboxNoise
-        ? lootboxNoise.GetNoise(tile.x + floorNoiseOffsetX, tile.y + floorNoiseOffsetY)
+        ? lootboxNoise.GetNoise(
+          tile.x + floorNoiseOffsetX,
+          tile.y + floorNoiseOffsetY,
+        )
         : Number.NEGATIVE_INFINITY;
       return {
         ...tile,

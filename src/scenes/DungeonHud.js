@@ -188,8 +188,6 @@ class DungeonHud extends Phaser.Scene {
         fill: color,
         stroke: '#000',
         strokeThickness: 1,
-        backgroundColor: 'rgba(0,0,0,0.55)',
-        padding: { x: 3, y: 1 },
       },
     ).setOrigin(0.5, 0.5);
 
@@ -545,9 +543,7 @@ class DungeonHud extends Phaser.Scene {
           return;
         }
         const inv = activePlayer.inventory || [];
-        activePlayer.inventory = inv.filter((i) =>
-          !selected.has(i)
-        );
+        activePlayer.inventory = inv.filter((i) => !selected.has(i));
         selected.clear();
         this._buildBagPopup();
       });
