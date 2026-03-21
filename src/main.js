@@ -123,6 +123,7 @@ const sharedSfxPaths = {
   'player-attack-sfx': './assets/audio/attack.wav',
   'enemy-death-sfx': './assets/audio/enemy_death.wav',
   'lootbox-open-sfx': './assets/audio/openchest.mp3',
+  'transactions-sfx': './assets/audio/transactions.mp3',
 };
 
 globalThis.registerSharedSfx = function registerSharedSfx(scene) {

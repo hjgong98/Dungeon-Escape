@@ -519,7 +519,9 @@ class Upgrades extends Phaser.Scene {
       }).setOrigin(0.5).setInteractive();
       this.contentGroup.add(upgradeBtn);
 
-      upgradeBtn.on('pointerdown', () => {
+      upgradeBtn.on('pointerdown', (_pointer, _localX, _localY, event) => {
+        event?.stopPropagation?.();
+        globalThis.playSharedSfx?.(this, 'transactions-sfx', { volume: 0.4 });
         this.upgradeItem(item, location);
       });
     } else {
@@ -648,7 +650,8 @@ class Upgrades extends Phaser.Scene {
 
     if (canAffordPotion && !isFullyHealed) {
       buyPotionBtn.setInteractive();
-      buyPotionBtn.on('pointerdown', () => {
+      buyPotionBtn.on('pointerdown', (_pointer, _localX, _localY, event) => {
+        event?.stopPropagation?.();
         this.purchaseHealthPotion();
       });
     }
@@ -747,7 +750,8 @@ class Upgrades extends Phaser.Scene {
 
       if (canAffordMaterial) {
         materialBtn.setInteractive();
-        materialBtn.on('pointerdown', () => {
+        materialBtn.on('pointerdown', (_pointer, _localX, _localY, event) => {
+          event?.stopPropagation?.();
           this.purchaseUpgradeMaterial(tier);
         });
       }
@@ -784,6 +788,8 @@ class Upgrades extends Phaser.Scene {
     if (!player.storage) player.storage = [];
     player.storage.push(material);
 
+    globalThis.playSharedSfx?.(this, 'transactions-sfx', { volume: 0.4 });
+
     this.scene.restart({ currentTab: 'purchase' });
   }
 
@@ -802,6 +808,8 @@ class Upgrades extends Phaser.Scene {
 
     player.gold -= potionCost;
     player.hp = maxHP;
+
+    globalThis.playSharedSfx?.(this, 'transactions-sfx', { volume: 0.4 });
 
     this.scene.restart({ currentTab: 'purchase' });
   }
