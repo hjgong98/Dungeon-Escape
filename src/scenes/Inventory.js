@@ -710,7 +710,6 @@ class Inventory extends Phaser.Scene {
     this.detailGroup.add(closeBtn);
 
     closeBtn.on('pointerdown', () => this.closeStackDetails());
-    overlay.on('pointerdown', () => this.closeStackDetails());
 
     const maxLines = 7;
     const totalPages = Math.max(1, Math.ceil(stack.items.length / maxLines));
